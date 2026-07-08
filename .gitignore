@@ -1,0 +1,37 @@
+# Deployment package tracking only. Everything else is local research state.
+*
+
+# Root distribution metadata.
+!/.gitignore
+!/.dockerignore
+!/README.md
+!/pyproject.toml
+
+# Package source and container build files.
+!/src/
+!/src/**
+!/docker/
+!/docker/**
+
+# Common generated clutter, kept explicit for `git check-ignore` diagnostics.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pi/
+*.log
+*.jsonl
+*.sqlite
+*.db
+*.parquet
+*.npz
+*.npy
+*.pdb
+*.xtc
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.docx
+*.html

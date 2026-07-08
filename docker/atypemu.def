@@ -1,0 +1,31 @@
+Bootstrap: docker
+From: docker.io/pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
+
+%files
+    docker/requirements.txt /workspace/AtypEmu/docker/requirements.txt
+    pyproject.toml /workspace/AtypEmu/pyproject.toml
+    plan.md /workspace/AtypEmu/plan.md
+    src /workspace/AtypEmu/src
+    tests /workspace/AtypEmu/tests
+    theory /workspace/AtypEmu/theory
+
+%post
+    apt-get update && apt-get install -y --no-install-recommends \
+        bash \
+        build-essential \
+        ca-certificates \
+        curl \
+        git \
+        rsync \
+        wget \
+        && rm -rf /var/lib/apt/lists/*
+    python -m pip install --upgrade pip setuptools wheel
+    python -m pip install -r /workspace/AtypEmu/docker/requirements.txt
+    python -m pip install -e /workspace/AtypEmu
+
+%environment
+    export PYTHONUNBUFFERED=1
+    export PYTHONPATH=/workspace/AtypEmu/src:${PYTHONPATH}
+
+%runscript
+    exec python -c "import atypemu, bioemu, streamlit; print('AtypEmu BioEmu Singularity image ready')"

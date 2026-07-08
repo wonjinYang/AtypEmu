@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atypemu"
+version = "0.1.0"
+description = "Offline-core posterior scoring and reweighting for BioEmu-guided IDP ensemble analysis."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "biopython>=1.86",
+    "freesasa>=2.2",
+    "numpy>=2.2",
+    "pandas>=2.2",
+    "pyarrow>=19.0",
+    "pynmrstar>=3.3",
+    "requests>=2.31",
+    "scipy>=1.16",
+]
+
+[project.optional-dependencies]
+crawl = [
+    "playwright>=1.53",
+]
+monitor = [
+    "py3Dmol>=2.4",
+    "plotly>=5.24",
+    "streamlit>=1.40",
+]
+render = [
+    "matplotlib>=3.10",
+]
+
+[project.scripts]
+atypemu-build-targets = "atypemu.cli.offline.build_targets:main"
+atypemu-stage-bmrb = "atypemu.cli.structures.stage_bmrb:main"
+atypemu-unpack-archives = "atypemu.cli.structures.unpack_archives:main"
+atypemu-prepare-bmrb = "atypemu.cli.databases.bmrb.prepare:main"
+atypemu-export-bmrb-dataframes = "atypemu.cli.databases.bmrb.export:main"
+atypemu-setup-training-workspace = "atypemu.cli.integrated.setup_workspace:main"
+atypemu-setup-source-workspace = "atypemu.cli.databases.setup_source_workspace:main"
+atypemu-crawl-source-assets = "atypemu.cli.databases.crawl_source_assets:main"
+atypemu-crawl-ped = "atypemu.cli.databases.ped.crawl:main"
+atypemu-classify-ped = "atypemu.cli.databases.ped.classify:main"
+atypemu-prepare-ped-bridge = "atypemu.cli.databases.ped.bridge:main"
+atypemu-migrate-ped-layout = "atypemu.cli.databases.ped.migrate:main"
+atypemu-export-ped-dataframes = "atypemu.cli.databases.ped.export:main"
+atypemu-crawl-sasbdb = "atypemu.cli.databases.sasbdb.crawl:main"
+atypemu-export-sasbdb-dataframes = "atypemu.cli.databases.sasbdb.export:main"
+atypemu-crawl-mfib = "atypemu.cli.databases.mfib.crawl:main"
+atypemu-export-mfib-dataframes = "atypemu.cli.databases.mfib.export:main"
+atypemu-compute-mfib-geometry = "atypemu.cli.databases.mfib.geometry:main"
+atypemu-crawl-fuzdb = "atypemu.cli.databases.fuzdb.crawl:main"
+atypemu-export-fuzdb-dataframes = "atypemu.cli.databases.fuzdb.export:main"
+atypemu-export-meta-dataframes = "atypemu.cli.integrated.export_meta_dataframes:main"
+atypemu-export-training-dataframes = "atypemu.cli.integrated.export_training_dataframes:main"
+atypemu-materialize-teachers = "atypemu.cli.training.materialize_teachers:main"
+atypemu-audit-training-readiness = "atypemu.cli.training.audit_readiness:main"
+atypemu-train-student = "atypemu.cli.training.train_student:main"
+atypemu-generate-ucbshift-sidecars = "atypemu.cli.training.generate_ucbshift_sidecars:main"
+atypemu-generate-bioemu-ucbshift-cnnls-teacher = "atypemu.cli.training.generate_bioemu_ucbshift_cnnls_teacher:main"
+atypemu-export-cs-reweighting-teacher = "atypemu.cli.training.export_cs_reweighting_teacher:main"
+atypemu-merge-ucbshift-sidecars = "atypemu.cli.training.merge_ucbshift_sidecars:main"
+atypemu-audit-cs-prediction-parity = "atypemu.cli.training.audit_cs_prediction_parity:main"
+atypemu-monitor-training = "atypemu.cli.monitoring.training:main"
+atypemu-build-pool = "atypemu.cli.structures.build_pool:main"
+atypemu-compute-observables = "atypemu.cli.offline.compute_observables:main"
+atypemu-fit-weights = "atypemu.cli.offline.fit_weights:main"
+atypemu-evaluate = "atypemu.cli.offline.evaluate:main"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,35 @@
+numpy>=2.2
+scipy>=1.16
+biopython>=1.86
+freesasa>=2.2
+pandas>=2.2
+pyarrow>=19.0
+playwright>=1.53
+pynmrstar>=3.3
+pytest>=8.4
+requests>=2.31
+tensorboard>=2.16
+matplotlib>=3.10
+streamlit>=1.40
+plotly>=5.24
+py3Dmol>=2.4
+huggingface-hub
+hydra-core
+omegaconf
+torch-geometric>=2.6.1
+mdtraj>=1.9.9
+modelcif==0.7
+bio>=1.5.9
+fire==0.7.0
+dm-tree
+stackprinter
+typer
+uv
+einops
+dm-haiku>=0.0.12
+ml-collections
+absl-py
+jax==0.4.35
+tensorflow-cpu>=2.12.0
+bioemu @ git+https://github.com/microsoft/bioemu.git@main
+esm @ git+https://github.com/evolutionaryscale/esm.git@main
