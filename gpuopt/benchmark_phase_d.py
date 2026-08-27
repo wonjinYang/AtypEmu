@@ -65,6 +65,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--result", required=True, type=Path)
     result.add_argument("--timing-ready", required=True, type=Path)
     result.add_argument("--timing-done", required=True, type=Path)
+    result.add_argument("--start-signal", type=Path)
     result.add_argument("--epochs", default=2, choices=(2,), type=int)
     result.add_argument("--cohort-size", default=32, choices=(32,), type=int)
     return result
@@ -117,6 +118,13 @@ def main() -> int:
 
     torch.cuda.synchronize()
     args.timing_ready.touch()
+    if args.start_signal is not None:
+        for _ in range(360_000):
+            if args.start_signal.exists():
+                break
+            time.sleep(0.01)
+        else:
+            raise TimeoutError("benchmark start signal was not issued")
     started = time.perf_counter()
     prepared = False
     work = rows
