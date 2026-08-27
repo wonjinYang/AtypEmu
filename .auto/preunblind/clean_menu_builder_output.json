@@ -1,0 +1,120 @@
+{
+  "decision": "SAFE_MENU",
+  "candidate_schema": {
+    "precedent": "PHE:HN:sulfur_electrostatic:Q4",
+    "precedent_status": "Dated untried alternative from run 7; no historical Phase-D result is assumed.",
+    "support_gate": "target_atom_family == 'HN' && target_residue_name == 'PHE'",
+    "feature_source": "Frozen inter-residue sulfur-role RBF channel evaluated from the target HN coordinate.",
+    "feature_formula": "For center c, let z_k,t,c be the existing nonnegative inter-residue S-role channel sum(rbf_c)/sqrt(max(S_role_count,1)). Define f_k,t,c = 1 - exp(-z_k,t,c), which is smooth and in [0,1).",
+    "correction_formula": "support_mean_corrected_k,t = support_mean_k,t + I[support_gate] * sign * 0.005 * f_k,t,c ppm",
+    "application_stage": "Apply to support means after posterior q is computed.",
+    "centers_nm": [
+      0.2,
+      0.3,
+      0.4,
+      0.55,
+      0.75,
+      1.0
+    ],
+    "rbf_width_nm": 0.12,
+    "sign_set": [
+      -1,
+      1
+    ],
+    "magnitude_ppm": 0.005,
+    "maximum_absolute_correction_ppm": 0.005,
+    "q4_handling": "Q4 is retained only as the dated route-provenance label. No unavailable old-chart quantile or threshold is reconstructed."
+  },
+  "candidates": [
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c020.neg.a005",
+      "center_nm": 0.2,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c020.pos.a005",
+      "center_nm": 0.2,
+      "sign": 1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c030.neg.a005",
+      "center_nm": 0.3,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c030.pos.a005",
+      "center_nm": 0.3,
+      "sign": 1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c040.neg.a005",
+      "center_nm": 0.4,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c040.pos.a005",
+      "center_nm": 0.4,
+      "sign": 1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c055.neg.a005",
+      "center_nm": 0.55,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c055.pos.a005",
+      "center_nm": 0.55,
+      "sign": 1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c075.neg.a005",
+      "center_nm": 0.75,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c075.pos.a005",
+      "center_nm": 0.75,
+      "sign": 1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c100.neg.a005",
+      "center_nm": 1.0,
+      "sign": -1
+    },
+    {
+      "id": "phaseD.PHE.HN.sulfur_electrostatic.Q4.interS.c100.pos.a005",
+      "center_nm": 1.0,
+      "sign": 1
+    }
+  ],
+  "exclusions": [
+    {
+      "route": "SER:HN:exchange:Q4",
+      "reason": "The old route reached its configured maximum, no exchange-state label exists, and no independent train-to-inner-dev counterfactual supporting a distinct acceptor-geometry realization was supplied."
+    },
+    {
+      "route": "GLY:HN:sulfur_electrostatic:Q1",
+      "reason": "Although inter-residue sulfur geometry is available, the old chart was maxed and the required independent counterfactual for adding a distinct correction has not yet been established."
+    },
+    {
+      "route": "THR:HN:ring_current:Q4",
+      "reason": "The frozen surface has no aromatic ring-current scalar or sufficient ring representation."
+    },
+    {
+      "route": "GLU:HN:alignment_mismatch:Q1",
+      "reason": "The frozen surface has no alignment-mismatch feature."
+    },
+    {
+      "route": "terminal routes",
+      "reason": "No named dated candidate precedent or terminal-state representation is available."
+    }
+  ],
+  "leakage_notes": [
+    "The menu uses only dated precedents, frozen target metadata, and frozen support-conformer geometry; no current or outer result is used.",
+    "Centers, width, signs, magnitude, gates, and IDs are fixed before evaluation.",
+    "The separately supplied compass is used only as direction corroborated by the dated PHE sulfur precedent.",
+    "Later selection must use only inner-train and inner-dev folds and require improvement with the same candidate sign in all three folds, lower Student-t objective, and no worsening of HN raw or standardized p95 or max.",
+    "Because the correction is HN/PHE-gated and post-q, C', CA, CB, N, posterior q, ESS, and entropy must remain exactly invariant.",
+    "If no candidate satisfies every selection guard, the required outcome is NO_CANDIDATE."
+  ]
+}

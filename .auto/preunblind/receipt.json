@@ -1,0 +1,28 @@
+{
+  "artifact_kind": "atypemu_preunblinding_domain_compass_provenance_v1",
+  "source": {
+    "kind": "user_authored_project_conversation_message",
+    "conversation_ordinal": 1043,
+    "recovery_method": "ctx_expand(message=1043)",
+    "materialized_path": ".auto/preunblind/domain_compass_ordinal1043.txt",
+    "materialized_sha256": "a52f05b66ac3fe97925dc7e532c1f8556322b5546c769120ec3643a9cf86fc13",
+    "materialized_bytes": 1404
+  },
+  "temporal_anchor": {
+    "nearest_preceding_experiment_record": "autoresearch.jsonl line 43, run 21",
+    "run_21_timestamp_unix_ms": 1787835373698,
+    "run_21_timestamp_utc": "2026-08-27T12:56:13.698000+00:00",
+    "autoresearch_log_prefix_through_line_43_sha256": "c227e0c335bdfa9bd115fc0cccaf8f65f741e3c2ec8e939f39afa3fa856763b0",
+    "temporal_priority_verified": false
+  },
+  "scope": {
+    "allowed_use": "corroborating candidate-menu provenance and inner-development guard design after an independently dated record is found",
+    "forbidden_use": "scientific promotion or tuning from v3339w outer-held values",
+    "external_ground_truth": false
+  },
+  "limitations": [
+    "The conversation store is project provenance, not an independent external registry.",
+    "This receipt was materialized after v3339w unblinding and therefore proves content linkage, not by itself a contemporaneous filesystem freeze.",
+    "Independent G2 observer or authorized H5 evidence remains required for broad promotion."
+  ]
+}

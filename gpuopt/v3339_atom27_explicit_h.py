@@ -37,6 +37,12 @@ COORDINATE_SCOPE = (
 ATOM_COUNT = 27
 ROLE_COUNT = 7
 ROLE_NAMES = ("H", "C", "N", "O", "S", "donor", "acceptor")
+PHYSICS_CHART_MENU_SHA256 = "3d120deccf219f517938467bd0e18fb4f2fffe1d9444b09250c6f908e4cac42f"
+PHYSICS_CHART_CANDIDATE: dict[str, Any] | None = None
+PHYSICS_CHART_RBF_CENTERS_NM = (0.20, 0.30, 0.40, 0.55, 0.75, 1.00)
+PHYSICS_CHART_RBF_WIDTH_NM = 0.12
+PHYSICS_CHART_PHE_TOKEN = 5
+PHYSICS_CHART_HN_ATOM_INDEX = 55
 PINNED_V6_SUPPORT_SHA256 = "5f40de7904768595508b19fd3f077d9fb55bd9879a129e26725f19473a579a0f"
 PINNED_V6_MODEL_SHA256 = "d8348a88740171939d0fabad3430b1f8adf2813c86238c7d12611cf9c79d2d56"
 PARENT_V6_MODEL_SHA256 = "5025ac301e5e4444382a09ba4175b775967a775b9445f2f6dd23cbb1dbce3116"
@@ -588,6 +594,89 @@ class DifferentiableAtom27TorsionDecoder(nn.Module):
         if not torch.isfinite(positions[base_atom27_mask]).all():
             raise ValueError("actuated atom27 coordinates became nonfinite")
         return positions, base_atom27_mask
+
+
+def phe_hn_inter_sulfur_features(
+    *,
+    atom27_positions: torch.Tensor,
+    atom27_mask: torch.Tensor,
+    atom27_role_features: torch.Tensor,
+    residue_index: torch.Tensor,
+    equivalent_structure_slots: torch.Tensor,
+    chunk_size: int = 64,
+) -> torch.Tensor:
+    """Return the frozen six-center inter-residue sulfur chart in [0, 1)."""
+
+    if atom27_positions.ndim != 5 or atom27_positions.shape[-2:] != (ATOM_COUNT, 3):
+        raise ValueError("atom27_positions must be [B,K,L,27,3]")
+    batch, support_count, residue_count = atom27_positions.shape[:3]
+    target_count = residue_index.shape[1]
+    if (
+        atom27_mask.shape != (batch, support_count, residue_count, ATOM_COUNT)
+        or atom27_role_features.shape
+        != (batch, support_count, residue_count, ATOM_COUNT, ROLE_COUNT)
+        or equivalent_structure_slots.shape != (batch, target_count, 3)
+        or chunk_size < 1
+    ):
+        raise ValueError("sulfur-chart tensor shape drift")
+    declared = equivalent_structure_slots >= 0
+    safe = equivalent_structure_slots.clamp_min(0)
+    batch_index = torch.arange(batch, device=atom27_positions.device)[:, None, None]
+    support_index = torch.arange(
+        support_count, device=atom27_positions.device
+    )[None, :, None]
+    residue = residue_index[:, None].expand(-1, support_count, -1)
+    local_positions = atom27_positions[batch_index, support_index, residue]
+    local_mask = atom27_mask[batch_index, support_index, residue]
+    gather_index = safe[:, None, :, :, None].expand(-1, support_count, -1, -1, 3)
+    equivalent_positions = torch.gather(local_positions, 3, gather_index)
+    equivalent_present = torch.gather(
+        local_mask,
+        3,
+        safe[:, None].expand(-1, support_count, -1, -1),
+    ) & declared[:, None]
+    denominator = equivalent_present.sum(dim=-1, keepdim=True).clamp_min(1).to(
+        equivalent_positions.dtype
+    )
+    site = (
+        equivalent_positions
+        * equivalent_present[..., None].to(equivalent_positions.dtype)
+    ).sum(dim=3) / denominator
+    site_valid = equivalent_present.any(dim=-1)
+    sulfur = atom27_mask & atom27_role_features[..., ROLE_NAMES.index("S")]
+    residue_grid = torch.arange(
+        residue_count, device=atom27_positions.device
+    )[None, None, None, :, None]
+    centers = atom27_positions.new_tensor(PHYSICS_CHART_RBF_CENTERS_NM)
+    chunks: list[torch.Tensor] = []
+    for start in range(0, target_count, chunk_size):
+        stop = min(start + chunk_size, target_count)
+        distance = (
+            atom27_positions[:, :, None]
+            - site[:, :, start:stop, None, None]
+        ).square().sum(dim=-1).clamp_min(1.0e-12).sqrt()
+        inter_residue = residue_grid != residue_index[
+            :, None, start:stop, None, None
+        ]
+        selected = (
+            sulfur[:, :, None]
+            & inter_residue
+            & site_valid[:, :, start:stop, None, None]
+        )
+        radial = torch.exp(-0.5 * (
+            (distance[..., None] - centers) / PHYSICS_CHART_RBF_WIDTH_NM
+        ).square())
+        count = selected.sum(dim=(-2, -1)).clamp_min(1).to(radial.dtype)
+        z = (
+            radial * selected[..., None].to(radial.dtype)
+        ).sum(dim=(-3, -2)) / count[..., None].sqrt()
+        chunks.append(1.0 - torch.exp(-z))
+    result = torch.cat(chunks, dim=2)
+    if result.shape != (batch, support_count, target_count, len(centers)):
+        raise RuntimeError("sulfur-chart output shape drift")
+    if torch.any(result < 0) or torch.any(result >= 1) or not torch.isfinite(result).all():
+        raise RuntimeError("sulfur-chart feature left [0,1)")
+    return result
 
 
 class ExplicitHAtom27Observer(nn.Module):
@@ -1394,6 +1483,41 @@ class GlobalAllAtomSharedQ(nn.Module):
         support_mean = batch["stage_a_mean"][:, None] + standardized_mean * batch[
             "stage_a_scale"
         ][:, None]
+        if PHYSICS_CHART_CANDIDATE is not None:
+            chart = PHYSICS_CHART_CANDIDATE
+            if (
+                chart.get("menu_sha256") != PHYSICS_CHART_MENU_SHA256
+                or float(chart.get("center_nm", -1.0)) not in PHYSICS_CHART_RBF_CENTERS_NM
+                or int(chart.get("sign", 0)) not in (-1, 1)
+                or float(chart.get("magnitude_ppm", -1.0)) != 0.005
+            ):
+                raise ValueError("declared physics-chart candidate is outside the frozen menu")
+            features = phe_hn_inter_sulfur_features(
+                atom27_positions=positions,
+                atom27_mask=batch["atom27_mask"],
+                atom27_role_features=batch["atom27_role_features"],
+                residue_index=batch["residue_index"],
+                equivalent_structure_slots=batch["equivalent_structure_slots"],
+            )
+            center_index = PHYSICS_CHART_RBF_CENTERS_NM.index(
+                float(chart["center_nm"])
+            )
+            target_token = torch.gather(
+                batch["stage_a_tokens"], 1, batch["residue_index"]
+            )
+            target_gate = (
+                (target_token == PHYSICS_CHART_PHE_TOKEN)
+                & (batch["atom_index"] == PHYSICS_CHART_HN_ATOM_INDEX)
+            )
+            correction = (
+                int(chart["sign"])
+                * float(chart["magnitude_ppm"])
+                * features[..., center_index]
+                * target_gate[:, None].to(features.dtype)
+            )
+            if correction.detach().abs().amax() > 0.0050000001:
+                raise RuntimeError("physics-chart correction exceeded 0.005 ppm")
+            support_mean = support_mean + correction
         support_log_scale = standardized_log_scale + batch["stage_a_scale"].clamp_min(
             1.0e-6
         ).log()[:, None]

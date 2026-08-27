@@ -1,0 +1,27 @@
+AUTORESEARCH DOMAIN COMPASS
+
+Optimize AtypEmu as an NMR-grounded BioEmu ensemble posterior, not as a
+single-structure chemical-shift regressor.
+
+Keep these constraints active:
+- Primary target: improve objective and family CCC toward 0.95.
+- Hard guards: no HN/C' tradeoff, no CA/CB CCC regression, no p95/max outlier
+  worsening, no posterior ESS/entropy collapse, no source shortcut reliance.
+- Prefer one small signed local physics-chart change per iteration.
+- Use train-to-val, crossfit, and signed-consensus evidence before touching a
+  chart bin.
+- HN: tiny ring/exchange/terminal/sulfur chart routing is preferred over broad
+  mean-chasing.
+- C': high risk. Require crossfit and viewer-tail agreement.
+- N: PRO:N likely needs a guarded mobility/contact/proline-neighbor expert, not
+  broad N mean pressure.
+- CB: support-gap tails should be guarded; avoid strong direct mean correction.
+- IDP reality: flexible, metamorphic, and partially folded rigid substates are
+  all plausible. Preserve ensemble diversity.
+- Decompose rare regimes by residue, atom family, mechanism, quantile bin,
+  ensemble state, residual sign, and teacher reliability before adding larger
+  capacity.
+- Think geometrically: BioEmu latent manifold x ensemble occupancy simplex x
+  NMR residual chart. Prefer smooth low-rank tangent corrections.
+
+If a numeric improvement violates the physical ensemble story, discard it.

@@ -1,0 +1,45 @@
+{
+  "artifact_kind": "v3339_phase_d_inner_selector_input_build_contract_v1",
+  "root": "/scratch/wkyu514/yang07/AtypEmu",
+  "destination": "/scratch/wkyu514/yang07/AtypEmu/.scratch/v3339_phase_d_inner_selector_inputs_v2",
+  "atom27_batch_root": "/scratch/wkyu514/yang07/AtypEmu/.scratch/v3339_phase_d_atom27_batches_d10_v1",
+  "control_result_root": "/scratch/wkyu514/yang07/AtypEmu/results/v3339w_phase_d_atom27",
+  "shared_q_root": "/scratch/wkyu514/yang07/AtypEmu/results/v3339g_stage_bc_epochs40/outputs/shared_q/legacy5",
+  "stage_a_pattern": "/scratch/wkyu514/yang07/AtypEmu/results/v3339c_stage_a_oof_fold{fold}/checkpoint.pt",
+  "folds": [
+    {
+      "fold": 0,
+      "train_manifest_sha256": "c7895a3c7b9cc6c200d1993b7f061547aff73fb53d4bc112cf31da1cdcd1b5ae",
+      "dev_manifest_sha256": "0e69568570f4f9385f8d3e3380b7cf0d2b8daeafc73c04c135bcfbc76bec3abe",
+      "q_checkpoint_sha256": "bffd01fbcd85f2c4c5b8442e48f809571b4b56a6c52191150b4ab6bf9e425c84",
+      "stage_a_checkpoint_sha256": "b3e2d78c468db2875a87061dc83a4bf702c6835c6f75a1a2cfb70f9fa8445990",
+      "control_checkpoint_sha256": "4f76a16a1ba5a64f5af3650b8d157e28cd23cdc103eca8ea8568b183803604b7"
+    },
+    {
+      "fold": 1,
+      "train_manifest_sha256": "9bcd73978fba1b439bc187fe63e232c897c4b5deff0d7e0f9491a04076d099a9",
+      "dev_manifest_sha256": "27979047edf8ea2f2842954bb7fb048036e2f0d1d5e94aa0170df38c0acf94ec",
+      "q_checkpoint_sha256": "16aa43d215fb46db171c336d19f5d339815af789f8d6bf4c6ac16b3379f446e0",
+      "stage_a_checkpoint_sha256": "5e6e810476379f03412eba028ffdd62d0406cc71f4415dd4b93f62b8d7d1ada8",
+      "control_checkpoint_sha256": "7d2fd94c0f7fe6d391e9baf3fefb40cb65b628200f51082c04f79f675518356b"
+    },
+    {
+      "fold": 2,
+      "train_manifest_sha256": "f6db7191530a7d3801b1c6bc899fba9d1c607c46b8b5485912e507a790ecd901",
+      "dev_manifest_sha256": "5eec43ee81ea6928e433cc02fa92dd95b38a7281e603fd66ad951ce684106476",
+      "q_checkpoint_sha256": "b3bc3301c83e99b3740c544c8758467df658acf8dc8e87f9801d0f3a13046736",
+      "stage_a_checkpoint_sha256": "58035a3559ea152bd1564eb210230f67fbe5278985b18d9a9cbde92112e82b69",
+      "control_checkpoint_sha256": "29424d8c2bd8e71142c11dd76ae1c69fd094c60492953f83d798ac791bddf3ef"
+    }
+  ],
+  "copied_roles": ["inner_train", "inner_dev"],
+  "outer_held_manifests_or_batches_copied": false,
+  "stage_a_checksum_manifest_projection": "one checkpoint entry per fold; no Stage-A predictions, summaries, or role rosters copied",
+  "control_checkpoint_payload_allowed": [
+    "binding and binding_sha256",
+    "model_state_dict",
+    "selected_inner_dev_loss",
+    "selection_used_outer_held=false",
+    "q_initialization_classification"
+  ]
+}
