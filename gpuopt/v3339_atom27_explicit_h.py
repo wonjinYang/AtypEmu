@@ -551,12 +551,13 @@ class DifferentiableAtom27TorsionDecoder(nn.Module):
         positions = base_atom27_positions
         batch_index = torch.arange(batch, device=positions.device)[:, None]
         support_index = torch.arange(support_count, device=positions.device)[None, :]
-        for residue in range(residue_count):
-            for torsion in range(6):
+        active_torsions = torch.all(torsion_axis_atom_indices >= 0, dim=-1)
+        active_indices = torch.nonzero(
+            torch.any(active_torsions, dim=0), as_tuple=False
+        ).cpu().tolist()
+        for residue, torsion in active_indices:
                 topology = torsion_axis_atom_indices[:, residue, torsion]
-                active = torch.all(topology >= 0, dim=-1)
-                if not bool(torch.any(active)):
-                    continue
+                active = active_torsions[:, residue, torsion]
                 safe = topology.clamp_min(0)
                 first = positions[batch_index, support_index, safe[:, 0][:, None], safe[:, 1][:, None]]
                 second = positions[batch_index, support_index, safe[:, 2][:, None], safe[:, 3][:, None]]
