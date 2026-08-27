@@ -8,13 +8,17 @@ BASE=$CACHE/benchmark
 [[ -f $IMAGE ]]
 [[ -f $CACHE/data/fold1/train_batch_manifest.tsv ]]
 if [[ -f $BASE/baseline/core.json ]]; then mode=candidate; else mode=baseline; fi
-source_sha=$(sha256sum "$ROOT/gpuopt/v3339_train_atom27_phase_d.py" | cut -d' ' -f1)
+source_sha=$(cat \
+  "$ROOT/gpuopt/v3339_train_atom27_phase_d.py" \
+  "$ROOT/gpuopt/v3339_atom27_explicit_h.py" | sha256sum | cut -d' ' -f1)
 run=$BASE/runs/$(date +%Y%m%d_%H%M%S)_${mode}_${source_sha:0:12}
 mkdir -p "$run/result"
 cp -a "$CACHE/code" "$run/code"
 chmod -R u+w "$run/code"
 cp "$ROOT/gpuopt/v3339_train_atom27_phase_d.py" \
   "$run/code/analysis/v3339_train_atom27_phase_d.py"
+cp "$ROOT/gpuopt/v3339_atom27_explicit_h.py" \
+  "$run/code/analysis/v3339_atom27_explicit_h.py"
 chmod -R a-w "$run/code"
 
 cuda_libs=/usr/lib/wsl/lib:/opt/conda/lib/python3.11/site-packages/nvidia/cuda_runtime/lib:/opt/conda/lib/python3.11/site-packages/torch/lib
