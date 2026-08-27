@@ -21,9 +21,11 @@ def main() -> int:
     parser.add_argument("--wall-seconds", required=True, type=float)
     parser.add_argument("--samples", required=True, type=Path)
     parser.add_argument("--summary", required=True, type=Path)
-    parser.add_argument("cores", nargs=2, type=Path)
+    parser.add_argument("cores", nargs="+", type=Path)
     args = parser.parse_args()
     cores = [json.loads(path.read_text()) for path in args.cores]
+    if len(cores) < 2:
+        raise ValueError("concurrency benchmark requires at least two workers")
     rows = list(csv.reader(args.samples.open(newline="")))
     samples = [
         [float(value.strip()) for value in row]

@@ -5,14 +5,17 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CACHE=/home/yang07/.cache/atypemu_gpuopt
 IMAGE=$CACHE/image/atypemu.sif
 BASE=$CACHE/concurrency
+workers=3
 [[ -f $IMAGE ]]
 [[ -f $CACHE/data/fold1/train_batch_manifest.tsv ]]
 if [[ -f $BASE/baseline/worker0.json ]]; then mode=candidate; else mode=baseline; fi
 source_sha=$(cat \
   "$ROOT/gpuopt/v3339_train_atom27_phase_d.py" \
   "$ROOT/gpuopt/v3339_atom27_explicit_h.py" | sha256sum | cut -d' ' -f1)
-run=$BASE/runs/$(date +%Y%m%d_%H%M%S)_${mode}_${source_sha:0:12}_$$
-mkdir -p "$run/result/worker0" "$run/result/worker1"
+run=$BASE/runs/$(date +%Y%m%d_%H%M%S)_${mode}_${source_sha:0:12}_${workers}w_$$
+for worker in $(seq 0 $((workers - 1))); do
+  mkdir -p "$run/result/worker$worker"
+done
 cp -a "$CACHE/code" "$run/code"
 chmod -R u+w "$run/code"
 cp "$ROOT/gpuopt/v3339_train_atom27_phase_d.py" \
@@ -29,7 +32,7 @@ container=(singularity exec --cleanenv --containall --no-home
   --bind "$CACHE:$CACHE:rw" --bind "$ROOT/gpuopt:$ROOT/gpuopt:ro" "$IMAGE")
 
 pids=()
-for worker in 0 1; do
+for worker in $(seq 0 $((workers - 1))); do
   out=$run/result/worker$worker
   "${container[@]}" /opt/conda/bin/python -I "$ROOT/gpuopt/benchmark_phase_d.py" \
     --trainer "$run/code/analysis/v3339_train_atom27_phase_d.py" \
@@ -56,7 +59,7 @@ wait_for_file() {
   echo "timed out waiting for $path" >&2
   return 1
 }
-for worker in 0 1; do
+for worker in $(seq 0 $((workers - 1))); do
   wait_for_file "$run/result/worker$worker/timing.ready" "${pids[$worker]}"
 done
 nvidia-smi -i 0 \
@@ -66,14 +69,17 @@ sampler=$!
 trap 'kill "$sampler" 2>/dev/null || true; kill "${pids[@]}" 2>/dev/null || true' EXIT
 start_ns=$(date +%s%N)
 if [[ $mode == baseline ]]; then
-  touch "$run/result/worker0/start.signal"
-  wait_for_file "$run/result/worker0/timing.done" "${pids[0]}"
-  touch "$run/result/worker1/start.signal"
-  wait_for_file "$run/result/worker1/timing.done" "${pids[1]}"
+  for worker in $(seq 0 $((workers - 1))); do
+    touch "$run/result/worker$worker/start.signal"
+    wait_for_file "$run/result/worker$worker/timing.done" "${pids[$worker]}"
+  done
 else
-  touch "$run/result/worker0/start.signal" "$run/result/worker1/start.signal"
-  wait_for_file "$run/result/worker0/timing.done" "${pids[0]}"
-  wait_for_file "$run/result/worker1/timing.done" "${pids[1]}"
+  for worker in $(seq 0 $((workers - 1))); do
+    touch "$run/result/worker$worker/start.signal"
+  done
+  for worker in $(seq 0 $((workers - 1))); do
+    wait_for_file "$run/result/worker$worker/timing.done" "${pids[$worker]}"
+  done
 fi
 end_ns=$(date +%s%N)
 kill "$sampler" 2>/dev/null || true
@@ -85,8 +91,9 @@ wall_seconds=$(python3 -c "print(($end_ns-$start_ns)/1e9)")
 if [[ $mode == baseline ]]; then
   rm -rf "$BASE/baseline.new"
   mkdir -p "$BASE/baseline.new"
-  cp "$run/result/worker0/core.json" "$BASE/baseline.new/worker0.json"
-  cp "$run/result/worker1/core.json" "$BASE/baseline.new/worker1.json"
+  for worker in $(seq 0 $((workers - 1))); do
+    cp "$run/result/worker$worker/core.json" "$BASE/baseline.new/worker$worker.json"
+  done
   chmod -R a-w "$BASE/baseline.new"
   rm -rf "$BASE/baseline"
   mv "$BASE/baseline.new" "$BASE/baseline"
@@ -97,19 +104,28 @@ from pathlib import Path
 baseline,result=map(Path,sys.argv[1:])
 keys=('start_epoch','epochs','entity_updates','cohort_size','cohort_sha256',
       'model_state_sha256','optimizer_state_sha256','history_sha256')
-for worker in range(2):
-    expected=json.loads((baseline/f'worker{worker}.json').read_text())
-    actual=json.loads((result/f'worker{worker}/core.json').read_text())
+workers=sorted(result.glob('worker*/core.json'))
+for worker_path in workers:
+    worker=int(worker_path.parent.name.removeprefix('worker'))
+    expected_path=baseline/f'worker{worker}.json'
+    if not expected_path.exists():
+        expected_path=baseline/'worker0.json'
+    expected=json.loads(expected_path.read_text())
+    actual=json.loads(worker_path.read_text())
     for key in keys:
         if expected[key] != actual[key]:
             raise SystemExit(f'worker{worker} exactness mismatch: {key}')
-print('both_workers_exact_model_optimizer_history_match=1')
+print(f'all_{len(workers)}_workers_exact_model_optimizer_history_match=1')
 PY
 fi
+core_args=()
+for worker in $(seq 0 $((workers - 1))); do
+  core_args+=("$run/result/worker$worker/core.json")
+done
 python3 "$ROOT/gpuopt/summarize_concurrency.py" \
   --mode "$mode" --wall-seconds "$wall_seconds" \
   --samples "$run/result/gpu_samples.csv" --summary "$run/result/summary.json" \
-  "$run/result/worker0/core.json" "$run/result/worker1/core.json" \
+  "${core_args[@]}" \
   > "$run/result/metrics.txt"
-echo "benchmark_mode=$mode workers=2 source_sha256=$source_sha local_gpu=RTX_3060_Ti"
+echo "benchmark_mode=$mode workers=$workers source_sha256=$source_sha local_gpu=RTX_3060_Ti"
 cat "$run/result/metrics.txt"
