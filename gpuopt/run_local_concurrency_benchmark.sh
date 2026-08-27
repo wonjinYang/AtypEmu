@@ -5,7 +5,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 CACHE=/home/yang07/.cache/atypemu_gpuopt
 IMAGE=$CACHE/image/atypemu.sif
 BASE=$CACHE/concurrency
-workers=3
+workers=4
 [[ -f $IMAGE ]]
 [[ -f $CACHE/data/fold1/train_batch_manifest.tsv ]]
 if [[ -f $BASE/baseline/worker0.json ]]; then mode=candidate; else mode=baseline; fi
