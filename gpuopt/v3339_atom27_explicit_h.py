@@ -536,6 +536,8 @@ class DifferentiableAtom27TorsionDecoder(nn.Module):
         torsion_delta: torch.Tensor,
         torsion_axis_atom_indices: torch.Tensor,
         torsion_move_mask: torch.Tensor,
+        active_torsions: torch.Tensor | None = None,
+        active_indices: list[list[int]] | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if base_atom27_positions.ndim != 5 or base_atom27_positions.shape[-2:] != (ATOM_COUNT, 3):
             raise ValueError("base atom27 positions must be [B,K,L,27,3]")
@@ -551,10 +553,14 @@ class DifferentiableAtom27TorsionDecoder(nn.Module):
         positions = base_atom27_positions
         batch_index = torch.arange(batch, device=positions.device)[:, None]
         support_index = torch.arange(support_count, device=positions.device)[None, :]
-        active_torsions = torch.all(torsion_axis_atom_indices >= 0, dim=-1)
-        active_indices = torch.nonzero(
-            torch.any(active_torsions, dim=0), as_tuple=False
-        ).cpu().tolist()
+        if active_torsions is None:
+            active_torsions = torch.all(torsion_axis_atom_indices >= 0, dim=-1)
+        elif active_torsions.shape != (batch, residue_count, 6):
+            raise ValueError("active torsion predicate shape mismatch")
+        if active_indices is None:
+            active_indices = torch.nonzero(
+                torch.any(active_torsions, dim=0), as_tuple=False
+            ).cpu().tolist()
         for residue, torsion in active_indices:
                 topology = torsion_axis_atom_indices[:, residue, torsion]
                 active = active_torsions[:, residue, torsion]
@@ -1255,17 +1261,27 @@ class GlobalAllAtomSharedQ(nn.Module):
             )
             proposal_delta = actuator_terms["torsion_delta"]
             decoder = self.atom27_decoder if atom27_decoder is None else atom27_decoder
+            active_indices = torch.nonzero(
+                torch.any(valid_axis, dim=0), as_tuple=False
+            ).cpu().tolist()
 
             def decode_candidate(
                 candidate_delta: torch.Tensor,
             ) -> tuple[torch.Tensor, torch.Tensor]:
-                return decoder(
-                    base_atom27_positions=batch["atom27_positions"],
-                    base_atom27_mask=batch["atom27_mask"],
-                    torsion_delta=candidate_delta,
-                    torsion_axis_atom_indices=batch["torsion_axis_atom_indices"],
-                    torsion_move_mask=batch["torsion_move_mask"],
-                )
+                kwargs = {
+                    "base_atom27_positions": batch["atom27_positions"],
+                    "base_atom27_mask": batch["atom27_mask"],
+                    "torsion_delta": candidate_delta,
+                    "torsion_axis_atom_indices": batch["torsion_axis_atom_indices"],
+                    "torsion_move_mask": batch["torsion_move_mask"],
+                }
+                if atom27_decoder is None:
+                    return decoder(
+                        **kwargs,
+                        active_torsions=valid_axis,
+                        active_indices=active_indices,
+                    )
+                return decoder(**kwargs)
 
             def physics_candidate(
                 candidate_positions: torch.Tensor, candidate_mask: torch.Tensor
