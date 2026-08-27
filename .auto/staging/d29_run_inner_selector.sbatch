@@ -34,23 +34,59 @@ PY
 [[ $(nvidia-smi --query-gpu=name --format=csv,noheader | sed -n '1p') == 'NVIDIA H200' ]]
 mkdir -p "$OUTPUT_ROOT"
 
+python3 - "$SOURCE" "$SOURCE_BUNDLE_SHA256" "$INPUT_ROOT" "$INPUT_SHA256" <<'PY'
+import hashlib,json,sys
+from pathlib import Path
+
+source=Path(sys.argv[1]); bundle=sys.argv[2]
+input_root=Path(sys.argv[3]); input_sha=sys.argv[4]
+def sha(path):
+    h=hashlib.sha256()
+    with path.open('rb') as f:
+        for block in iter(lambda:f.read(1<<20),b''): h.update(block)
+    return h.hexdigest()
+def manifest(path):
+    out={}
+    for line in path.read_text(encoding='utf-8').splitlines():
+        digest,sep,name=line.partition('  '); item=Path(name)
+        if sep!='  ' or len(digest)!=64 or item.is_absolute() or '..' in item.parts or name in out:
+            raise SystemExit(f'invalid checksum manifest: {path}')
+        out[name]=digest
+    return out
+def verify_inventory(root):
+    expected=manifest(root/'checksums.sha256')
+    actual={str(p.relative_to(root)):p for p in root.rglob('*') if p.is_file() and p!=root/'checksums.sha256'}
+    if set(actual)!=set(expected) or any(p.is_symlink() or sha(p)!=expected[name] for name,p in actual.items()):
+        raise SystemExit(f'frozen inventory drift: {root}')
+verify_inventory(source)
+receipt=json.loads((source/'inner_selector_source_receipt.json').read_text(encoding='utf-8'))
+calculated=hashlib.sha256(json.dumps(
+    {'source_hashes':receipt.get('source_hashes'),'bindings':receipt.get('bindings')},
+    sort_keys=True,separators=(',',':')).encode()).hexdigest()
+if receipt.get('bundle_sha256')!=bundle or calculated!=bundle:
+    raise SystemExit('source bundle identity drift')
+if sha(input_root/'input_manifest.json')!=input_sha:
+    raise SystemExit('input manifest identity drift')
+verify_inventory(input_root)
+print('FROZEN_INVENTORIES_OK',bundle,input_sha)
+PY
+
 export CUBLAS_WORKSPACE_CONFIG=:4096:8
 export OMP_NUM_THREADS=8 PYTHONHASHSEED=3339
 export TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 WANDB_MODE=disabled
 container=("$CONTAINER" exec --nv --cleanenv --containall --no-home --net --network none
   --env CUDA_VISIBLE_DEVICES=0 --env CUBLAS_WORKSPACE_CONFIG=:4096:8
   --env OMP_NUM_THREADS=8 --env PYTHONHASHSEED=3339
+  --env SLURM_JOB_ID="$SLURM_JOB_ID" --env SLURMD_NODENAME="$SLURMD_NODENAME"
+  --env ATYP_FROZEN_INVENTORIES_VERIFIED=1
   --env TRANSFORMERS_OFFLINE=1 --env HF_HUB_OFFLINE=1 --env WANDB_MODE=disabled
   --bind "$SOURCE:$SOURCE:ro" --bind "$INPUT_ROOT:$INPUT_ROOT:ro"
   --bind "$OUTPUT_ROOT:$OUTPUT_ROOT:rw")
-baseline_args=()
-if [[ -n ${BASELINE_RECEIPT:-} ]]; then
-  [[ -n ${BASELINE_RECEIPT_SHA256:-} ]]
-  [[ $(sha256sum "$BASELINE_RECEIPT" | cut -d' ' -f1) == "$BASELINE_RECEIPT_SHA256" ]]
-  container+=(--bind "$BASELINE_RECEIPT:$BASELINE_RECEIPT:ro")
-  baseline_args+=(--baseline-receipt "$BASELINE_RECEIPT"
-    --baseline-receipt-sha256 "$BASELINE_RECEIPT_SHA256")
-fi
+[[ -n ${BASELINE_RECEIPT:-} && -n ${BASELINE_RECEIPT_SHA256:-} ]]
+[[ $(sha256sum "$BASELINE_RECEIPT" | cut -d' ' -f1) == "$BASELINE_RECEIPT_SHA256" ]]
+container+=(--bind "$BASELINE_RECEIPT:$BASELINE_RECEIPT:ro")
+baseline_args=(--baseline-receipt "$BASELINE_RECEIPT"
+  --baseline-receipt-sha256 "$BASELINE_RECEIPT_SHA256")
 container+=("$IMAGE")
 if [[ ${ATYP_IMPORT_SMOKE_ONLY:-0} == 1 ]]; then
   "${container[@]}" /opt/conda/bin/python -I -c \
@@ -62,7 +98,7 @@ fi
   --trainer-sha256 "$TRAINER_SHA256" \
   --input-manifest "$INPUT_ROOT/input_manifest.json" \
   --input-manifest-sha256 "$INPUT_SHA256" \
-  --menu "$SOURCE/clean_menu_builder_output.json" \
+  --menu "$SOURCE/inner_chart_menu.json" \
   --stage-a-source "$SOURCE/analysis/v3339_train_all_bmrb_stage_a.py" \
   --q-transfer-receipt "$SOURCE/q_initialization_transfer_receipt_d4v2.json" \
   --fixed-support-source "$SOURCE/deps/fixed_support_measure.py" \

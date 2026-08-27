@@ -20,3 +20,6 @@ gpuopt/__pycache__/
 !.auto/staging/d29_stage_inner_selector_source.py
 !.auto/baseline/
 !.auto/baseline/inner_selector.json
+!.auto/development/
+!.auto/development/d30_ser_hn_acceptor_menu.json
+!.auto/development/d30_ser_hn_acceptor_commitment.json

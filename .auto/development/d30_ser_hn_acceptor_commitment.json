@@ -1,0 +1,20 @@
+{
+  "artifact_kind": "v3339_phase_d_inner_development_commitment_v1",
+  "baseline_result_file_sha256": "3f311282f4e2880896bfc19e0d799bc4834365ffdb1d249253a381abb6d316cf",
+  "candidate_evaluation_executed": false,
+  "container_import_and_inventory_smoke": {
+    "end_utc": "2026-08-28T07:29:32",
+    "exit_code": "0:0",
+    "job_id": "127911",
+    "log_path": "/scratch/wkyu514/yang07/AtypEmu/.scratch/v3339_phase_d_inner_selector_import_smoke/b8c6ed13/slurm-127911.out",
+    "log_sha256": "b0d60e7974c65e2d6a217c1ed64d00d00390e08b923bee57d603068033e1c44c",
+    "node": "iREMB-C-06",
+    "start_utc": "2026-08-28T07:29:22",
+    "state": "COMPLETED"
+  },
+  "menu_sha256": "0085c13f82f1c8e0b240bc3aa81c8759791552f6a317f5e3efec9babec9a00fd",
+  "outer_held_or_external_values_read": false,
+  "receipt_sha256": "fccf67319c06e435eb89d811b4a67501b738c773ab78f231fd21cdbaae15835f",
+  "source_bundle_sha256": "b8c6ed13f9122440bc550a5e093448ab5d74d0b842c0c523721d2f84d35c2c74",
+  "source_candidate_id": null
+}

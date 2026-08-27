@@ -1,0 +1,11 @@
+{
+  "artifact_kind": "v3339_phase_d_inner_selector_baseline_binding_v1",
+  "input_manifest_sha256": "5094dc56e0a8b9d8cdc5a9e3c72bd83c84d5510576d3773e8c1968def750c070",
+  "menu_sha256": "3d120deccf219f517938467bd0e18fb4f2fffe1d9444b09250c6f908e4cac42f",
+  "outer_held_or_external_values_read": false,
+  "receipt_sha256": "a2cf892d4dcfe78ddb08fd6d71c0440b0781d97ebc068cf592e819dc8cf9ab3d",
+  "remote_result_path": "/scratch/wkyu514/yang07/AtypEmu/results/v3339_ar_inner_selector/0d19da55eb87845023d5b15273bc2045b9af57deb8724418b4140c097f38dd12/result.json",
+  "result_file_sha256": "3f311282f4e2880896bfc19e0d799bc4834365ffdb1d249253a381abb6d316cf",
+  "selector_decision": "NO_CANDIDATE",
+  "source_bundle_sha256": "0d19da55eb87845023d5b15273bc2045b9af57deb8724418b4140c097f38dd12"
+}

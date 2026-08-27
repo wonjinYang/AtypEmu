@@ -20,11 +20,14 @@ import torch
 
 ARTIFACT_KIND = "v3339_phase_d_inner_chart_selector_v1"
 INPUT_KIND = "v3339_phase_d_inner_selector_inputs_v1"
-MENU_SHA256 = "3d120deccf219f517938467bd0e18fb4f2fffe1d9444b09250c6f908e4cac42f"
+MENU_SHA256 = "0085c13f82f1c8e0b240bc3aa81c8759791552f6a317f5e3efec9babec9a00fd"
 CONTROL_ATOM27_SOURCE_SHA256 = "0b3e6dc0974e0da9387cfc7cf5113c46c47b88fd85d2373be812e1020f397a41"
+CONTROL_BASELINE_FILE_SHA256 = "3f311282f4e2880896bfc19e0d799bc4834365ffdb1d249253a381abb6d316cf"
+CONTROL_BASELINE_MENU_SHA256 = "3d120deccf219f517938467bd0e18fb4f2fffe1d9444b09250c6f908e4cac42f"
 FAMILIES = ("C'", "CA", "CB", "HN", "N")
 MIN_ACTIVE_ROWS = 10
 MIN_ACTIVE_ENTITIES = 3
+MIN_ACTIVE_FEATURE = 0.1
 IMPROVEMENT_EPS = 1.0e-10
 TAIL_ATOL = 1.0e-12
 
@@ -185,7 +188,7 @@ def metric_delta(candidate: dict[str, Any], control: dict[str, Any]) -> dict[str
 
 def read_menu(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     if sha256_file(path) != MENU_SHA256:
-        raise ValueError("pre-unblinding menu SHA256 drift")
+        raise ValueError("frozen development menu SHA256 drift")
     payload = json.loads(path.read_text(encoding="utf-8"))
     candidates = payload.get("candidates", ())
     schema = payload.get("candidate_schema", {})
@@ -196,9 +199,20 @@ def read_menu(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         or float(schema.get("rbf_width_nm", -1)) != 0.12
         or float(schema.get("magnitude_ppm", -1)) != 0.005
         or sorted(int(value) for value in schema.get("sign_set", ())) != [-1, 1]
+        or schema.get("target_atom_family") != "HN"
+        or schema.get("target_residue_name") != "SER"
+        or int(schema.get("target_residue_token", -1)) != 16
+        or schema.get("feature_role_name") != "acceptor"
+        or schema.get("feature_scope") != "inter_residue"
+        or float(schema.get("active_feature_threshold", -1)) != MIN_ACTIVE_FEATURE
+        or payload.get("support_gate") != {
+            "active_feature_minimum": MIN_ACTIVE_FEATURE,
+            "minimum_active_entities_per_fold_and_split": MIN_ACTIVE_ENTITIES,
+            "minimum_active_rows_per_fold_and_split": MIN_ACTIVE_ROWS,
+        }
         or len({row.get("id") for row in candidates}) != 12
     ):
-        raise ValueError("pre-unblinding menu contract drift")
+        raise ValueError("frozen development menu contract drift")
     return payload, list(candidates)
 
 
@@ -226,8 +240,9 @@ def read_inputs(path: Path, expected_sha256: str) -> tuple[Path, dict[str, Any]]
     for forbidden in payload.get("forbidden_paths", ()):
         if Path(forbidden).exists():
             raise ValueError(f"outer-result path is visible in selector container: {forbidden}")
-    if len(payload.get("folds", ())) != 3:
-        raise ValueError("selector requires exactly three folds")
+    fold_ids = [int(row.get("fold", -1)) for row in payload.get("folds", ())]
+    if sorted(fold_ids) != [0, 1, 2] or len(set(fold_ids)) != 3:
+        raise ValueError("selector requires unique folds {0,1,2}")
     for row in payload["folds"]:
         for key in (
             "train_manifest", "dev_manifest", "q_checkpoint",
@@ -239,7 +254,7 @@ def read_inputs(path: Path, expected_sha256: str) -> tuple[Path, dict[str, Any]]
     return root, payload
 
 
-def sulfur_features_reference(
+def inter_acceptor_features_reference(
     *,
     atom27_positions: torch.Tensor,
     atom27_mask: torch.Tensor,
@@ -247,7 +262,7 @@ def sulfur_features_reference(
     residue_index: torch.Tensor,
     equivalent_structure_slots: torch.Tensor,
 ) -> torch.Tensor:
-    """Recompute the six sulfur RBFs without using the model's chart helper."""
+    """Recompute six inter-residue acceptor RBFs independently of the model."""
     batch, support_count, residue_count = atom27_positions.shape[:3]
     target_count = residue_index.shape[1]
     if (
@@ -256,7 +271,7 @@ def sulfur_features_reference(
         or atom27_role_features.shape != (batch, support_count, residue_count, 27, 7)
         or equivalent_structure_slots.shape != (batch, target_count, 3)
     ):
-        raise ValueError("independent sulfur-chart tensor shape drift")
+        raise ValueError("independent acceptor-chart tensor shape drift")
     declared = equivalent_structure_slots >= 0
     safe = equivalent_structure_slots.clamp_min(0)
     batch_index = torch.arange(batch, device=atom27_positions.device)[:, None, None]
@@ -279,7 +294,7 @@ def sulfur_features_reference(
         * equivalent_present[..., None].to(equivalent_positions.dtype)
     ).sum(dim=3) / denominator
     site_valid = equivalent_present.any(dim=-1)
-    sulfur = atom27_mask & atom27_role_features[..., 4]
+    acceptor = atom27_mask & atom27_role_features[..., 6]
     residue_grid = torch.arange(
         residue_count, device=atom27_positions.device
     )[None, None, None, :, None]
@@ -295,7 +310,7 @@ def sulfur_features_reference(
             :, None, start:stop, None, None
         ]
         selected = (
-            sulfur[:, :, None]
+            acceptor[:, :, None]
             & inter_residue
             & site_valid[:, :, start:stop, None, None]
         )
@@ -312,7 +327,7 @@ def sulfur_features_reference(
         or torch.any(result >= 1)
         or not torch.isfinite(result).all()
     ):
-        raise RuntimeError("independent sulfur-chart feature contract failed")
+        raise RuntimeError("independent acceptor-chart feature contract failed")
     return result
 
 
@@ -358,27 +373,28 @@ def candidate_tensors(
 ) -> tuple[
     torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
 ]:
-    features = sulfur_features_reference(
+    features = inter_acceptor_features_reference(
         atom27_positions=positions,
         atom27_mask=batch["atom27_mask"],
         atom27_role_features=batch["atom27_role_features"],
         residue_index=batch["residue_index"],
         equivalent_structure_slots=batch["equivalent_structure_slots"],
     )
-    model_features = trainer.D2.phe_hn_inter_sulfur_features(
+    model_features = trainer.D2.inter_role_chart_features(
         atom27_positions=positions,
         atom27_mask=batch["atom27_mask"],
         atom27_role_features=batch["atom27_role_features"],
         residue_index=batch["residue_index"],
         equivalent_structure_slots=batch["equivalent_structure_slots"],
+        role_name="acceptor",
     )
     if not torch.equal(features, model_features):
-        raise ValueError("independent sulfur chart differs from model helper")
+        raise ValueError("independent acceptor chart differs from model helper")
     target_token = torch.gather(
         batch["stage_a_tokens"], 1, batch["residue_index"]
     )
     gate = (
-        (target_token == 5)
+        (target_token == 16)
         & (batch["atom_index"] == 55)
     )
     raw_support_mean = (
@@ -425,7 +441,7 @@ def candidate_tensors(
     candidate_mean = torch.stack(means)
     candidate_scale = torch.stack(scales)
     weighted_feature = torch.stack(weighted)
-    active = gate[None] & (weighted_feature > 1.0e-8)
+    active = gate[None] & (weighted_feature >= MIN_ACTIVE_FEATURE)
     return (
         raw_support_mean, support_log_scale, candidate_support,
         candidate_mean, candidate_scale, active,
@@ -484,6 +500,8 @@ def collect_split(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     arrays = SplitArrays(len(candidates))
     q_digest = hashlib.sha256()
+    target_blind_digest = hashlib.sha256()
+    target_blind_checks = 0
     posterior_ess: list[float] = []
     posterior_entropy: list[float] = []
     state_digests = {
@@ -519,6 +537,8 @@ def collect_split(
                 output = model(batch)
             if set(capture) != {"standardized_mean", "standardized_log_scale"}:
                 raise RuntimeError("observer diagnostic hook did not fire exactly once")
+            standardized_mean = capture["standardized_mean"]
+            standardized_log_scale = capture["standardized_log_scale"]
             q = output["q"]
             (
                 raw_support, support_log_scale, candidate_support,
@@ -527,8 +547,8 @@ def collect_split(
                 candidate_tensors(
                     trainer=trainer,
                     batch=batch,
-                    standardized_mean=capture["standardized_mean"],
-                    standardized_log_scale=capture["standardized_log_scale"],
+                    standardized_mean=standardized_mean,
+                    standardized_log_scale=standardized_log_scale,
                     positions=output["actuated_atom27_positions"],
                     q=q,
                     candidates=candidates,
@@ -565,6 +585,37 @@ def collect_split(
             ):
                 raise ValueError("model output is not the declared frozen chart realization")
 
+            blinded = dict(batch)
+            blinded_values = batch["target_values"].clone()
+            scoring = batch["scoring_mask"]
+            offsets = torch.arange(
+                17, 17 + int(scoring.sum()),
+                dtype=blinded_values.dtype,
+                device=blinded_values.device,
+            )
+            blinded_values[scoring] += offsets
+            blinded["target_values"] = blinded_values
+            capture.clear()
+            with torch.no_grad():
+                blinded_output = model(blinded)
+            if (
+                set(capture) != {"standardized_mean", "standardized_log_scale"}
+                or not torch.equal(capture["standardized_mean"], standardized_mean)
+                or not torch.equal(capture["standardized_log_scale"], standardized_log_scale)
+                or any(
+                    not torch.equal(blinded_output[key], output[key])
+                    for key in (
+                        "q", "actuated_atom27_positions", "support_mean",
+                        "ensemble_mean", "ensemble_scale",
+                    )
+                )
+            ):
+                raise ValueError("scoring target values influence posterior or prediction")
+            target_blind_checks += 1
+            target_blind_digest.update(row["entity_uid"].encode())
+            target_blind_digest.update(b"\n")
+            target_blind_digest.update(tensor_sha256(blinded_output["q"]).encode())
+
             selected = torch.nonzero(
                 batch["scoring_mask"][0], as_tuple=False
             ).flatten()
@@ -575,18 +626,18 @@ def collect_split(
             families = np.asarray(routed_metadata["legacy_families"], dtype=object)[selected_cpu]
             target_ids = np.asarray(routed_metadata["target_ids"], dtype=object)[selected_cpu]
             metadata_gate = np.asarray([
-                family == "HN" and ":PHE:HN" in str(target_id)
+                family == "HN" and ":SER:HN" in str(target_id)
                 for family, target_id in zip(families, target_ids, strict=True)
             ])
             tensor_gate = (
                 (
                     torch.gather(batch["stage_a_tokens"], 1, batch["residue_index"])
-                    == trainer.D2.PHYSICS_CHART_PHE_TOKEN
+                    == trainer.D2.PHYSICS_CHART_TARGET_RESIDUE_TOKEN
                 )
                 & (batch["atom_index"] == trainer.D2.PHYSICS_CHART_HN_ATOM_INDEX)
             )[0, selected].detach().cpu().numpy()
             if not np.array_equal(metadata_gate, tensor_gate):
-                raise ValueError("PHE/HN metadata gate differs from frozen token/atom gate")
+                raise ValueError("SER/HN metadata gate differs from frozen token/atom gate")
             arrays.entity.append(np.full(len(selected_cpu), row["entity_uid"], dtype=object))
             arrays.family.append(families)
             arrays.target.append(target)
@@ -612,8 +663,8 @@ def collect_split(
             state_tensors = {
                 "q": q,
                 "actuated_atom27_positions": output["actuated_atom27_positions"],
-                "standardized_mean": capture["standardized_mean"],
-                "standardized_log_scale": capture["standardized_log_scale"],
+                "standardized_mean": standardized_mean,
+                "standardized_log_scale": standardized_log_scale,
                 "raw_support_mean": raw_support,
                 "control_ensemble_mean": control_mean,
                 "control_ensemble_scale": control_scale,
@@ -640,6 +691,9 @@ def collect_split(
         "entropy_min": min(posterior_entropy),
         "entropy_mean": float(np.mean(posterior_entropy)),
         "candidate_q_ess_entropy_exactly_invariant_by_post_q_construction": True,
+        "scoring_target_perturbation_q_and_prediction_exact": True,
+        "scoring_target_perturbation_check_count": target_blind_checks,
+        "scoring_target_perturbation_q_sha256": target_blind_digest.hexdigest(),
         "control_state_sha256": {
             name: digest.hexdigest() for name, digest in state_digests.items()
         },
@@ -744,6 +798,8 @@ def declared_candidate(trainer: Any, candidates: list[dict[str, Any]]) -> str | 
         or float(declared.get("center_nm", -1)) != float(matches[0]["center_nm"])
         or int(declared.get("sign", 0)) != int(matches[0]["sign"])
         or float(declared.get("magnitude_ppm", -1)) != 0.005
+        or int(declared.get("target_residue_token", -1)) != 16
+        or declared.get("feature_role_name") != "acceptor"
     ):
         raise ValueError("source physics-chart declaration differs from frozen menu")
     return str(candidate_id)
@@ -756,14 +812,17 @@ def validate_baseline_receipt(
     input_manifest_sha256: str,
     fold_results: list[dict[str, Any]],
 ) -> str:
-    if sha256_file(path) != expected_sha256:
+    if (
+        expected_sha256 != CONTROL_BASELINE_FILE_SHA256
+        or sha256_file(path) != CONTROL_BASELINE_FILE_SHA256
+    ):
         raise ValueError("baseline selector receipt file SHA256 drift")
     baseline = json.loads(path.read_text(encoding="utf-8"))
     receipt_sha = baseline.pop("receipt_sha256", None)
     if (
         receipt_sha != canonical_sha256(baseline)
         or baseline.get("artifact_kind") != ARTIFACT_KIND
-        or baseline.get("menu_sha256") != MENU_SHA256
+        or baseline.get("menu_sha256") != CONTROL_BASELINE_MENU_SHA256
         or baseline.get("input_manifest_sha256") != input_manifest_sha256
         or baseline.get("source_candidate_id") is not None
         or baseline.get("evaluated_model_id") != "legacy5_control"
@@ -796,6 +855,14 @@ def validate_baseline_receipt(
 def run(args: argparse.Namespace) -> dict[str, Any]:
     if len(args.source_bundle_sha256) != 64 or len(args.container_image_sha256) != 64:
         raise ValueError("execution binding SHA256 drift")
+    slurm_job_id = os.environ.get("SLURM_JOB_ID", "")
+    slurm_node = os.environ.get("SLURMD_NODENAME", "")
+    if (
+        not slurm_job_id.isdigit()
+        or not slurm_node
+        or os.environ.get("ATYP_FROZEN_INVENTORIES_VERIFIED") != "1"
+    ):
+        raise ValueError("selector requires a concrete Slurm job and node receipt")
     _, candidates = read_menu(args.menu)
     sealed_root, inputs = read_inputs(args.input_manifest, args.input_manifest_sha256)
     trainer = load_source(args.trainer, args.trainer_sha256, "v3339_inner_selector_trainer")
@@ -804,7 +871,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         or tuple(trainer.D2.PHYSICS_CHART_RBF_CENTERS_NM)
         != (0.2, 0.3, 0.4, 0.55, 0.75, 1.0)
         or trainer.D2.PHYSICS_CHART_RBF_WIDTH_NM != 0.12
-        or trainer.D2.PHYSICS_CHART_PHE_TOKEN != 5
+        or trainer.D2.PHYSICS_CHART_TARGET_RESIDUE_TOKEN != 16
+        or trainer.D2.PHYSICS_CHART_FEATURE_ROLE_NAME != "acceptor"
         or trainer.D2.PHYSICS_CHART_HN_ATOM_INDEX != 55
     ):
         raise ValueError("trainer physics-chart interface drift")
@@ -816,6 +884,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("selector container must expose exactly CUDA ordinal 0")
     runtime = trainer.V6.configure_deterministic_runtime(device)
     fold_results = []
+    cohort_sets: dict[int, dict[str, dict[str, set[str]]]] = {}
     for fold_row in sorted(inputs["folds"], key=lambda row: int(row["fold"])):
         fold = int(fold_row["fold"])
         train_manifest = safe_path(sealed_root, fold_row["train_manifest"])
@@ -824,6 +893,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         dev_rows = trainer.read_manifest(dev_manifest, "inner_dev", fold, 8)
         if {row["entity_uid"] for row in train_rows} & {row["entity_uid"] for row in dev_rows}:
             raise ValueError("inner train/dev entity overlap")
+        if any(int(row["outer_fold"]) == fold for row in train_rows + dev_rows):
+            raise ValueError("inner selector manifest exposes its model-held outer fold")
+        cohort_sets[fold] = {
+            split: {
+                "entities": {row["entity_uid"] for row in rows},
+                "sequence_clusters": {row["sequence_cluster_id"] for row in rows},
+            }
+            for split, rows in (("inner_train", train_rows), ("inner_dev", dev_rows))
+        }
         checkpoint_path = safe_path(sealed_root, fold_row["control_checkpoint"])
         checkpoint = validate_checkpoint(
             trainer=trainer, checkpoint_path=checkpoint_path, fold_row=fold_row
@@ -871,16 +949,49 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
-    baseline_receipt_sha = None
-    if source_candidate_id is not None:
-        if args.baseline_receipt is None or not args.baseline_receipt_sha256:
-            raise ValueError("active chart candidate requires a frozen baseline receipt")
-        baseline_receipt_sha = validate_baseline_receipt(
-            args.baseline_receipt,
-            args.baseline_receipt_sha256,
-            input_manifest_sha256=args.input_manifest_sha256,
-            fold_results=fold_results,
-        )
+    dev_overlap = []
+    for left in range(3):
+        for right in range(left + 1, 3):
+            dev_overlap.append({
+                "folds": [left, right],
+                "entity_intersection_count": len(
+                    cohort_sets[left]["inner_dev"]["entities"]
+                    & cohort_sets[right]["inner_dev"]["entities"]
+                ),
+                "sequence_cluster_intersection_count": len(
+                    cohort_sets[left]["inner_dev"]["sequence_clusters"]
+                    & cohort_sets[right]["inner_dev"]["sequence_clusters"]
+                ),
+            })
+    independent_dev_entities = all(
+        row["entity_intersection_count"] == 0 for row in dev_overlap
+    )
+    independent_dev_clusters = all(
+        row["sequence_cluster_intersection_count"] == 0 for row in dev_overlap
+    )
+    cohort_receipts = {
+        str(fold): {
+            split: {
+                "entity_count": len(values["entities"]),
+                "entity_roster_sha256": canonical_sha256(sorted(values["entities"])),
+                "sequence_cluster_count": len(values["sequence_clusters"]),
+                "sequence_cluster_roster_sha256": canonical_sha256(
+                    sorted(values["sequence_clusters"])
+                ),
+            }
+            for split, values in splits.items()
+        }
+        for fold, splits in cohort_sets.items()
+    }
+
+    if args.baseline_receipt is None or not args.baseline_receipt_sha256:
+        raise ValueError("selector requires a frozen control baseline receipt")
+    baseline_receipt_sha = validate_baseline_receipt(
+        args.baseline_receipt,
+        args.baseline_receipt_sha256,
+        input_manifest_sha256=args.input_manifest_sha256,
+        fold_results=fold_results,
+    )
 
     passing = sorted(
         row["id"] for row in candidates
@@ -915,20 +1026,25 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "source_bundle_sha256": args.source_bundle_sha256,
         "container_image_sha256": args.container_image_sha256,
         "trainer_sha256": args.trainer_sha256,
+        "execution_receipt": {
+            "slurm_job_id": slurm_job_id,
+            "slurm_node": slurm_node,
+            "frozen_source_and_input_inventories_verified": True,
+        },
         "source_candidate_id": source_candidate_id,
         "evaluation_scope": "fixed_checkpoint_post_q_inference_chart_only",
         "retraining_or_training_promotion_permitted": False,
         "baseline_receipt_sha256": baseline_receipt_sha,
-        "fixed_checkpoint_control_state_matches_baseline": (
-            True if source_candidate_id is not None else None
-        ),
+        "fixed_checkpoint_control_state_matches_baseline": True,
         "evaluated_model_id": model_id,
         "runtime": runtime,
         "selection_contract": {
             "splits": ["inner_train", "inner_dev"],
             "outer_result_path_visible": False,
             "fold_count": 3,
+            "fold_ids": [0, 1, 2],
             "same_candidate_and_sign_required_all_folds_and_splits": True,
+            "minimum_active_feature": MIN_ACTIVE_FEATURE,
             "minimum_active_rows_per_fold_split": MIN_ACTIVE_ROWS,
             "minimum_active_entities_per_fold_split": MIN_ACTIVE_ENTITIES,
             "improvement_epsilon": IMPROVEMENT_EPS,
@@ -940,6 +1056,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 "lexicographically_smallest_candidate_id_exact_tie_break",
             ],
         },
+        "cohort_receipts": cohort_receipts,
+        "inner_dev_crossfold_overlap": dev_overlap,
+        "three_entity_disjoint_inner_dev_folds": independent_dev_entities,
+        "three_sequence_cluster_disjoint_inner_dev_folds": independent_dev_clusters,
+        "g2_independent_evidence_claimed": False,
+        "validation_limitations": [
+            "Candidate selection is adaptive inner development, not fresh external validation.",
+            "Exact model/reference feature equality is an implementation gate, not scientific evidence.",
+            "Cross-fold cohort overlap is reported and cannot be used as G2 evidence.",
+        ],
         "folds": fold_results,
         "passing_candidate_ids": passing,
         "passing_candidate_count": len(passing),

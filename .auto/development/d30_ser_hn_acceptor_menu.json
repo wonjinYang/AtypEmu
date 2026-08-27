@@ -1,0 +1,57 @@
+{
+  "artifact_kind": "v3339_phase_d_inner_development_menu_v1",
+  "decision": "SAFE_MENU",
+  "development_iteration": 1,
+  "candidate_schema": {
+    "precedent": "SER:HN:exchange:Q4",
+    "precedent_status": "Dated 2026-05-19 route; the old abstract chart was maxed, so this menu admits only a distinct Phase-D acceptor-geometry realization.",
+    "selection_trigger": "The prior PHE:HN inter-sulfur menu returned NO_CANDIDATE; no SER target or candidate value was inspected before this menu was frozen.",
+    "target_atom_family": "HN",
+    "target_residue_name": "SER",
+    "target_residue_token": 16,
+    "feature_role_name": "acceptor",
+    "feature_scope": "inter_residue",
+    "feature_source": "Frozen atom27 acceptor-role RBF channel evaluated from the target HN coordinate.",
+    "feature_formula": "For center c, z_k,t,c=sum(inter-residue acceptor_role*rbf_c)/sqrt(max(acceptor_role_count,1)); f_k,t,c=1-exp(-z_k,t,c), smoothly in [0,1).",
+    "correction_formula": "support_mean_corrected_k,t=support_mean_k,t+I[SER:HN]*sign*0.005*f_k,t,c ppm after posterior q is computed.",
+    "centers_nm": [0.2, 0.3, 0.4, 0.55, 0.75, 1.0],
+    "rbf_width_nm": 0.12,
+    "sign_set": [-1, 1],
+    "magnitude_ppm": 0.005,
+    "maximum_absolute_correction_ppm": 0.005,
+    "active_feature_threshold": 0.1
+  },
+  "support_gate": {
+    "active_feature_minimum": 0.1,
+    "minimum_active_entities_per_fold_and_split": 3,
+    "minimum_active_rows_per_fold_and_split": 10
+  },
+  "candidates": [
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c020.neg.a005", "center_nm": 0.2, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c020.pos.a005", "center_nm": 0.2, "sign": 1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c030.neg.a005", "center_nm": 0.3, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c030.pos.a005", "center_nm": 0.3, "sign": 1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c040.neg.a005", "center_nm": 0.4, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c040.pos.a005", "center_nm": 0.4, "sign": 1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c055.neg.a005", "center_nm": 0.55, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c055.pos.a005", "center_nm": 0.55, "sign": 1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c075.neg.a005", "center_nm": 0.75, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c075.pos.a005", "center_nm": 0.75, "sign": 1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c100.neg.a005", "center_nm": 1.0, "sign": -1},
+    {"id": "phaseD.SER.HN.acceptor_geometry.Q4.interA.c100.pos.a005", "center_nm": 1.0, "sign": 1}
+  ],
+  "exclusions": [
+    {"route": "PHE:HN:sulfur_electrostatic:Q4", "reason": "Retired after frozen three-fold NO_CANDIDATE with inadequate fold-0 support and cross-fold sign conflict."},
+    {"route": "GLY:HN:sulfur_electrostatic:Q1", "reason": "Old chart was maxed with mixed crossfit; no distinct Phase-D mechanism is admitted here."},
+    {"route": "THR:HN:ring_current:Q4", "reason": "No aromatic ring-current representation exists on the frozen surface."},
+    {"route": "GLU:HN:alignment_mismatch:Q1", "reason": "No alignment-mismatch representation exists on the frozen surface."},
+    {"route": "terminal routes", "reason": "No frozen terminal-state representation or dated executable route is available."}
+  ],
+  "leakage_notes": [
+    "No outer-held, external, v3339w result metric, or SER candidate target value set this menu's route, centers, signs, magnitude, or threshold.",
+    "Selection uses the existing sealed inner-train/inner-dev folds and unchanged support, signed-consensus, CCC, Student-t, and HN tail guards.",
+    "The correction is post-q and SER:HN-gated; C-prime, CA, CB, N, q, ESS, entropy, and all protected prediction/scale tensors must remain exactly invariant.",
+    "NO_CANDIDATE retires this realization; thresholds and magnitude will not be retuned to rescue it.",
+    "A passing development result cannot authorize broad promotion without G2."
+  ]
+}

@@ -37,11 +37,12 @@ COORDINATE_SCOPE = (
 ATOM_COUNT = 27
 ROLE_COUNT = 7
 ROLE_NAMES = ("H", "C", "N", "O", "S", "donor", "acceptor")
-PHYSICS_CHART_MENU_SHA256 = "3d120deccf219f517938467bd0e18fb4f2fffe1d9444b09250c6f908e4cac42f"
+PHYSICS_CHART_MENU_SHA256 = "0085c13f82f1c8e0b240bc3aa81c8759791552f6a317f5e3efec9babec9a00fd"
 PHYSICS_CHART_CANDIDATE: dict[str, Any] | None = None
 PHYSICS_CHART_RBF_CENTERS_NM = (0.20, 0.30, 0.40, 0.55, 0.75, 1.00)
 PHYSICS_CHART_RBF_WIDTH_NM = 0.12
-PHYSICS_CHART_PHE_TOKEN = 5
+PHYSICS_CHART_TARGET_RESIDUE_TOKEN = 16
+PHYSICS_CHART_FEATURE_ROLE_NAME = "acceptor"
 PHYSICS_CHART_HN_ATOM_INDEX = 55
 PINNED_V6_SUPPORT_SHA256 = "5f40de7904768595508b19fd3f077d9fb55bd9879a129e26725f19473a579a0f"
 PINNED_V6_MODEL_SHA256 = "d8348a88740171939d0fabad3430b1f8adf2813c86238c7d12611cf9c79d2d56"
@@ -596,16 +597,17 @@ class DifferentiableAtom27TorsionDecoder(nn.Module):
         return positions, base_atom27_mask
 
 
-def phe_hn_inter_sulfur_features(
+def inter_role_chart_features(
     *,
     atom27_positions: torch.Tensor,
     atom27_mask: torch.Tensor,
     atom27_role_features: torch.Tensor,
     residue_index: torch.Tensor,
     equivalent_structure_slots: torch.Tensor,
+    role_name: str,
     chunk_size: int = 64,
 ) -> torch.Tensor:
-    """Return the frozen six-center inter-residue sulfur chart in [0, 1)."""
+    """Return a six-center inter-residue atom-role chart in [0, 1)."""
 
     if atom27_positions.ndim != 5 or atom27_positions.shape[-2:] != (ATOM_COUNT, 3):
         raise ValueError("atom27_positions must be [B,K,L,27,3]")
@@ -618,7 +620,9 @@ def phe_hn_inter_sulfur_features(
         or equivalent_structure_slots.shape != (batch, target_count, 3)
         or chunk_size < 1
     ):
-        raise ValueError("sulfur-chart tensor shape drift")
+        raise ValueError("inter-role chart tensor shape drift")
+    if role_name not in ROLE_NAMES:
+        raise ValueError("unknown inter-role chart atom role")
     declared = equivalent_structure_slots >= 0
     safe = equivalent_structure_slots.clamp_min(0)
     batch_index = torch.arange(batch, device=atom27_positions.device)[:, None, None]
@@ -643,7 +647,7 @@ def phe_hn_inter_sulfur_features(
         * equivalent_present[..., None].to(equivalent_positions.dtype)
     ).sum(dim=3) / denominator
     site_valid = equivalent_present.any(dim=-1)
-    sulfur = atom27_mask & atom27_role_features[..., ROLE_NAMES.index("S")]
+    role_mask = atom27_mask & atom27_role_features[..., ROLE_NAMES.index(role_name)]
     residue_grid = torch.arange(
         residue_count, device=atom27_positions.device
     )[None, None, None, :, None]
@@ -659,7 +663,7 @@ def phe_hn_inter_sulfur_features(
             :, None, start:stop, None, None
         ]
         selected = (
-            sulfur[:, :, None]
+            role_mask[:, :, None]
             & inter_residue
             & site_valid[:, :, start:stop, None, None]
         )
@@ -673,12 +677,10 @@ def phe_hn_inter_sulfur_features(
         chunks.append(1.0 - torch.exp(-z))
     result = torch.cat(chunks, dim=2)
     if result.shape != (batch, support_count, target_count, len(centers)):
-        raise RuntimeError("sulfur-chart output shape drift")
+        raise RuntimeError("inter-role chart output shape drift")
     if torch.any(result < 0) or torch.any(result >= 1) or not torch.isfinite(result).all():
-        raise RuntimeError("sulfur-chart feature left [0,1)")
+        raise RuntimeError("inter-role chart feature left [0,1)")
     return result
-
-
 class ExplicitHAtom27Observer(nn.Module):
     """Invariant atom27 observer with exact H-parent direction and methyl pooling."""
 
@@ -1490,14 +1492,18 @@ class GlobalAllAtomSharedQ(nn.Module):
                 or float(chart.get("center_nm", -1.0)) not in PHYSICS_CHART_RBF_CENTERS_NM
                 or int(chart.get("sign", 0)) not in (-1, 1)
                 or float(chart.get("magnitude_ppm", -1.0)) != 0.005
+                or int(chart.get("target_residue_token", -1))
+                != PHYSICS_CHART_TARGET_RESIDUE_TOKEN
+                or chart.get("feature_role_name") != PHYSICS_CHART_FEATURE_ROLE_NAME
             ):
                 raise ValueError("declared physics-chart candidate is outside the frozen menu")
-            features = phe_hn_inter_sulfur_features(
+            features = inter_role_chart_features(
                 atom27_positions=positions,
                 atom27_mask=batch["atom27_mask"],
                 atom27_role_features=batch["atom27_role_features"],
                 residue_index=batch["residue_index"],
                 equivalent_structure_slots=batch["equivalent_structure_slots"],
+                role_name=PHYSICS_CHART_FEATURE_ROLE_NAME,
             )
             center_index = PHYSICS_CHART_RBF_CENTERS_NM.index(
                 float(chart["center_nm"])
@@ -1506,7 +1512,7 @@ class GlobalAllAtomSharedQ(nn.Module):
                 batch["stage_a_tokens"], 1, batch["residue_index"]
             )
             target_gate = (
-                (target_token == PHYSICS_CHART_PHE_TOKEN)
+                (target_token == PHYSICS_CHART_TARGET_RESIDUE_TOKEN)
                 & (batch["atom_index"] == PHYSICS_CHART_HN_ATOM_INDEX)
             )
             correction = (
