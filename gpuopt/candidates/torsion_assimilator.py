@@ -54,6 +54,7 @@ ESM_DIM = 640
 MAX_CHI1_DELTA = 0.15
 SUPPORT_COUNT = 8
 OBSERVER_RESIDUAL_GAIN = 0.1
+STRUCTURAL_RESPONSE_GAIN = 1.0
 NUMERIC_COLUMNS = (
     "relative_position",
     "log_length",
@@ -396,6 +397,42 @@ def actuate_chi1(
     return output
 
 
+def coordinate_response(
+    model: CoordinateObserver,
+    esm: torch.Tensor,
+    categorical: torch.Tensor,
+    numeric: torch.Tensor,
+    base_torsion: torch.Tensor,
+    active_torsion: torch.Tensor,
+) -> torch.Tensor:
+    """Shrink only the absolute mean, not calibrated conformer differences."""
+
+    count = len(esm)
+    repeated_esm = esm.repeat_interleave(SUPPORT_COUNT, dim=0)
+    repeated_categorical = categorical.repeat_interleave(SUPPORT_COUNT, dim=0)
+    repeated_numeric = numeric.repeat_interleave(SUPPORT_COUNT, dim=0)
+    base = model(
+        repeated_esm,
+        repeated_categorical,
+        repeated_numeric,
+        base_torsion.reshape(-1, base_torsion.shape[-1]),
+    ).reshape(count, SUPPORT_COUNT)
+    active = (
+        base
+        if active_torsion is base_torsion
+        else model(
+            repeated_esm,
+            repeated_categorical,
+            repeated_numeric,
+            active_torsion.reshape(-1, active_torsion.shape[-1]),
+        ).reshape(count, SUPPORT_COUNT)
+    )
+    base_mean = base.mean(dim=1, keepdim=True)
+    return OBSERVER_RESIDUAL_GAIN * base_mean + STRUCTURAL_RESPONSE_GAIN * (
+        active - base_mean
+    )
+
+
 def predict_surface(
     model: CoordinateObserver,
     values: dict[str, Any],
@@ -410,24 +447,14 @@ def predict_surface(
         esm = tensor(values["esm"][start:stop], device, torch.float32)
         categorical = tensor(values["categorical"][start:stop], device, torch.long)
         numeric = tensor(values["numeric"][start:stop], device, torch.float32)
-        torsion = tensor(values["torsion"][start:stop], device, torch.float32)
+        base_torsion = tensor(values["torsion"][start:stop], device, torch.float32)
+        torsion = base_torsion
         if delta_raw is not None:
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
             torsion = actuate_chi1(torsion, residues, delta_raw)
-        count = stop - start
-        flat_prediction = (
-            OBSERVER_RESIDUAL_GAIN
-            * model(
-                esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
-                categorical[:, None, :]
-                .expand(-1, SUPPORT_COUNT, -1)
-                .reshape(-1, categorical.shape[1]),
-                numeric[:, None, :]
-                .expand(-1, SUPPORT_COUNT, -1)
-                .reshape(-1, numeric.shape[1]),
-                torsion.reshape(-1, torsion.shape[-1]),
-            )
-        ).reshape(count, SUPPORT_COUNT)
+        flat_prediction = coordinate_response(
+            model, esm, categorical, numeric, base_torsion, torsion
+        )
         output.append(flat_prediction.detach().cpu().numpy())
     normalized = np.concatenate(output)
     return values["center"][:, None] + values["scale"][:, None] * normalized
@@ -455,28 +482,17 @@ def optimize_assimilation(
             esm = tensor(values["esm"][start:stop], device, torch.float32)
             categorical = tensor(values["categorical"][start:stop], device, torch.long)
             numeric = tensor(values["numeric"][start:stop], device, torch.float32)
-            torsion = tensor(values["torsion"][start:stop], device, torch.float32)
+            base_torsion = tensor(values["torsion"][start:stop], device, torch.float32)
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
             entities = tensor(values["entity_index"][start:stop], device, torch.long)
             target = tensor(
                 values["normalized_target"][start:stop], device, torch.float32
             )
             weight = tensor(weights[start:stop], device, torch.float32)
-            torsion = actuate_chi1(torsion, residues, delta_raw)
-            count = stop - start
-            support_prediction = (
-                OBSERVER_RESIDUAL_GAIN
-                * model(
-                    esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
-                    categorical[:, None, :]
-                    .expand(-1, SUPPORT_COUNT, -1)
-                    .reshape(-1, categorical.shape[1]),
-                    numeric[:, None, :]
-                    .expand(-1, SUPPORT_COUNT, -1)
-                    .reshape(-1, numeric.shape[1]),
-                    torsion.reshape(-1, torsion.shape[-1]),
-                )
-            ).reshape(count, SUPPORT_COUNT)
+            torsion = actuate_chi1(base_torsion, residues, delta_raw)
+            support_prediction = coordinate_response(
+                model, esm, categorical, numeric, base_torsion, torsion
+            )
             q = torch.softmax(q_logits[entities], dim=1)
             aggregate = torch.sum(q * support_prediction, dim=1)
             loss = torch.sum(weight * torch.square(aggregate - target)) / row_count
