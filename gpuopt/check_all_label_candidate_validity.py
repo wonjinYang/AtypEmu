@@ -99,7 +99,9 @@ def main() -> int:
 
     expected_outputs = [
         *(f"surface_{direction}.parquet" for direction in DIRECTIONS),
+        *(f"surface_no_coordinate_{direction}.parquet" for direction in DIRECTIONS),
         *(f"q_{direction}.parquet" for direction in DIRECTIONS),
+        *(f"q_uniform_{direction}.parquet" for direction in DIRECTIONS),
         *(f"coordinate_audit_{direction}.npz" for direction in DIRECTIONS),
     ]
     hashes = validity.get("output_sha256", {})
@@ -108,6 +110,20 @@ def main() -> int:
     for name in expected_outputs:
         if hashes[name] != sha256_file(args.run_root / name):
             raise ValueError(f"candidate output hash mismatch: {name}")
+
+    primary = json.loads((args.run_root / "score.json").read_text())[
+        "all_label_macro_one_shared_q_ccc"
+    ]
+    no_coordinate = json.loads(
+        (args.run_root / "no_coordinate_score.json").read_text()
+    )["all_label_macro_one_shared_q_ccc"]
+    uniform_q = json.loads((args.run_root / "uniform_q_score.json").read_text())[
+        "all_label_macro_one_shared_q_ccc"
+    ]
+    if not float(primary) > float(no_coordinate):
+        raise ValueError("coordinate actuator does not improve the primary metric")
+    if not float(primary) > float(uniform_q):
+        raise ValueError("learned shared q does not improve the primary metric")
     print("all-label E2E candidate validity checks: PASS")
     return 0
 

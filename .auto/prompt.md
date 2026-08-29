@@ -38,6 +38,7 @@ Run `.auto/measure.sh`. It calls `gpuopt/run_all_label_candidate.py` and expects
 - `.auto/runs/current/surface_B_to_A.parquet`
 - `.auto/runs/current/q_A_to_B.parquet`
 - `.auto/runs/current/q_B_to_A.parquet`
+- matched `surface_no_coordinate_*.parquet` and `q_uniform_*.parquet` controls
 - `.auto/runs/current/validity.json`
 - `.auto/runs/current/coordinate_audit_A_to_B.npz`
 - `.auto/runs/current/coordinate_audit_B_to_A.npz`
