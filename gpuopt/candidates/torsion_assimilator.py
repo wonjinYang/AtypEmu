@@ -351,22 +351,24 @@ def train_observer(
     torsion = tensor(data["torsion"], device, torch.float32)
     target = tensor(data["normalized_target"], device, torch.float32)
     weight = tensor(atom_weights(data["frame"]), device, torch.float32)
-    size = len(target) * SUPPORT_COUNT
+    size = len(target)
     generator = torch.Generator(device=device).manual_seed(seed)
     for _ in range(epochs):
         order = torch.randperm(size, generator=generator, device=device)
         model.train()
         for start in range(0, size, batch_size):
-            flat = order[start : start + batch_size]
-            row = torch.div(flat, SUPPORT_COUNT, rounding_mode="floor")
-            support = flat.remainder(SUPPORT_COUNT)
+            row = order[start : start + batch_size]
+            count = len(row)
             prediction = model(
-                esm[row], categorical[row], numeric[row], torsion[row, support]
-            )
+                esm[row].repeat_interleave(SUPPORT_COUNT, dim=0),
+                categorical[row].repeat_interleave(SUPPORT_COUNT, dim=0),
+                numeric[row].repeat_interleave(SUPPORT_COUNT, dim=0),
+                torsion[row].reshape(-1, torsion.shape[-1]),
+            ).reshape(count, SUPPORT_COUNT)
             loss = torch.mean(
                 weight[row]
                 * torch.nn.functional.smooth_l1_loss(
-                    prediction, target[row], reduction="none"
+                    prediction.mean(dim=1), target[row], reduction="none"
                 )
             )
             optimizer.zero_grad(set_to_none=True)
