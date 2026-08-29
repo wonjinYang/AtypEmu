@@ -1,0 +1,658 @@
+{
+  "artifact_kind": "atypemu_all_label_inventory_v1",
+  "assigned_row_count": 127285,
+  "cohort": "observer-fold A/B crossfit development entries",
+  "contract": "atypemu_all_label_macro_one_shared_q_ccc_v1",
+  "eligibility_rule": {
+    "group": "canonical BMRB Atom_ID only",
+    "prediction_fields_read": [],
+    "required_finite_target_count": 2,
+    "required_positive_target_variance": true
+  },
+  "eligible_atom_ids": [
+    "C",
+    "CA",
+    "CB",
+    "CD",
+    "CD1",
+    "CD2",
+    "CE",
+    "CE1",
+    "CE2",
+    "CE3",
+    "CG",
+    "CG1",
+    "CG2",
+    "CH2",
+    "CZ",
+    "CZ2",
+    "CZ3",
+    "H",
+    "HA",
+    "HA2",
+    "HA3",
+    "HB",
+    "HB1",
+    "HB2",
+    "HB3",
+    "HD1",
+    "HD11",
+    "HD12",
+    "HD13",
+    "HD2",
+    "HD21",
+    "HD22",
+    "HD23",
+    "HD3",
+    "HE",
+    "HE1",
+    "HE2",
+    "HE21",
+    "HE22",
+    "HE3",
+    "HG",
+    "HG1",
+    "HG11",
+    "HG12",
+    "HG13",
+    "HG2",
+    "HG21",
+    "HG22",
+    "HG23",
+    "HG3",
+    "HH",
+    "HH2",
+    "HZ",
+    "HZ1",
+    "HZ2",
+    "HZ3",
+    "N",
+    "ND1",
+    "ND2",
+    "NE",
+    "NE1",
+    "NE2"
+  ],
+  "entity_count": 135,
+  "entity_uid_sha256": "f1082c044ee8e8d5c66956f48960bc668afa0fad76ce47a0f490ad1e578d5dc2",
+  "finite_assigned_row_count": 127285,
+  "finite_row_identity_sha256": "8c80f2cd1ab1e7a27b105a1114f0f9ec324f027649a4c8ab9aa331d3f7f92671",
+  "labels": [
+    {
+      "assigned_row_count": 10586,
+      "atom_id": "C",
+      "eligible": true,
+      "entity_count": 104,
+      "finite_row_count": 10586,
+      "ineligible_reasons": [],
+      "target_variance": 18.077116029040035
+    },
+    {
+      "assigned_row_count": 13066,
+      "atom_id": "CA",
+      "eligible": true,
+      "entity_count": 135,
+      "finite_row_count": 13066,
+      "ineligible_reasons": [],
+      "target_variance": 24.011219839521107
+    },
+    {
+      "assigned_row_count": 11665,
+      "atom_id": "CB",
+      "eligible": true,
+      "entity_count": 135,
+      "finite_row_count": 11665,
+      "ineligible_reasons": [],
+      "target_variance": 183.72164685961232
+    },
+    {
+      "assigned_row_count": 1471,
+      "atom_id": "CD",
+      "eligible": true,
+      "entity_count": 106,
+      "finite_row_count": 1471,
+      "ineligible_reasons": [],
+      "target_variance": 522.2435000808769
+    },
+    {
+      "assigned_row_count": 1242,
+      "atom_id": "CD1",
+      "eligible": true,
+      "entity_count": 95,
+      "finite_row_count": 1242,
+      "ineligible_reasons": [],
+      "target_variance": 2184.2297462880347
+    },
+    {
+      "assigned_row_count": 846,
+      "atom_id": "CD2",
+      "eligible": true,
+      "entity_count": 92,
+      "finite_row_count": 846,
+      "ineligible_reasons": [],
+      "target_variance": 2312.7648318691213
+    },
+    {
+      "assigned_row_count": 537,
+      "atom_id": "CE",
+      "eligible": true,
+      "entity_count": 89,
+      "finite_row_count": 537,
+      "ineligible_reasons": [],
+      "target_variance": 83.54047682621918
+    },
+    {
+      "assigned_row_count": 314,
+      "atom_id": "CE1",
+      "eligible": true,
+      "entity_count": 52,
+      "finite_row_count": 314,
+      "ineligible_reasons": [],
+      "target_variance": 229.9813321024788
+    },
+    {
+      "assigned_row_count": 169,
+      "atom_id": "CE2",
+      "eligible": true,
+      "entity_count": 36,
+      "finite_row_count": 169,
+      "ineligible_reasons": [],
+      "target_variance": 44.38033040705859
+    },
+    {
+      "assigned_row_count": 28,
+      "atom_id": "CE3",
+      "eligible": true,
+      "entity_count": 19,
+      "finite_row_count": 28,
+      "ineligible_reasons": [],
+      "target_variance": 0.8539859323979601
+    },
+    {
+      "assigned_row_count": 3531,
+      "atom_id": "CG",
+      "eligible": true,
+      "entity_count": 107,
+      "finite_row_count": 3531,
+      "ineligible_reasons": [],
+      "target_variance": 172.0545769794968
+    },
+    {
+      "assigned_row_count": 851,
+      "atom_id": "CG1",
+      "eligible": true,
+      "entity_count": 98,
+      "finite_row_count": 851,
+      "ineligible_reasons": [],
+      "target_variance": 10.585561013961593
+    },
+    {
+      "assigned_row_count": 1322,
+      "atom_id": "CG2",
+      "eligible": true,
+      "entity_count": 103,
+      "finite_row_count": 1322,
+      "ineligible_reasons": [],
+      "target_variance": 3.9541967758524996
+    },
+    {
+      "assigned_row_count": 24,
+      "atom_id": "CH2",
+      "eligible": true,
+      "entity_count": 18,
+      "finite_row_count": 24,
+      "ineligible_reasons": [],
+      "target_variance": 1.7327430555555559
+    },
+    {
+      "assigned_row_count": 98,
+      "atom_id": "CZ",
+      "eligible": true,
+      "entity_count": 38,
+      "finite_row_count": 98,
+      "ineligible_reasons": [],
+      "target_variance": 113.74089805081216
+    },
+    {
+      "assigned_row_count": 26,
+      "atom_id": "CZ2",
+      "eligible": true,
+      "entity_count": 19,
+      "finite_row_count": 26,
+      "ineligible_reasons": [],
+      "target_variance": 8.202492289940814
+    },
+    {
+      "assigned_row_count": 28,
+      "atom_id": "CZ3",
+      "eligible": true,
+      "entity_count": 19,
+      "finite_row_count": 28,
+      "ineligible_reasons": [],
+      "target_variance": 2.1711429438775527
+    },
+    {
+      "assigned_row_count": 11992,
+      "atom_id": "H",
+      "eligible": true,
+      "entity_count": 135,
+      "finite_row_count": 11992,
+      "ineligible_reasons": [],
+      "target_variance": 0.1473961577651845
+    },
+    {
+      "assigned_row_count": 11143,
+      "atom_id": "HA",
+      "eligible": true,
+      "entity_count": 132,
+      "finite_row_count": 11143,
+      "ineligible_reasons": [],
+      "target_variance": 0.11922150896363315
+    },
+    {
+      "assigned_row_count": 1041,
+      "atom_id": "HA2",
+      "eligible": true,
+      "entity_count": 127,
+      "finite_row_count": 1041,
+      "ineligible_reasons": [],
+      "target_variance": 0.07068781991563937
+    },
+    {
+      "assigned_row_count": 923,
+      "atom_id": "HA3",
+      "eligible": true,
+      "entity_count": 122,
+      "finite_row_count": 923,
+      "ineligible_reasons": [],
+      "target_variance": 0.072286500018194
+    },
+    {
+      "assigned_row_count": 1725,
+      "atom_id": "HB",
+      "eligible": true,
+      "entity_count": 128,
+      "finite_row_count": 1725,
+      "ineligible_reasons": [],
+      "target_variance": 1.2125567524321779
+    },
+    {
+      "assigned_row_count": 1008,
+      "atom_id": "HB1",
+      "eligible": true,
+      "entity_count": 125,
+      "finite_row_count": 1008,
+      "ineligible_reasons": [],
+      "target_variance": 0.027780398808539622
+    },
+    {
+      "assigned_row_count": 8538,
+      "atom_id": "HB2",
+      "eligible": true,
+      "entity_count": 132,
+      "finite_row_count": 8538,
+      "ineligible_reasons": [],
+      "target_variance": 0.5974450422189289
+    },
+    {
+      "assigned_row_count": 8122,
+      "atom_id": "HB3",
+      "eligible": true,
+      "entity_count": 131,
+      "finite_row_count": 8122,
+      "ineligible_reasons": [],
+      "target_variance": 0.5896056642094085
+    },
+    {
+      "assigned_row_count": 383,
+      "atom_id": "HD1",
+      "eligible": true,
+      "entity_count": 74,
+      "finite_row_count": 383,
+      "ineligible_reasons": [],
+      "target_variance": 0.1323537509561044
+    },
+    {
+      "assigned_row_count": 1049,
+      "atom_id": "HD11",
+      "eligible": true,
+      "entity_count": 100,
+      "finite_row_count": 1049,
+      "ineligible_reasons": [],
+      "target_variance": 0.04254606902392855
+    },
+    {
+      "assigned_row_count": 1049,
+      "atom_id": "HD12",
+      "eligible": true,
+      "entity_count": 100,
+      "finite_row_count": 1049,
+      "ineligible_reasons": [],
+      "target_variance": 0.04254606902392855
+    },
+    {
+      "assigned_row_count": 1049,
+      "atom_id": "HD13",
+      "eligible": true,
+      "entity_count": 100,
+      "finite_row_count": 1049,
+      "ineligible_reasons": [],
+      "target_variance": 0.042565724131475705
+    },
+    {
+      "assigned_row_count": 1748,
+      "atom_id": "HD2",
+      "eligible": true,
+      "entity_count": 106,
+      "finite_row_count": 1748,
+      "ineligible_reasons": [],
+      "target_variance": 3.606124953577544
+    },
+    {
+      "assigned_row_count": 852,
+      "atom_id": "HD21",
+      "eligible": true,
+      "entity_count": 104,
+      "finite_row_count": 852,
+      "ineligible_reasons": [],
+      "target_variance": 8.033563237304106
+    },
+    {
+      "assigned_row_count": 848,
+      "atom_id": "HD22",
+      "eligible": true,
+      "entity_count": 104,
+      "finite_row_count": 848,
+      "ineligible_reasons": [],
+      "target_variance": 7.680674043693263
+    },
+    {
+      "assigned_row_count": 642,
+      "atom_id": "HD23",
+      "eligible": true,
+      "entity_count": 98,
+      "finite_row_count": 642,
+      "ineligible_reasons": [],
+      "target_variance": 0.07826401473199988
+    },
+    {
+      "assigned_row_count": 1239,
+      "atom_id": "HD3",
+      "eligible": true,
+      "entity_count": 102,
+      "finite_row_count": 1239,
+      "ineligible_reasons": [],
+      "target_variance": 0.8246575505571744
+    },
+    {
+      "assigned_row_count": 77,
+      "atom_id": "HE",
+      "eligible": true,
+      "entity_count": 30,
+      "finite_row_count": 77,
+      "ineligible_reasons": [],
+      "target_variance": 0.098438986338337
+    },
+    {
+      "assigned_row_count": 542,
+      "atom_id": "HE1",
+      "eligible": true,
+      "entity_count": 79,
+      "finite_row_count": 542,
+      "ineligible_reasons": [],
+      "target_variance": 5.844340915786141
+    },
+    {
+      "assigned_row_count": 802,
+      "atom_id": "HE2",
+      "eligible": true,
+      "entity_count": 91,
+      "finite_row_count": 802,
+      "ineligible_reasons": [],
+      "target_variance": 4.010934647012456
+    },
+    {
+      "assigned_row_count": 207,
+      "atom_id": "HE21",
+      "eligible": true,
+      "entity_count": 62,
+      "finite_row_count": 207,
+      "ineligible_reasons": [],
+      "target_variance": 0.12385139555182151
+    },
+    {
+      "assigned_row_count": 203,
+      "atom_id": "HE22",
+      "eligible": true,
+      "entity_count": 61,
+      "finite_row_count": 203,
+      "ineligible_reasons": [],
+      "target_variance": 0.13510677279235117
+    },
+    {
+      "assigned_row_count": 547,
+      "atom_id": "HE3",
+      "eligible": true,
+      "entity_count": 88,
+      "finite_row_count": 547,
+      "ineligible_reasons": [],
+      "target_variance": 2.182893038518227
+    },
+    {
+      "assigned_row_count": 623,
+      "atom_id": "HG",
+      "eligible": true,
+      "entity_count": 95,
+      "finite_row_count": 623,
+      "ineligible_reasons": [],
+      "target_variance": 0.3618601605394082
+    },
+    {
+      "assigned_row_count": 4,
+      "atom_id": "HG1",
+      "eligible": true,
+      "entity_count": 3,
+      "finite_row_count": 4,
+      "ineligible_reasons": [],
+      "target_variance": 0.030704250000000027
+    },
+    {
+      "assigned_row_count": 570,
+      "atom_id": "HG11",
+      "eligible": true,
+      "entity_count": 99,
+      "finite_row_count": 570,
+      "ineligible_reasons": [],
+      "target_variance": 0.02668574702677747
+    },
+    {
+      "assigned_row_count": 913,
+      "atom_id": "HG12",
+      "eligible": true,
+      "entity_count": 105,
+      "finite_row_count": 913,
+      "ineligible_reasons": [],
+      "target_variance": 0.1129333002115002
+    },
+    {
+      "assigned_row_count": 912,
+      "atom_id": "HG13",
+      "eligible": true,
+      "entity_count": 105,
+      "finite_row_count": 912,
+      "ineligible_reasons": [],
+      "target_variance": 0.0938007572991209
+    },
+    {
+      "assigned_row_count": 2908,
+      "atom_id": "HG2",
+      "eligible": true,
+      "entity_count": 108,
+      "finite_row_count": 2908,
+      "ineligible_reasons": [],
+      "target_variance": 0.18660698697268738
+    },
+    {
+      "assigned_row_count": 1381,
+      "atom_id": "HG21",
+      "eligible": true,
+      "entity_count": 108,
+      "finite_row_count": 1381,
+      "ineligible_reasons": [],
+      "target_variance": 0.05570545320295455
+    },
+    {
+      "assigned_row_count": 1381,
+      "atom_id": "HG22",
+      "eligible": true,
+      "entity_count": 108,
+      "finite_row_count": 1381,
+      "ineligible_reasons": [],
+      "target_variance": 0.05570545320295455
+    },
+    {
+      "assigned_row_count": 1381,
+      "atom_id": "HG23",
+      "eligible": true,
+      "entity_count": 108,
+      "finite_row_count": 1381,
+      "ineligible_reasons": [],
+      "target_variance": 0.05570545320295455
+    },
+    {
+      "assigned_row_count": 2683,
+      "atom_id": "HG3",
+      "eligible": true,
+      "entity_count": 107,
+      "finite_row_count": 2683,
+      "ineligible_reasons": [],
+      "target_variance": 0.1936269038143977
+    },
+    {
+      "assigned_row_count": 5,
+      "atom_id": "HH",
+      "eligible": true,
+      "entity_count": 3,
+      "finite_row_count": 5,
+      "ineligible_reasons": [],
+      "target_variance": 0.8528213599999994
+    },
+    {
+      "assigned_row_count": 1,
+      "atom_id": "HH11",
+      "eligible": false,
+      "entity_count": 1,
+      "finite_row_count": 1,
+      "ineligible_reasons": [
+        "fewer_than_two_finite_targets",
+        "zero_target_variance"
+      ],
+      "target_variance": 0.0
+    },
+    {
+      "assigned_row_count": 40,
+      "atom_id": "HH2",
+      "eligible": true,
+      "entity_count": 26,
+      "finite_row_count": 40,
+      "ineligible_reasons": [],
+      "target_variance": 0.08719959749999999
+    },
+    {
+      "assigned_row_count": 108,
+      "atom_id": "HZ",
+      "eligible": true,
+      "entity_count": 43,
+      "finite_row_count": 108,
+      "ineligible_reasons": [],
+      "target_variance": 0.09657675402949245
+    },
+    {
+      "assigned_row_count": 4,
+      "atom_id": "HZ1",
+      "eligible": true,
+      "entity_count": 2,
+      "finite_row_count": 4,
+      "ineligible_reasons": [],
+      "target_variance": 3.600854
+    },
+    {
+      "assigned_row_count": 51,
+      "atom_id": "HZ2",
+      "eligible": true,
+      "entity_count": 34,
+      "finite_row_count": 51,
+      "ineligible_reasons": [],
+      "target_variance": 0.40471979084967313
+    },
+    {
+      "assigned_row_count": 48,
+      "atom_id": "HZ3",
+      "eligible": true,
+      "entity_count": 30,
+      "finite_row_count": 48,
+      "ineligible_reasons": [],
+      "target_variance": 0.3682291870659722
+    },
+    {
+      "assigned_row_count": 12200,
+      "atom_id": "N",
+      "eligible": true,
+      "entity_count": 135,
+      "finite_row_count": 12200,
+      "ineligible_reasons": [],
+      "target_variance": 29.820478751551775
+    },
+    {
+      "assigned_row_count": 2,
+      "atom_id": "ND1",
+      "eligible": true,
+      "entity_count": 2,
+      "finite_row_count": 2,
+      "ineligible_reasons": [],
+      "target_variance": 0.691392250000009
+    },
+    {
+      "assigned_row_count": 203,
+      "atom_id": "ND2",
+      "eligible": true,
+      "entity_count": 57,
+      "finite_row_count": 203,
+      "ineligible_reasons": [],
+      "target_variance": 1.802025833191779
+    },
+    {
+      "assigned_row_count": 58,
+      "atom_id": "NE",
+      "eligible": true,
+      "entity_count": 24,
+      "finite_row_count": 58,
+      "ineligible_reasons": [],
+      "target_variance": 53.35767462098693
+    },
+    {
+      "assigned_row_count": 67,
+      "atom_id": "NE1",
+      "eligible": true,
+      "entity_count": 34,
+      "finite_row_count": 67,
+      "ineligible_reasons": [],
+      "target_variance": 0.9535950862107363
+    },
+    {
+      "assigned_row_count": 209,
+      "atom_id": "NE2",
+      "eligible": true,
+      "entity_count": 60,
+      "finite_row_count": 209,
+      "ineligible_reasons": [],
+      "target_variance": 1.2422334124218768
+    }
+  ],
+  "nonfinite_assigned_row_count": 0,
+  "receipt_sha256": "270acb229d7aa2ef4ede49f6ba8774e17551a507bad0c7d040455b356c62f29b",
+  "source_bindings": {
+    "commitment_sha256": "ff7da6473638976d26410bbcf6239385c07a5d28790f2108c86f10e473934cec",
+    "feature_receipt_sha256": "613b5cb5555f6ea5a2822e6786efdee1bf5c813f8d465438adb14f7a4928c4c4"
+  }
+}

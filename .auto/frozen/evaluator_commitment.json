@@ -1,0 +1,22 @@
+{
+  "artifact_kind": "atypemu_all_label_evaluator_commitment_v1",
+  "contract": "atypemu_all_label_macro_one_shared_q_ccc_v1",
+  "evaluator_source_sha256": "74a0ac3b3bcda486191b107f41266f2d32ebf707858e31b03e6805cdd6ed9e6c",
+  "evaluator_test_sha256": "4f72c8e2f615c6df5ace595998246c82519d85b4dab92d6a639a37a6f1081739",
+  "goal": 0.95,
+  "independent_verifier_sha256": "ee5667f148bd6bbff3bb6bf8223f672022556d8e252b4489d75c41ebb0aa15a5",
+  "inventory_file_sha256": "0652b495d5e0ef66fe69a1ad369f51645ef3f04ac9d4ccb8a3664051db5292ed",
+  "inventory_receipt_sha256": "270acb229d7aa2ef4ede49f6ba8774e17551a507bad0c7d040455b356c62f29b",
+  "primary_formula": "mean over frozen eligible canonical BMRB Atom_ID labels of population-moment CCC(target, sum_k q_e[k] * support_prediction[k]); one q_e per entry",
+  "receipt_sha256": "673bc2d533d3370860f2e3fcac3793d69e0cb8328fa680186c763bce8a55f961",
+  "semantics": {
+    "assigned_D_e_may_condition_q_e_and_generator": true,
+    "constant_prediction_exclusion_forbidden": true,
+    "eligibility_reads_predictions": false,
+    "exact_comp_id_atom_id_cells_are_primary": false,
+    "masked_label_metrics_are_primary": false,
+    "nonfinite_or_missing_prediction_invalidates_candidate": true,
+    "same_D_e_is_scored": true,
+    "task": "unseen-entry NMR evidence co-satisfaction/assimilation"
+  }
+}

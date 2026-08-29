@@ -7,6 +7,12 @@ gpuopt/__pycache__/
 !autoresearch.sh
 !.auto/
 .auto/*
+!.auto/prompt.md
+!.auto/measure.sh
+!.auto/checks.sh
+!.auto/config.json
+!.auto/frozen/
+!.auto/frozen/**
 !.auto/preunblind/
 !.auto/preunblind/domain_compass_ordinal1043.txt
 !.auto/preunblind/receipt.json
