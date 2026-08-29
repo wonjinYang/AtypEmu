@@ -255,7 +255,11 @@ def normalization(
             scales.append(
                 max(float(width) if math.isfinite(float(width)) else 0.1, 0.1)
             )
-        values["center"] = np.asarray(centers, dtype=np.float32)
+        values["center"] = (
+            np.asarray(values["anchor"], dtype=np.float32)
+            if "anchor" in values
+            else np.asarray(centers, dtype=np.float32)
+        )
         values["scale"] = np.asarray(scales, dtype=np.float32)
         target = values["frame"]["target_value"].to_numpy(dtype=np.float32)
         values["normalized_target"] = (target - values["center"]) / values["scale"]

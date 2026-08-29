@@ -9,6 +9,7 @@ import pickle
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import torch
 
 from candidates.torsion_assimilator import (
@@ -24,6 +25,11 @@ from candidates.torsion_assimilator import (
     surface_frame,
     train_observer,
 )
+
+SEQUENCE_ANCHOR_SHA256 = {
+    "A": "3d62684fee95bcbaae68dc2cf85ded21aeb367b9520120832b777adb0efccb01",
+    "B": "ea2690e8f5a603f0a3c3d9cb4c05edcbbc80dc50896f6311fd21350bc40bdb12",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -96,6 +102,29 @@ def main() -> int:
         temporary.replace(cache_path)
         print(f"wrote cache {cache_path}", flush=True)
 
+    sequence_anchor_hashes = {}
+    for fold in ("A", "B"):
+        anchor_path = (
+            args.data_root.parent
+            / f"bmrb_sequence_esm2_observer_eval_{fold}_v0"
+            / "predictions.parquet"
+        )
+        actual_hash = sha256_file(anchor_path)
+        if actual_hash != SEQUENCE_ANCHOR_SHA256[fold]:
+            raise ValueError(f"sequence anchor hash mismatch for fold {fold}")
+        # Column projection is part of the independence contract: the colocated
+        # target_value column is never materialized in this candidate process.
+        anchor = pd.read_parquet(anchor_path, columns=("target_id", "prediction"))
+        if anchor["target_id"].duplicated().any():
+            raise ValueError(f"duplicate sequence anchor targets in fold {fold}")
+        aligned = raw_folds[fold]["frame"]["target_id"].map(
+            anchor.set_index("target_id")["prediction"]
+        )
+        if aligned.isna().any() or not np.isfinite(aligned.to_numpy(float)).all():
+            raise ValueError(f"incomplete sequence anchor coverage in fold {fold}")
+        raw_folds[fold]["anchor"] = aligned.to_numpy(dtype=np.float32)
+        sequence_anchor_hashes[fold] = actual_hash
+
     for direction_number, (train_fold, eval_fold, direction) in enumerate(
         (("A", "B", "A_to_B"), ("B", "A", "B_to_A"))
     ):
@@ -163,6 +192,8 @@ def main() -> int:
         "observer_reads_assigned_target_values_directly": False,
         "support_predictions_derived_from_complete_coordinates": True,
         "outer_sealed_entities_read": False,
+        "frozen_sequence_anchor_sha256": sequence_anchor_hashes,
+        "sequence_anchor_columns_read": ["target_id", "prediction"],
         "directions": validity_directions,
         "output_sha256": {
             name: sha256_file(args.output_root / name) for name in output_names
