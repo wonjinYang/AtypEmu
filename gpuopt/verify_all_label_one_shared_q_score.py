@@ -60,9 +60,17 @@ def read_targets(data_root: Path) -> pd.DataFrame:
         identities = features[["target_id", "atom_id"]].drop_duplicates()
         if identities["target_id"].duplicated().any():
             raise ValueError("ambiguous Atom_ID")
+        if "atom_id" in targets:
+            targets = targets.rename(columns={"atom_id": "target_atom_id"})
         joined = targets.merge(
             identities, on="target_id", how="left", validate="one_to_one"
         )
+        if "target_atom_id" in joined:
+            target_atom_id = (
+                joined["target_atom_id"].astype(str).str.strip().str.upper()
+            )
+            if not target_atom_id.eq(joined["atom_id"]).all():
+                raise ValueError("target/feature Atom_ID mismatch")
         joined["entity_uid"] = entity_uid
         frames.append(joined[["entity_uid", "target_id", "atom_id", "target_value"]])
     rows = pd.concat(frames, ignore_index=True)
