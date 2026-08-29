@@ -46,12 +46,13 @@ TORSION_COLUMNS = tuple(
     for name in TORSION_NAMES
     for suffix in ("sin", "cos", "available")
 )
-CHI1_SIN = TORSION_COLUMNS.index("chi1_sin")
-CHI1_COS = TORSION_COLUMNS.index("chi1_cos")
-CHI1_AVAILABLE = TORSION_COLUMNS.index("chi1_available")
 ESM_MODEL = "esm2_t30_150M_UR50D"
 ESM_DIM = 640
-MAX_CHI1_DELTA = 0.15
+ACTUATOR_SPECS = (
+    ("phi", 0.10),
+    ("psi", 0.10),
+    ("chi1", 0.25),
+)
 SUPPORT_COUNT = 8
 OBSERVER_RESIDUAL_GAIN = 0.1
 STRUCTURAL_RESPONSE_GAIN = 1.0
@@ -381,19 +382,31 @@ def train_observer(
     return model
 
 
-def actuate_chi1(
+def actuator_delta(delta_raw: torch.Tensor) -> torch.Tensor:
+    bounds = delta_raw.new_tensor([bound for _name, bound in ACTUATOR_SPECS])
+    return bounds * torch.tanh(delta_raw)
+
+
+def actuate_torsions(
     torsion: torch.Tensor,
     residue_index_tensor: torch.Tensor,
     delta_raw: torch.Tensor,
 ) -> torch.Tensor:
-    delta = MAX_CHI1_DELTA * torch.tanh(delta_raw[residue_index_tensor])
-    available = torsion[..., CHI1_AVAILABLE]
-    angle = delta * available
-    sin_value = torsion[..., CHI1_SIN]
-    cos_value = torsion[..., CHI1_COS]
+    delta = actuator_delta(delta_raw[residue_index_tensor])
     output = torsion.clone()
-    output[..., CHI1_SIN] = sin_value * torch.cos(angle) + cos_value * torch.sin(angle)
-    output[..., CHI1_COS] = cos_value * torch.cos(angle) - sin_value * torch.sin(angle)
+    for dimension, (name, _bound) in enumerate(ACTUATOR_SPECS):
+        sin_index = TORSION_COLUMNS.index(f"{name}_sin")
+        cos_index = TORSION_COLUMNS.index(f"{name}_cos")
+        available_index = TORSION_COLUMNS.index(f"{name}_available")
+        angle = delta[..., dimension] * torsion[..., available_index]
+        sin_value = torsion[..., sin_index]
+        cos_value = torsion[..., cos_index]
+        output[..., sin_index] = sin_value * torch.cos(angle) + cos_value * torch.sin(
+            angle
+        )
+        output[..., cos_index] = cos_value * torch.cos(angle) - sin_value * torch.sin(
+            angle
+        )
     return output
 
 
@@ -451,7 +464,7 @@ def predict_surface(
         torsion = base_torsion
         if delta_raw is not None:
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
-            torsion = actuate_chi1(torsion, residues, delta_raw)
+            torsion = actuate_torsions(torsion, residues, delta_raw)
         flat_prediction = coordinate_response(
             model, esm, categorical, numeric, base_torsion, torsion
         )
@@ -470,7 +483,9 @@ def optimize_assimilation(
 ) -> tuple[torch.Tensor, torch.Tensor, float]:
     residue_count = len(values["residue_keys"])
     entity_count = len(values["entities"])
-    delta_raw = nn.Parameter(torch.zeros(residue_count, SUPPORT_COUNT, device=device))
+    delta_raw = nn.Parameter(
+        torch.zeros(residue_count, SUPPORT_COUNT, len(ACTUATOR_SPECS), device=device)
+    )
     q_logits = nn.Parameter(torch.zeros(entity_count, SUPPORT_COUNT, device=device))
     optimizer = torch.optim.Adam((delta_raw, q_logits), lr=0.08)
     weights = atom_weights(values["frame"])
@@ -489,7 +504,7 @@ def optimize_assimilation(
                 values["normalized_target"][start:stop], device, torch.float32
             )
             weight = tensor(weights[start:stop], device, torch.float32)
-            torsion = actuate_chi1(base_torsion, residues, delta_raw)
+            torsion = actuate_torsions(base_torsion, residues, delta_raw)
             support_prediction = coordinate_response(
                 model, esm, categorical, numeric, base_torsion, torsion
             )
@@ -564,14 +579,16 @@ def coordinate_audit(
     structure_root: Path,
     output: Path,
 ) -> None:
-    delta = MAX_CHI1_DELTA * torch.tanh(delta_raw).cpu().numpy()
+    delta = actuator_delta(delta_raw).cpu().numpy()
     availability = np.zeros_like(delta)
     for row_number, residue_number in enumerate(values["residue_index"]):
-        availability[residue_number] = np.maximum(
-            availability[residue_number],
-            values["torsion"][row_number, :, CHI1_AVAILABLE],
-        )
-    score = np.abs(delta) * availability
+        for dimension, (name, _bound) in enumerate(ACTUATOR_SPECS):
+            available_index = TORSION_COLUMNS.index(f"{name}_available")
+            availability[residue_number, :, dimension] = np.maximum(
+                availability[residue_number, :, dimension],
+                values["torsion"][row_number, :, available_index],
+            )
+    score = np.sum(np.abs(delta) * availability, axis=2)
     residue_number, support_number = np.unravel_index(np.argmax(score), score.shape)
     entity_uid, _ = values["residue_keys"][residue_number]
     entity = next(
@@ -620,23 +637,64 @@ def coordinate_audit(
         for index, (uid, seq_id) in enumerate(values["residue_keys"])
         if uid == entity_uid
     }
-    for seq_id, angle in relevant.items():
-        if abs(float(angle)) <= 1.0e-12:
-            continue
+    for seq_id, angles in sorted(relevant.items()):
         indices = [
             index for index, record in enumerate(records) if record["seq_id"] == seq_id
         ]
-        ca = next((index for index in indices if records[index]["name"] == "CA"), None)
-        cb = next((index for index in indices if records[index]["name"] == "CB"), None)
-        distal = [index for index in indices if records[index]["name"] not in backbone]
-        if ca is None or cb is None or not distal:
+        if not indices:
             continue
-        conditioned[distal] = rotate_about_axis(
-            conditioned[distal],
-            conditioned[ca],
-            conditioned[cb] - conditioned[ca],
-            float(angle),
+        chain = records[indices[0]]["chain"]
+        indices = [index for index in indices if records[index]["chain"] == chain]
+        n_atom = next(
+            (index for index in indices if records[index]["name"] == "N"), None
         )
+        ca = next((index for index in indices if records[index]["name"] == "CA"), None)
+        c_atom = next(
+            (index for index in indices if records[index]["name"] == "C"), None
+        )
+        cb = next((index for index in indices if records[index]["name"] == "CB"), None)
+        phi, psi, chi1 = (float(value) for value in angles)
+        if n_atom is not None and ca is not None and abs(phi) > 1.0e-12:
+            n_side = {"N", "H", "H1", "H2", "H3"}
+            rotated = [
+                index
+                for index, record in enumerate(records)
+                if record["chain"] == chain
+                and (
+                    record["seq_id"] > seq_id
+                    or (record["seq_id"] == seq_id and record["name"] not in n_side)
+                )
+            ]
+            conditioned[rotated] = rotate_about_axis(
+                conditioned[rotated],
+                conditioned[n_atom],
+                conditioned[ca] - conditioned[n_atom],
+                phi,
+            )
+        if ca is not None and c_atom is not None and abs(psi) > 1.0e-12:
+            rotated = [
+                index
+                for index, record in enumerate(records)
+                if record["chain"] == chain
+                and (
+                    record["seq_id"] > seq_id
+                    or (record["seq_id"] == seq_id and record["name"] in {"O", "OXT"})
+                )
+            ]
+            conditioned[rotated] = rotate_about_axis(
+                conditioned[rotated],
+                conditioned[ca],
+                conditioned[c_atom] - conditioned[ca],
+                psi,
+            )
+        distal = [index for index in indices if records[index]["name"] not in backbone]
+        if ca is not None and cb is not None and distal and abs(chi1) > 1.0e-12:
+            conditioned[distal] = rotate_about_axis(
+                conditioned[distal],
+                conditioned[ca],
+                conditioned[cb] - conditioned[ca],
+                chi1,
+            )
     np.savez(
         output,
         conditioned_coordinates=conditioned.astype(np.float32),
