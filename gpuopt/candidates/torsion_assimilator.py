@@ -53,6 +53,7 @@ ESM_MODEL = "esm2_t30_150M_UR50D"
 ESM_DIM = 640
 MAX_CHI1_DELTA = 0.15
 SUPPORT_COUNT = 8
+OBSERVER_RESIDUAL_GAIN = 0.1
 NUMERIC_COLUMNS = (
     "relative_position",
     "log_length",
@@ -412,15 +413,18 @@ def predict_surface(
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
             torsion = actuate_chi1(torsion, residues, delta_raw)
         count = stop - start
-        flat_prediction = model(
-            esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
-            categorical[:, None, :]
-            .expand(-1, SUPPORT_COUNT, -1)
-            .reshape(-1, categorical.shape[1]),
-            numeric[:, None, :]
-            .expand(-1, SUPPORT_COUNT, -1)
-            .reshape(-1, numeric.shape[1]),
-            torsion.reshape(-1, torsion.shape[-1]),
+        flat_prediction = (
+            OBSERVER_RESIDUAL_GAIN
+            * model(
+                esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
+                categorical[:, None, :]
+                .expand(-1, SUPPORT_COUNT, -1)
+                .reshape(-1, categorical.shape[1]),
+                numeric[:, None, :]
+                .expand(-1, SUPPORT_COUNT, -1)
+                .reshape(-1, numeric.shape[1]),
+                torsion.reshape(-1, torsion.shape[-1]),
+            )
         ).reshape(count, SUPPORT_COUNT)
         output.append(flat_prediction.detach().cpu().numpy())
     normalized = np.concatenate(output)
@@ -458,15 +462,18 @@ def optimize_assimilation(
             weight = tensor(weights[start:stop], device, torch.float32)
             torsion = actuate_chi1(torsion, residues, delta_raw)
             count = stop - start
-            support_prediction = model(
-                esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
-                categorical[:, None, :]
-                .expand(-1, SUPPORT_COUNT, -1)
-                .reshape(-1, categorical.shape[1]),
-                numeric[:, None, :]
-                .expand(-1, SUPPORT_COUNT, -1)
-                .reshape(-1, numeric.shape[1]),
-                torsion.reshape(-1, torsion.shape[-1]),
+            support_prediction = (
+                OBSERVER_RESIDUAL_GAIN
+                * model(
+                    esm[:, None, :].expand(-1, SUPPORT_COUNT, -1).reshape(-1, ESM_DIM),
+                    categorical[:, None, :]
+                    .expand(-1, SUPPORT_COUNT, -1)
+                    .reshape(-1, categorical.shape[1]),
+                    numeric[:, None, :]
+                    .expand(-1, SUPPORT_COUNT, -1)
+                    .reshape(-1, numeric.shape[1]),
+                    torsion.reshape(-1, torsion.shape[-1]),
+                )
             ).reshape(count, SUPPORT_COUNT)
             q = torch.softmax(q_logits[entities], dim=1)
             aggregate = torch.sum(q * support_prediction, dim=1)
