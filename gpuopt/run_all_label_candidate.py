@@ -31,8 +31,12 @@ from candidates.torsion_assimilator import (
 )
 
 SEQUENCE_ANCHOR_SHA256 = {
-    "A": "3d62684fee95bcbaae68dc2cf85ded21aeb367b9520120832b777adb0efccb01",
-    "B": "ea2690e8f5a603f0a3c3d9cb4c05edcbbc80dc50896f6311fd21350bc40bdb12",
+    "A": "4fbf641b8ffe072ecd9dac565b473dca4f870f8004f1a0a6baf4167d90b13953",
+    "B": "d6f708e40f84c4f08f7cb8d7e62bd6ddbef1df48d62031610f42ba2d33e3374a",
+}
+SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
+    "A": "4412eb7ab9e46d587bf5ec1cc05715cd366f6ed3c64f630acfa0f86550ffd8da",
+    "B": "b872437bf425b9fb1d2e77d20336a8e2466405b6801a1168fce591cbed5ca107",
 }
 
 
@@ -108,14 +112,26 @@ def main() -> int:
 
     sequence_anchor_hashes = {}
     for fold in ("A", "B"):
-        anchor_path = (
-            args.data_root.parent
-            / f"bmrb_sequence_esm2_observer_eval_{fold}_v0"
-            / "predictions.parquet"
+        anchor_root = (
+            Path(__file__).resolve().parent
+            / "assets"
+            / "sequence_final_noesm_v0"
+            / fold
         )
+        anchor_path = anchor_root / "predictions.parquet"
+        summary_path = anchor_root / "summary.json"
         actual_hash = sha256_file(anchor_path)
         if actual_hash != SEQUENCE_ANCHOR_SHA256[fold]:
             raise ValueError(f"sequence anchor hash mismatch for fold {fold}")
+        if sha256_file(summary_path) != SEQUENCE_ANCHOR_SUMMARY_SHA256[fold]:
+            raise ValueError(f"sequence anchor summary hash mismatch for fold {fold}")
+        anchor_summary = json.loads(summary_path.read_text())
+        if (
+            anchor_summary.get("checkpoint_selection")
+            != "final_epoch_target_unread"
+            or len(anchor_summary.get("history", ())) != 15
+        ):
+            raise ValueError(f"sequence anchor is not fixed-final for fold {fold}")
         # Column projection is part of the independence contract: the colocated
         # target_value column is never materialized in this candidate process.
         anchor = pd.read_parquet(anchor_path, columns=("target_id", "prediction"))
