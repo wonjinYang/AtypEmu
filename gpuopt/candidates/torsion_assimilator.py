@@ -436,7 +436,7 @@ def calibrate_reference_bounds(values: dict[str, Any]) -> np.ndarray:
             if rows.sum() >= 3:
                 medians.append(float(np.median(residual[rows])))
         lower, upper = REFERENCE_BOUND_LIMITS[index]
-        estimate = np.quantile(np.abs(medians), 0.99) if medians else lower
+        estimate = np.quantile(np.abs(medians), 1.0) if medians else lower
         bounds.append(float(np.clip(estimate, lower, upper)))
     return np.asarray(bounds, dtype=np.float32)
 
