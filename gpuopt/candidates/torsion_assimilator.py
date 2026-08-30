@@ -49,12 +49,12 @@ TORSION_COLUMNS = tuple(
 ESM_MODEL = "esm2_t30_150M_UR50D"
 ESM_DIM = 640
 ACTUATOR_SPECS = (
-    ("phi", 0.30),
-    ("psi", 0.30),
-    ("chi1", 0.75),
-    ("chi2", 0.75),
-    ("chi3", 0.75),
-    ("chi4", 0.75),
+    ("phi", 0.40),
+    ("psi", 0.40),
+    ("chi1", 1.00),
+    ("chi2", 1.00),
+    ("chi3", 1.00),
+    ("chi4", 1.00),
 )
 SIDECHAIN_CHI_BONDS = {
     "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
