@@ -371,6 +371,7 @@ def _read_training(
         torch.from_numpy(normalized),
         torch.from_numpy(weight),
         torch.from_numpy(cell.astype(np.int64)),
+        torch.from_numpy(atom_number.astype(np.int64)),
     )
     statistics = {
         "center": center.tolist(),
@@ -563,15 +564,18 @@ def main() -> int:
     history: list[dict[str, float | int]] = []
     generator = torch.Generator().manual_seed(args.seed)
     row_count = train_tensors[0].shape[0]
+    training_center = torch.as_tensor(statistics["center"], device=device, dtype=torch.float32)
+    training_scale = torch.as_tensor(statistics["scale"], device=device, dtype=torch.float32)
     for epoch in range(1, args.epochs + 1):
         model.train()
         order = torch.randperm(row_count, generator=generator)
         losses: list[float] = []
         for start in range(0, row_count, args.batch_size):
             index = order[start : start + args.batch_size]
-            window, atom, ambiguity, position, center_index, target, weight, cell = (
-                tensor[index].to(device) for tensor in train_tensors
-            )
+            (
+                window, atom, ambiguity, position, center_index, target, weight,
+                cell, atom_group,
+            ) = (tensor[index].to(device) for tensor in train_tensors)
             esm = None
             if train_esm is not None:
                 esm = train_esm[center_index.to(train_esm.device)].to(device)
@@ -584,8 +588,12 @@ def main() -> int:
                     F.smooth_l1_loss(prediction, target, reduction="none") * weight
                 ).mean()
                 if args.cell_ccc_weight > 0.0:
+                    raw_target = target * training_scale[cell] + training_center[cell]
+                    raw_prediction = (
+                        prediction * training_scale[cell] + training_center[cell]
+                    )
                     loss = loss + args.cell_ccc_weight * _cell_ccc_loss(
-                        target, prediction, cell
+                        raw_target, raw_prediction, atom_group
                     )
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 5.0)

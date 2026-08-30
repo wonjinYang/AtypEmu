@@ -31,15 +31,15 @@ from candidates.torsion_assimilator import (
 )
 
 SEQUENCE_ANCHOR_SHA256 = {
-    "A": "032a7695b248f533b90a8c61225e10d0d0b40237d53f2be8a9327e1419138979",
-    "B": "9f34a325b2d571e91bea0b5a311d19274de7b0f2ac3dbebeec4ead4e7d02933e",
+    "A": "89037026daab7114db393f5f78553181cdc2fe64382770ad2bbe6fa45ee691c0",
+    "B": "ead339b7012890f8880e1eff11e2ef15d33846caf7cd297093f46bba76a963b0",
 }
 SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
-    "A": "63647b34b13ff2e1d4d78f4eaa473432eadc6b9ce7dd0eaeb96781e5270ae735",
-    "B": "bf678aefc9c4fe42024117e5aa61542ec96e7f0d63cb93827705232db165dc1c",
+    "A": "13b8d4d2a41105771cb58499bc3fd8673b3502e041b8c0e12dbc40a50f0cf79a",
+    "B": "40ac934dd01f01fec4393347208ad5a013ee5ee8fbb7c65cbaa7d7aed376ed71",
 }
 SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
-    "bbc2ffe4be1c36aa3c31827e5776ec0b4d1fd96173808656e9cb9d4ecaf4d3ff"
+    "48ed61efcf358b31e406c2af7d024fcb4da213a31e73c60fed97759522efbe0e"
 )
 
 
@@ -118,7 +118,7 @@ def main() -> int:
         anchor_root = (
             Path(__file__).resolve().parent
             / "assets"
-            / "sequence_final_esm_v1"
+            / "sequence_final_atom_macro_v0"
             / fold
         )
         anchor_path = anchor_root / "predictions.parquet"
