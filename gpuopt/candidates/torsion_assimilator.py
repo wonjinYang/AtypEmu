@@ -664,7 +664,7 @@ def optimize_assimilation(
             loss.backward()
         q = torch.softmax(q_logits, dim=1)
         regularizer = 3.0e-2 * torch.mean(torch.square(torch.tanh(delta_raw)))
-        regularizer = regularizer + 3.0e-3 * torch.mean(
+        regularizer = regularizer + 1.0e-2 * torch.mean(
             torch.sum(q * torch.log((q * SUPPORT_COUNT).clamp_min(1.0e-12)), dim=1)
         )
         regularizer.backward()
