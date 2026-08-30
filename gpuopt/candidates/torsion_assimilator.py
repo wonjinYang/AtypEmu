@@ -52,7 +52,29 @@ ACTUATOR_SPECS = (
     ("phi", 0.20),
     ("psi", 0.20),
     ("chi1", 0.50),
+    ("chi2", 0.50),
+    ("chi3", 0.50),
+    ("chi4", 0.50),
 )
+SIDECHAIN_CHI_BONDS = {
+    "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
+    "ASN": (("CA", "CB"), ("CB", "CG")),
+    "ASP": (("CA", "CB"), ("CB", "CG")),
+    "CYS": (("CA", "CB"),),
+    "GLN": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "GLU": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "HIS": (("CA", "CB"), ("CB", "CG")),
+    "ILE": (("CA", "CB"), ("CB", "CG1")),
+    "LEU": (("CA", "CB"), ("CB", "CG")),
+    "LYS": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "CE")),
+    "MET": (("CA", "CB"), ("CB", "CG"), ("CG", "SD")),
+    "PHE": (("CA", "CB"), ("CB", "CG")),
+    "SER": (("CA", "CB"),),
+    "THR": (("CA", "CB"),),
+    "TRP": (("CA", "CB"), ("CB", "CG")),
+    "TYR": (("CA", "CB"), ("CB", "CG")),
+    "VAL": (("CA", "CB"),),
+}
 SUPPORT_COUNT = 8
 OBSERVER_RESIDUAL_GAIN = 0.1
 STRUCTURAL_RESPONSE_GAIN = 1.0
@@ -608,6 +630,7 @@ def coordinate_audit(
         records.append(
             {
                 "name": line[12:16].strip(),
+                "resname": line[17:20].strip(),
                 "chain": line[21:22],
                 "seq_id": int(line[22:26]),
                 "coord": np.array(
@@ -617,21 +640,6 @@ def coordinate_audit(
         )
     base = np.stack([record["coord"] for record in records])
     conditioned = base.copy()
-    backbone = {
-        "N",
-        "CA",
-        "C",
-        "O",
-        "OXT",
-        "H",
-        "H1",
-        "H2",
-        "H3",
-        "HA",
-        "HA2",
-        "HA3",
-        "CB",
-    }
     relevant = {
         seq_id: delta[index, support_number]
         for index, (uid, seq_id) in enumerate(values["residue_keys"])
@@ -652,8 +660,7 @@ def coordinate_audit(
         c_atom = next(
             (index for index in indices if records[index]["name"] == "C"), None
         )
-        cb = next((index for index in indices if records[index]["name"] == "CB"), None)
-        phi, psi, chi1 = (float(value) for value in angles)
+        phi, psi = (float(value) for value in angles[:2])
         if n_atom is not None and ca is not None and abs(phi) > 1.0e-12:
             n_side = {"N", "H", "H1", "H2", "H3"}
             rotated = [
@@ -687,13 +694,53 @@ def coordinate_audit(
                 conditioned[c_atom] - conditioned[ca],
                 psi,
             )
-        distal = [index for index in indices if records[index]["name"] not in backbone]
-        if ca is not None and cb is not None and distal and abs(chi1) > 1.0e-12:
-            conditioned[distal] = rotate_about_axis(
-                conditioned[distal],
-                conditioned[ca],
-                conditioned[cb] - conditioned[ca],
-                chi1,
+        adjacency = {index: set() for index in indices}
+        for offset, first in enumerate(indices):
+            for second in indices[offset + 1 :]:
+                hydrogen = records[first]["name"].startswith("H") or records[second][
+                    "name"
+                ].startswith("H")
+                cutoff = 1.25 if hydrogen else 1.95
+                if np.linalg.norm(conditioned[first] - conditioned[second]) <= cutoff:
+                    adjacency[first].add(second)
+                    adjacency[second].add(first)
+        resname = records[indices[0]]["resname"]
+        bonds = SIDECHAIN_CHI_BONDS.get(resname, ())
+        for angle, (proximal_name, distal_name) in zip(angles[2:], bonds, strict=False):
+            angle = float(angle)
+            if abs(angle) <= 1.0e-12:
+                continue
+            proximal = next(
+                (index for index in indices if records[index]["name"] == proximal_name),
+                None,
+            )
+            distal_axis = next(
+                (index for index in indices if records[index]["name"] == distal_name),
+                None,
+            )
+            if proximal is None or distal_axis is None:
+                continue
+            distal = {distal_axis}
+            stack = [distal_axis]
+            while stack:
+                current = stack.pop()
+                for neighbor in adjacency[current]:
+                    if {current, neighbor} == {proximal, distal_axis}:
+                        continue
+                    if neighbor not in distal:
+                        distal.add(neighbor)
+                        stack.append(neighbor)
+            if any(
+                records[index]["name"] in {"N", "CA", "C", "O", "OXT"}
+                for index in distal
+            ):
+                continue
+            rotated = sorted(distal)
+            conditioned[rotated] = rotate_about_axis(
+                conditioned[rotated],
+                conditioned[proximal],
+                conditioned[distal_axis] - conditioned[proximal],
+                angle,
             )
     np.savez(
         output,
