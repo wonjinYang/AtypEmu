@@ -130,12 +130,6 @@ def attach_ucbshift_anchor(
 
     sequence_anchor = np.asarray(values["anchor"], dtype=np.float32)
     sequence_support = np.repeat(sequence_anchor[:, None], SUPPORT_COUNT, axis=1)
-    alternate_sequence_anchor = np.asarray(
-        values["alternate_anchor"], dtype=np.float32
-    )
-    alternate_sequence_support = np.repeat(
-        alternate_sequence_anchor[:, None], SUPPORT_COUNT, axis=1
-    )
     ucb_support = np.full_like(sequence_support, np.nan)
     target_rows = {
         str(target_id): row
@@ -162,7 +156,6 @@ def attach_ucbshift_anchor(
             ucb_support[destination, finite] = prediction[source_row, finite]
             replaced[destination, finite] = True
     values["sequence_support_anchor"] = sequence_support
-    values["alternate_sequence_support_anchor"] = alternate_sequence_support
     values["ucb_support_anchor"] = ucb_support
     return {
         "aggregate_sha256": actual_hash,
@@ -200,14 +193,7 @@ def crossfit_anchor_selection(
         rows = np.flatnonzero(train_atom == atom_id)
         ucb = train["ucb_support_anchor"][rows].mean(axis=1)
         finite = np.isfinite(ucb)
-        sequence_32 = train["sequence_support_anchor"][rows, 0]
-        sequence_8 = train["alternate_sequence_support_anchor"][rows, 0]
-        sequence_32_ccc = ccc(train_target[rows], sequence_32)
-        sequence_8_ccc = ccc(train_target[rows], sequence_8)
-        use_sequence_32 = (
-            len(rows) >= 8 and sequence_32_ccc > sequence_8_ccc + 0.05
-        )
-        sequence = sequence_32 if use_sequence_32 else sequence_8
+        sequence = train["sequence_support_anchor"][rows, 0]
         sequence_ccc = ccc(train_target[rows][finite], sequence[finite])
         ucb_ccc = ccc(train_target[rows][finite], ucb[finite])
         source = (
@@ -217,24 +203,13 @@ def crossfit_anchor_selection(
         )
         selection[atom_id] = {
             "source": source,
-            "sequence_source": (
-                "sequence_32_epoch" if use_sequence_32 else "sequence_8_epoch_ensemble3"
-            ),
-            "source_train_sequence_32_ccc": sequence_32_ccc,
-            "source_train_sequence_8_ccc": sequence_8_ccc,
             "source_train_rows": int(finite.sum()),
             "source_train_sequence_ccc": sequence_ccc,
             "source_train_ucbshift_x_ccc": ucb_ccc,
         }
 
     for values in (train, evaluation):
-        sequence = values["alternate_sequence_support_anchor"].copy()
-        sequence_32 = values["sequence_support_anchor"]
-        for atom_id, receipt in selection.items():
-            if receipt["sequence_source"] != "sequence_32_epoch":
-                continue
-            rows = values["frame"]["atom_id"].astype(str).eq(atom_id).to_numpy()
-            sequence[rows] = sequence_32[rows]
+        sequence = values["sequence_support_anchor"]
         ucb = values["ucb_support_anchor"]
         selected = sequence.copy()
         for atom_id, receipt in selection.items():

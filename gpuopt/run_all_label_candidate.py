@@ -41,17 +41,6 @@ SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
 SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
     "9309c18674bcb0994396a6805e302cc2c903590b2c1e26b628646f723ab01e26"
 )
-ALTERNATE_SEQUENCE_ANCHOR_SHA256 = {
-    "A": "165f34ced53aabb4b908a43716ac8f4b76e4b3990507994b4fea0aa7d4fabd58",
-    "B": "97346891f5fa7e7daa41a81a73cf5c90f9bbb577f293f6d816e76ea6576553ee",
-}
-ALTERNATE_SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
-    "A": "3f64bba6c197b7318b23f1587c4f218de027e89372aec754a8d21cb876642cef",
-    "B": "2419aee1fc84353749565c201275694fcc8f864d972456f276017433a27e7f38",
-}
-ALTERNATE_SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
-    "2869e7b28d08580de1046c453a6acafe04f77a45a0b1eecd6aba86ec2bd6149f"
-)
 
 
 def parse_args() -> argparse.Namespace:
@@ -161,54 +150,6 @@ def main() -> int:
             raise ValueError(f"incomplete sequence anchor coverage in fold {fold}")
         raw_folds[fold]["anchor"] = aligned.to_numpy(dtype=np.float32)
         sequence_anchor_hashes[fold] = actual_hash
-
-        alternate_root = (
-            Path(__file__).resolve().parent
-            / "assets"
-            / "sequence_final_atom_macro_ensemble3_v0"
-            / fold
-        )
-        alternate_path = alternate_root / "predictions.parquet"
-        alternate_summary_path = alternate_root / "summary.json"
-        if sha256_file(alternate_path) != ALTERNATE_SEQUENCE_ANCHOR_SHA256[fold]:
-            raise ValueError(f"alternate sequence anchor hash mismatch for fold {fold}")
-        if (
-            sha256_file(alternate_summary_path)
-            != ALTERNATE_SEQUENCE_ANCHOR_SUMMARY_SHA256[fold]
-        ):
-            raise ValueError(
-                f"alternate sequence anchor summary hash mismatch for fold {fold}"
-            )
-        alternate_summary = json.loads(alternate_summary_path.read_text())
-        if (
-            alternate_summary.get("checkpoint_selection")
-            != "final_epoch_target_unread"
-            or len(alternate_summary.get("history", ())) != 8
-        ):
-            raise ValueError(
-                f"alternate sequence anchor is not fixed-final for fold {fold}"
-            )
-        if (
-            sha256_file(alternate_root.parent / "receipt.json")
-            != ALTERNATE_SEQUENCE_ANCHOR_RECEIPT_SHA256
-        ):
-            raise ValueError("alternate sequence anchor provenance receipt mismatch")
-        alternate = pd.read_parquet(
-            alternate_path, columns=("target_id", "prediction")
-        )
-        if alternate["target_id"].duplicated().any():
-            raise ValueError(f"duplicate alternate sequence anchor targets in fold {fold}")
-        alternate_aligned = raw_folds[fold]["frame"]["target_id"].map(
-            alternate.set_index("target_id")["prediction"]
-        )
-        if (
-            alternate_aligned.isna().any()
-            or not np.isfinite(alternate_aligned.to_numpy(float)).all()
-        ):
-            raise ValueError(f"incomplete alternate sequence anchor coverage in fold {fold}")
-        raw_folds[fold]["alternate_anchor"] = alternate_aligned.to_numpy(
-            dtype=np.float32
-        )
 
     ucb_anchor_root = (
         args.data_root.parent
