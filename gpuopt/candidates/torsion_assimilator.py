@@ -651,7 +651,7 @@ def optimize_assimilation(
     *,
     device: torch.device,
     reference_bounds_ppm: np.ndarray,
-    steps: int = 100,
+    steps: int = 300,
     chunk_size: int = 2048,
 ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray, float]:
     residue_count = len(values["residue_keys"])
