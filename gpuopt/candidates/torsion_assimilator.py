@@ -716,7 +716,7 @@ def optimize_assimilation(
         regularizer = regularizer + 3.0e-3 * torch.mean(
             torch.sum(q * torch.log((q * SUPPORT_COUNT).clamp_min(1.0e-12)), dim=1)
         )
-        regularizer = regularizer + 1.0e-2 * torch.mean(
+        regularizer = regularizer + 3.0e-3 * torch.mean(
             torch.square(torch.tanh(reference_raw))
         )
         regularizer.backward()
