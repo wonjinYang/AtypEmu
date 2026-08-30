@@ -17,9 +17,14 @@ from bioemu.sample import get_context_chemgraph
 from bioemu.training.loss import _rollout
 from torch_geometric.data import Batch
 
+from candidates.native_bioemu import (
+    complete_coordinates,
+    observer_torsions,
+    read_template,
+    severe_clash_stats,
+)
 from candidates.torsion_assimilator import (
     CoordinateObserver,
-    TORSION_COLUMNS,
     atom_weights,
     fold_copy,
     normalization,
@@ -32,167 +37,6 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTITY_UID = "bmrb:25218:entity:1"
 SEQUENCE = "DAEFRHDSGYEVHHQKLVFFAEDVGSNKGAIIGLMVGGVVIA"
 CHI_BOUNDS = torch.tensor((0.10, 0.10, 0.10, 0.10))
-
-
-def dihedral(points: tuple[torch.Tensor, ...]) -> torch.Tensor:
-    p0, p1, p2, p3 = points
-    b0 = p0 - p1
-    b1 = p2 - p1
-    b2 = p3 - p2
-    b1 = b1 / torch.linalg.vector_norm(b1, dim=-1, keepdim=True).clamp_min(1e-8)
-    v = b0 - (b0 * b1).sum(-1, keepdim=True) * b1
-    w = b2 - (b2 * b1).sum(-1, keepdim=True) * b1
-    return torch.atan2((torch.cross(b1, v, dim=-1) * w).sum(-1), (v * w).sum(-1))
-
-
-def frame(n: torch.Tensor, ca: torch.Tensor, c: torch.Tensor) -> torch.Tensor:
-    x = ca - n
-    x = x / torch.linalg.vector_norm(x, dim=-1, keepdim=True).clamp_min(1e-8)
-    y = c - ca
-    y = y - (x * y).sum(-1, keepdim=True) * x
-    y = y / torch.linalg.vector_norm(y, dim=-1, keepdim=True).clamp_min(1e-8)
-    return torch.stack((x, y, torch.cross(x, y, dim=-1)), dim=-1)
-
-
-def read_template(path: Path, device: torch.device) -> dict[str, object]:
-    records = []
-    for line in path.read_text().splitlines():
-        if line.startswith(("ATOM  ", "HETATM")):
-            records.append(
-                (
-                    int(line[22:26]),
-                    line[12:16].strip(),
-                    np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])]),
-                )
-            )
-    residue = torch.tensor([row[0] - 1 for row in records], device=device)
-    coordinates = torch.tensor(
-        np.stack([row[2] for row in records]), device=device, dtype=torch.float32
-    )
-    names = [row[1] for row in records]
-    local = torch.empty_like(coordinates)
-    distal: list[list[tuple[torch.Tensor, int, int]]] = [[] for _ in SEQUENCE]
-    for seq_index in range(len(SEQUENCE)):
-        indices = torch.where(residue == seq_index)[0]
-        lookup = {names[index]: int(index) for index in indices.tolist()}
-        if not {"N", "CA", "C"}.issubset(lookup):
-            raise ValueError(f"incomplete template backbone at residue {seq_index + 1}")
-        rotation = frame(
-            coordinates[lookup["N"]], coordinates[lookup["CA"]], coordinates[lookup["C"]]
-        )
-        local[indices] = torch.einsum(
-            "ij,nj->ni", rotation.transpose(0, 1), coordinates[indices] - coordinates[lookup["CA"]]
-        )
-
-        adjacency = {int(index): set() for index in indices.tolist()}
-        for offset, first in enumerate(indices.tolist()):
-            for second in indices.tolist()[offset + 1 :]:
-                cutoff = 1.25 if names[first].startswith("H") or names[second].startswith("H") else 1.95
-                if torch.linalg.vector_norm(coordinates[first] - coordinates[second]) <= cutoff:
-                    adjacency[first].add(second)
-                    adjacency[second].add(first)
-        bonds = {
-            "R": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
-            "N": (("CA", "CB"), ("CB", "CG")), "D": (("CA", "CB"), ("CB", "CG")),
-            "C": (("CA", "CB"),), "Q": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
-            "E": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")), "H": (("CA", "CB"), ("CB", "CG")),
-            "I": (("CA", "CB"), ("CB", "CG1")), "L": (("CA", "CB"), ("CB", "CG")),
-            "K": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "CE")),
-            "M": (("CA", "CB"), ("CB", "CG"), ("CG", "SD")), "F": (("CA", "CB"), ("CB", "CG")),
-            "S": (("CA", "CB"),), "T": (("CA", "CB"),), "W": (("CA", "CB"), ("CB", "CG")),
-            "Y": (("CA", "CB"), ("CB", "CG")), "V": (("CA", "CB"),),
-        }.get(SEQUENCE[seq_index], ())
-        for proximal_name, axis_name in bonds:
-            if proximal_name not in lookup or axis_name not in lookup:
-                continue
-            proximal, axis = lookup[proximal_name], lookup[axis_name]
-            component, stack = {axis}, [axis]
-            while stack:
-                current = stack.pop()
-                for neighbor in adjacency[current]:
-                    if {current, neighbor} == {proximal, axis} or neighbor in component:
-                        continue
-                    component.add(neighbor)
-                    stack.append(neighbor)
-            if any(names[index] in {"N", "CA", "C", "O", "OXT"} for index in component):
-                continue
-            distal[seq_index].append((torch.tensor(sorted(component), device=device), proximal, axis))
-    return {"residue": residue, "local": local, "names": names, "distal": distal}
-
-
-def complete_coordinates(
-    pos_nm: torch.Tensor,
-    orientations: torch.Tensor,
-    template: dict[str, object],
-    chi_delta: torch.Tensor,
-) -> torch.Tensor:
-    residue = template["residue"]
-    coordinates = torch.einsum("nij,nj->ni", orientations[residue], template["local"])
-    coordinates = coordinates + 10.0 * pos_nm[residue]
-    for seq_index, rotations in enumerate(template["distal"]):
-        for chi_index, (indices, proximal, axis) in enumerate(rotations):
-            angle = chi_delta[seq_index, chi_index]
-            origin = coordinates[proximal]
-            unit = coordinates[axis] - origin
-            unit = unit / torch.linalg.vector_norm(unit).clamp_min(1e-8)
-            shifted = coordinates[indices] - origin
-            rotated = (
-                shifted * torch.cos(angle)
-                + torch.cross(unit.expand_as(shifted), shifted, dim=-1) * torch.sin(angle)
-                + (shifted @ unit)[:, None] * unit * (1.0 - torch.cos(angle))
-                + origin
-            )
-            updated = coordinates.clone()
-            updated[indices] = rotated
-            coordinates = updated
-    return coordinates
-
-
-def observer_torsions(
-    coordinates: torch.Tensor,
-    template: dict[str, object],
-    row_residue: torch.Tensor,
-    base: torch.Tensor,
-    chi_delta: torch.Tensor,
-) -> torch.Tensor:
-    residue = template["residue"]
-    names = template["names"]
-    backbone = []
-    for seq_index in range(len(SEQUENCE)):
-        indices = torch.where(residue == seq_index)[0].tolist()
-        lookup = {names[index]: index for index in indices}
-        backbone.append(lookup)
-    output = base.clone()
-    angles = torch.zeros(len(SEQUENCE), 3, device=coordinates.device)
-    available = torch.zeros_like(angles)
-    for index in range(len(SEQUENCE)):
-        if index > 0:
-            angles[index, 0] = dihedral(
-                (coordinates[backbone[index - 1]["C"]], coordinates[backbone[index]["N"]],
-                 coordinates[backbone[index]["CA"]], coordinates[backbone[index]["C"]])
-            )
-            available[index, 0] = 1
-        if index + 1 < len(SEQUENCE):
-            angles[index, 1] = dihedral(
-                (coordinates[backbone[index]["N"]], coordinates[backbone[index]["CA"]],
-                 coordinates[backbone[index]["C"]], coordinates[backbone[index + 1]["N"]])
-            )
-            angles[index, 2] = dihedral(
-                (coordinates[backbone[index]["CA"]], coordinates[backbone[index]["C"]],
-                 coordinates[backbone[index + 1]["N"]], coordinates[backbone[index + 1]["CA"]])
-            )
-            available[index, 1:] = 1
-    for dimension, name in enumerate(("phi", "psi", "omega")):
-        output[:, TORSION_COLUMNS.index(f"{name}_sin")] = torch.sin(angles[row_residue, dimension])
-        output[:, TORSION_COLUMNS.index(f"{name}_cos")] = torch.cos(angles[row_residue, dimension])
-        output[:, TORSION_COLUMNS.index(f"{name}_available")] = available[row_residue, dimension]
-    for dimension, name in enumerate(("chi1", "chi2", "chi3", "chi4")):
-        sin_index, cos_index = TORSION_COLUMNS.index(f"{name}_sin"), TORSION_COLUMNS.index(f"{name}_cos")
-        angle = chi_delta[row_residue, dimension]
-        sin_value, cos_value = output[:, sin_index].clone(), output[:, cos_index].clone()
-        output[:, sin_index] = sin_value * torch.cos(angle) + cos_value * torch.sin(angle)
-        output[:, cos_index] = cos_value * torch.cos(angle) - sin_value * torch.sin(angle)
-    return output
 
 
 def main() -> int:
@@ -245,6 +89,7 @@ def main() -> int:
     template_support_id = 626
     template = read_template(
         ROOT / f"data/BioEmu/bmr25218/bmr25218_BioEmu_{template_support_id}.pdb",
+        SEQUENCE,
         device,
     )
     chi_raw = torch.nn.Parameter(torch.zeros(len(SEQUENCE), 4, device=device))
@@ -299,11 +144,10 @@ def main() -> int:
     with torch.no_grad():
         loss_after, coordinates_after = sample_and_loss()
     displacement = torch.sqrt(torch.mean(torch.sum((coordinates_after - coordinates_before.detach()) ** 2, dim=1)))
-    residue = template["residue"]
-    nonlocal_mask = torch.abs(residue[:, None] - residue[None, :]) > 1
-    distances = torch.cdist(coordinates_after, coordinates_after)
-    audited_distances = distances[nonlocal_mask]
-    severe_clash_count = int((audited_distances < 0.5).sum())
+    minimum_distance, severe_clash_count_tensor = severe_clash_stats(
+        coordinates_after, template
+    )
+    severe_clash_count = int(severe_clash_count_tensor)
     result = {
         "contract": "native_bioemu_complete_coordinate_cs_gradient_smoke_v0",
         "claim_scope": "source-only autograd connectivity smoke; not predictive validation or a primary score",
@@ -321,7 +165,7 @@ def main() -> int:
         "sidechain_torsion_gradient_norm": sidechain_gradient,
         "coordinate_rms_movement_angstrom": float(displacement),
         "fixed_seed_replay_max_difference_angstrom": replay_max_difference,
-        "minimum_nonlocal_interatomic_distance_angstrom": float(audited_distances.min()),
+        "minimum_nonlocal_interatomic_distance_angstrom": float(minimum_distance),
         "directed_nonlocal_pairs_below_0_5_angstrom": severe_clash_count,
         "template_decoder_physicality_pass": severe_clash_count == 0,
         "all_finite": bool(
