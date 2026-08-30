@@ -176,12 +176,22 @@ def main() -> int:
             seed=20260829 + direction_number,
         )
         print(f"{direction}: assimilating D_e", flush=True)
-        delta, q, gradient_norm = optimize_assimilation(
+        delta, q, reference_offset, gradient_norm = optimize_assimilation(
             model, evaluation, device=device
         )
-        conditioned = predict_surface(model, evaluation, device=device, delta_raw=delta)
+        conditioned = predict_surface(
+            model,
+            evaluation,
+            device=device,
+            delta_raw=delta,
+            reference_offset=reference_offset,
+        )
         no_coordinate = predict_surface(
-            model, evaluation, device=device, delta_raw=None
+            model,
+            evaluation,
+            device=device,
+            delta_raw=None,
+            reference_offset=reference_offset,
         )
         uniform_q = np.full(
             (len(evaluation["entities"]), SUPPORT_COUNT),
@@ -216,6 +226,13 @@ def main() -> int:
             ],
             "coordinate_generator_cs_gradient_norm": gradient_norm,
             "frozen_coordinate_observer_target_delta": 0.0,
+            "reference_offset": {
+                element: {
+                    "mean_abs_ppm": float(np.abs(reference_offset[:, index]).mean()),
+                    "max_abs_ppm": float(np.abs(reference_offset[:, index]).max()),
+                }
+                for index, element in enumerate(("H", "C", "N"))
+            },
             "actuator": {
                 name: {
                     "mean_abs_radians": float(

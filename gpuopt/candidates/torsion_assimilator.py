@@ -82,6 +82,8 @@ UCB_ANCHOR_AGGREGATE_SHA256 = (
 )
 OBSERVER_RESIDUAL_GAIN = 0.1
 STRUCTURAL_RESPONSE_GAIN = 1.0
+REFERENCE_OFFSET_BOUNDS = (0.3, 1.0, 2.0)
+REFERENCE_ELEMENTS = {"H": 0, "C": 1, "N": 2}
 NUMERIC_COLUMNS = (
     "relative_position",
     "log_length",
@@ -198,7 +200,7 @@ def crossfit_anchor_selection(
         ucb_ccc = ccc(train_target[rows][finite], ucb[finite])
         source = (
             "ucbshift_x"
-            if finite.sum() >= 8 and ucb_ccc > sequence_ccc + 0.05
+            if finite.sum() >= 50 and ucb_ccc > sequence_ccc + 0.02
             else "sequence"
         )
         selection[atom_id] = {
@@ -591,6 +593,7 @@ def predict_surface(
     *,
     device: torch.device,
     delta_raw: torch.Tensor | None,
+    reference_offset: np.ndarray | None = None,
     chunk_size: int = 2048,
 ) -> np.ndarray:
     output = []
@@ -610,7 +613,16 @@ def predict_surface(
         output.append(flat_prediction.detach().cpu().numpy())
     normalized = np.concatenate(output)
     anchor = values.get("support_anchor", values["center"][:, None])
-    return np.asarray(anchor) + values["scale"][:, None] * normalized
+    prediction = np.asarray(anchor) + values["scale"][:, None] * normalized
+    if reference_offset is not None:
+        element_index = np.asarray(
+            [REFERENCE_ELEMENTS[str(atom_id)[0]] for atom_id in values["frame"]["atom_id"]],
+            dtype=np.int64,
+        )
+        prediction = prediction + reference_offset[
+            values["entity_index"], element_index
+        ][:, None]
+    return prediction
 
 
 def optimize_assimilation(
@@ -620,15 +632,27 @@ def optimize_assimilation(
     device: torch.device,
     steps: int = 100,
     chunk_size: int = 2048,
-) -> tuple[torch.Tensor, torch.Tensor, float]:
+) -> tuple[torch.Tensor, torch.Tensor, np.ndarray, float]:
     residue_count = len(values["residue_keys"])
     entity_count = len(values["entities"])
     delta_raw = nn.Parameter(
         torch.zeros(residue_count, SUPPORT_COUNT, len(ACTUATOR_SPECS), device=device)
     )
     q_logits = nn.Parameter(torch.zeros(entity_count, SUPPORT_COUNT, device=device))
-    optimizer = torch.optim.Adam((delta_raw, q_logits), lr=0.08)
+    reference_raw = nn.Parameter(torch.zeros(entity_count, 3, device=device))
+    optimizer = torch.optim.Adam((delta_raw, q_logits, reference_raw), lr=0.08)
     weights = atom_weights(values["frame"])
+    element_index = tensor(
+        np.asarray(
+            [REFERENCE_ELEMENTS[str(atom_id)[0]] for atom_id in values["frame"]["atom_id"]],
+            dtype=np.int64,
+        ),
+        device,
+        torch.long,
+    )
+    reference_bounds = tensor(
+        np.asarray(REFERENCE_OFFSET_BOUNDS, dtype=np.float32), device, torch.float32
+    )
     row_count = len(values["frame"])
 
     def backward_objective() -> None:
@@ -660,12 +684,19 @@ def optimize_assimilation(
             support_prediction = support_prediction + anchor_deviation
             q = torch.softmax(q_logits[entities], dim=1)
             aggregate = torch.sum(q * support_prediction, dim=1)
+            reference_offset = reference_bounds * torch.tanh(reference_raw)
+            aggregate = aggregate + reference_offset[
+                entities, element_index[start:stop]
+            ] / tensor(values["scale"][start:stop], device, torch.float32)
             loss = torch.sum(weight * torch.square(aggregate - target)) / row_count
             loss.backward()
         q = torch.softmax(q_logits, dim=1)
         regularizer = 3.0e-2 * torch.mean(torch.square(torch.tanh(delta_raw)))
         regularizer = regularizer + 3.0e-3 * torch.mean(
             torch.sum(q * torch.log((q * SUPPORT_COUNT).clamp_min(1.0e-12)), dim=1)
+        )
+        regularizer = regularizer + 1.0e-2 * torch.mean(
+            torch.square(torch.tanh(reference_raw))
         )
         regularizer.backward()
 
@@ -676,7 +707,15 @@ def optimize_assimilation(
     optimizer.zero_grad(set_to_none=True)
     backward_objective()
     gradient_norm = float(delta_raw.grad.norm().detach().cpu())
-    return delta_raw.detach(), torch.softmax(q_logits.detach(), dim=1), gradient_norm
+    reference_offset = (
+        reference_bounds * torch.tanh(reference_raw.detach())
+    ).cpu().numpy()
+    return (
+        delta_raw.detach(),
+        torch.softmax(q_logits.detach(), dim=1),
+        reference_offset,
+        gradient_norm,
+    )
 
 
 def surface_frame(values: dict[str, Any], prediction: np.ndarray) -> pd.DataFrame:
