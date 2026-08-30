@@ -459,9 +459,8 @@ class CoordinateObserver(nn.Module):
             nn.SiLU(),
             nn.Linear(width, width),
             nn.SiLU(),
+            nn.Linear(width, 1),
         )
-        self.atom_weight = nn.Embedding(atom_levels, width)
-        self.atom_bias = nn.Embedding(atom_levels, 1)
 
     def forward(
         self,
@@ -482,13 +481,7 @@ class CoordinateObserver(nn.Module):
             ),
             dim=1,
         )
-        hidden = self.readout(state)
-        atom = categorical[:, 1]
-        return (
-            torch.sum(hidden * self.atom_weight(atom), dim=1)
-            / math.sqrt(hidden.shape[1])
-            + self.atom_bias(atom).squeeze(1)
-        )
+        return self.readout(state).squeeze(1)
 
 
 def tensor(
