@@ -10,21 +10,21 @@
     "A": {
       "esm_receipt_sha256": "4d12baaeaae85b9cd77a79bb2e989dbf2d46ffca702ce0e24aef5ad2f9c6a027",
       "final_epoch": 8,
-      "macro_cell_ccc_diagnostic": 0.4086612352329769,
-      "predictions_sha256": "3556b12687598f464b3f20cad2a4954684b933ddbd894c507b08d829724ab973",
+      "macro_cell_ccc_diagnostic": 0.40925065295518975,
+      "predictions_sha256": "89037026daab7114db393f5f78553181cdc2fe64382770ad2bbe6fa45ee691c0",
       "split_receipt_sha256": "cf8c29b35ccf181264838d931d5dd4c78ec750c1c291e7a2a3a16c39d2a10bb6",
-      "summary_sha256": "6f7716967fa5f609a3ff2a2dc6dcd8c00a4affe21fa386a656917ce4d25a0292"
+      "summary_sha256": "13b8d4d2a41105771cb58499bc3fd8673b3502e041b8c0e12dbc40a50f0cf79a"
     },
     "B": {
       "esm_receipt_sha256": "4d12baaeaae85b9cd77a79bb2e989dbf2d46ffca702ce0e24aef5ad2f9c6a027",
       "final_epoch": 8,
-      "macro_cell_ccc_diagnostic": 0.42934753752134314,
-      "predictions_sha256": "ef8d539467a05881e8cbf14107d2e1fd3612dc03e5b4890c676326b8cc4f81a3",
+      "macro_cell_ccc_diagnostic": 0.42563485377484145,
+      "predictions_sha256": "ead339b7012890f8880e1eff11e2ef15d33846caf7cd297093f46bba76a963b0",
       "split_receipt_sha256": "5ff539b9d61d61b1a06f3cc6468cb912fd9da3d4c3c14f88c54230c1659d564d",
-      "summary_sha256": "ccb7558e1a7b85ecc9b5815901025141a1c5f8a536461c340c63628da67124ac"
+      "summary_sha256": "40ac934dd01f01fec4393347208ad5a013ee5ee8fbb7c65cbaa7d7aed376ed71"
     }
   },
-  "training_objective": "cell-balanced smooth-L1 plus 0.1 raw-ppm Atom_ID macro CCC with bilinear residue-atom head",
+  "training_objective": "cell-balanced smooth-L1 plus raw-ppm Atom_ID macro CCC",
   "training_source_sha256": "20303eec8c7f458c89c829f2a9ce2faa6254d5a85334ccd9d216d59516fdd706",
   "upstream_training_source_sha256": "3018645d4042bc648c274d73ce44ec603884f3404d9adf474574c4abdc7aec87"
 }
