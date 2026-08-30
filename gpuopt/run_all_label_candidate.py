@@ -13,7 +13,9 @@ import pandas as pd
 import torch
 
 from candidates.torsion_assimilator import (
+    ACTUATOR_SPECS,
     SUPPORT_COUNT,
+    actuator_delta,
     coordinate_audit,
     fold_copy,
     load_fold,
@@ -179,6 +181,26 @@ def main() -> int:
             ],
             "coordinate_generator_cs_gradient_norm": gradient_norm,
             "frozen_coordinate_observer_target_delta": 0.0,
+            "actuator": {
+                name: {
+                    "mean_abs_radians": float(
+                        actuator_delta(delta)[..., dimension].abs().mean().item()
+                    ),
+                    "max_abs_radians": float(
+                        actuator_delta(delta)[..., dimension].abs().max().item()
+                    ),
+                    "raw_saturation_fraction": float(
+                        (delta[..., dimension].tanh().abs() > 0.95)
+                        .float()
+                        .mean()
+                        .item()
+                    ),
+                }
+                for dimension, (name, _bound) in enumerate(ACTUATOR_SPECS)
+            },
+            "q_mean_entropy": float(
+                (-q * q.clamp_min(1.0e-30).log()).sum(dim=1).mean().item()
+            ),
         }
         del model, train, evaluation, delta, q
         torch.cuda.empty_cache()

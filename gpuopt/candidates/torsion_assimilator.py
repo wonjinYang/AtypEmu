@@ -49,9 +49,9 @@ TORSION_COLUMNS = tuple(
 ESM_MODEL = "esm2_t30_150M_UR50D"
 ESM_DIM = 640
 ACTUATOR_SPECS = (
-    ("phi", 0.10),
-    ("psi", 0.10),
-    ("chi1", 0.25),
+    ("phi", 0.20),
+    ("psi", 0.20),
+    ("chi1", 0.50),
 )
 SUPPORT_COUNT = 8
 OBSERVER_RESIDUAL_GAIN = 0.1
