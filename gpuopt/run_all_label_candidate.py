@@ -132,7 +132,7 @@ def main() -> int:
         if (
             anchor_summary.get("checkpoint_selection")
             != "final_epoch_target_unread"
-            or len(anchor_summary.get("history", ())) != 8
+            or len(anchor_summary.get("history", ())) != 32
         ):
             raise ValueError(f"sequence anchor is not fixed-final for fold {fold}")
         receipt_path = anchor_root.parent / "receipt.json"
