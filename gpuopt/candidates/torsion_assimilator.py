@@ -82,8 +82,8 @@ UCB_ANCHOR_AGGREGATE_SHA256 = (
 )
 OBSERVER_RESIDUAL_GAIN = 0.1
 STRUCTURAL_RESPONSE_GAIN = 1.0
-REFERENCE_OFFSET_BOUNDS = (0.3, 1.0, 2.0)
 REFERENCE_ELEMENTS = {"H": 0, "C": 1, "N": 2}
+REFERENCE_BOUND_LIMITS = ((0.1, 1.0), (0.5, 4.0), (1.0, 8.0))
 NUMERIC_COLUMNS = (
     "relative_position",
     "log_length",
@@ -421,6 +421,26 @@ def fold_copy(values: dict[str, Any]) -> dict[str, Any]:
     return output
 
 
+def calibrate_reference_bounds(values: dict[str, Any]) -> np.ndarray:
+    """Estimate robust nuisance bounds from the opposite source fold only."""
+
+    target = values["frame"]["target_value"].to_numpy(dtype=np.float64)
+    residual = target - np.asarray(values["center"], dtype=np.float64)
+    atom = values["frame"]["atom_id"].astype(str).to_numpy(dtype=str)
+    entity = np.asarray(values["entity_index"], dtype=np.int64)
+    bounds = []
+    for element, index in REFERENCE_ELEMENTS.items():
+        medians = []
+        for entity_index in range(len(values["entities"])):
+            rows = (entity == entity_index) & np.char.startswith(atom, element)
+            if rows.sum() >= 3:
+                medians.append(float(np.median(residual[rows])))
+        lower, upper = REFERENCE_BOUND_LIMITS[index]
+        estimate = np.quantile(np.abs(medians), 0.95) if medians else lower
+        bounds.append(float(np.clip(estimate, lower, upper)))
+    return np.asarray(bounds, dtype=np.float32)
+
+
 class CoordinateObserver(nn.Module):
     def __init__(self, atom_levels: int, width: int = 96) -> None:
         super().__init__()
@@ -630,6 +650,7 @@ def optimize_assimilation(
     values: dict[str, Any],
     *,
     device: torch.device,
+    reference_bounds_ppm: np.ndarray,
     steps: int = 100,
     chunk_size: int = 2048,
 ) -> tuple[torch.Tensor, torch.Tensor, np.ndarray, float]:
@@ -651,7 +672,7 @@ def optimize_assimilation(
         torch.long,
     )
     reference_bounds = tensor(
-        np.asarray(REFERENCE_OFFSET_BOUNDS, dtype=np.float32), device, torch.float32
+        np.asarray(reference_bounds_ppm, dtype=np.float32), device, torch.float32
     )
     row_count = len(values["frame"])
 

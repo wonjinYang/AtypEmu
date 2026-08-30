@@ -17,6 +17,7 @@ from candidates.torsion_assimilator import (
     SUPPORT_COUNT,
     actuator_delta,
     attach_ucbshift_anchor,
+    calibrate_reference_bounds,
     coordinate_audit,
     crossfit_anchor_selection,
     fold_copy,
@@ -168,6 +169,7 @@ def main() -> int:
         evaluation = fold_copy(raw_folds[eval_fold])
         anchor_selection = crossfit_anchor_selection(train, evaluation)
         train, evaluation = normalization(train, evaluation)
+        reference_bounds = calibrate_reference_bounds(train)
         print(f"{direction}: training observer", flush=True)
         model = train_observer(
             train,
@@ -177,7 +179,10 @@ def main() -> int:
         )
         print(f"{direction}: assimilating D_e", flush=True)
         delta, q, reference_offset, gradient_norm = optimize_assimilation(
-            model, evaluation, device=device
+            model,
+            evaluation,
+            device=device,
+            reference_bounds_ppm=reference_bounds,
         )
         conditioned = predict_surface(
             model,
@@ -231,6 +236,10 @@ def main() -> int:
                     "mean_abs_ppm": float(np.abs(reference_offset[:, index]).mean()),
                     "max_abs_ppm": float(np.abs(reference_offset[:, index]).max()),
                 }
+                for index, element in enumerate(("H", "C", "N"))
+            },
+            "source_calibrated_reference_bounds_ppm": {
+                element: float(reference_bounds[index])
                 for index, element in enumerate(("H", "C", "N"))
             },
             "actuator": {
