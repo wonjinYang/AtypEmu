@@ -51,10 +51,10 @@ ESM_DIM = 640
 ACTUATOR_SPECS = (
     ("phi", 0.01),
     ("psi", 0.01),
-    ("chi1", 0.25),
-    ("chi2", 0.25),
-    ("chi3", 0.25),
-    ("chi4", 0.25),
+    ("chi1", 0.10),
+    ("chi2", 0.10),
+    ("chi3", 0.10),
+    ("chi4", 0.10),
 )
 SIDECHAIN_CHI_BONDS = {
     "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
