@@ -76,6 +76,10 @@ SIDECHAIN_CHI_BONDS = {
     "VAL": (("CA", "CB"),),
 }
 SUPPORT_COUNT = 8
+UCB_ANCHOR_FILE_COUNT = 128
+UCB_ANCHOR_AGGREGATE_SHA256 = (
+    "2ceb7f3b551aefb027708ff9f8acdce263052a249bd7f82e7338afd9f48cc871"
+)
 OBSERVER_RESIDUAL_GAIN = 0.1
 STRUCTURAL_RESPONSE_GAIN = 1.0
 NUMERIC_COLUMNS = (
@@ -108,6 +112,112 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def attach_ucbshift_anchor(
+    values: dict[str, Any], root: Path
+) -> dict[str, float | int | str]:
+    paths = sorted(root.glob("*.npz"))
+    if len(paths) != UCB_ANCHOR_FILE_COUNT:
+        raise ValueError(f"unexpected UCBShift-X anchor file count: {len(paths)}")
+    aggregate = hashlib.sha256()
+    for path in paths:
+        aggregate.update(path.name.encode() + b"\0")
+        aggregate.update(bytes.fromhex(sha256_file(path)))
+    actual_hash = aggregate.hexdigest()
+    if actual_hash != UCB_ANCHOR_AGGREGATE_SHA256:
+        raise ValueError("UCBShift-X anchor aggregate hash mismatch")
+
+    sequence_anchor = np.asarray(values["anchor"], dtype=np.float32)
+    sequence_support = np.repeat(sequence_anchor[:, None], SUPPORT_COUNT, axis=1)
+    ucb_support = np.full_like(sequence_support, np.nan)
+    target_rows = {
+        str(target_id): row
+        for row, target_id in enumerate(values["frame"]["target_id"])
+    }
+    replaced = np.zeros_like(sequence_support, dtype=bool)
+    for entity in values["entities"]:
+        path = root / f"{entity['bmrb_id']}.npz"
+        if not path.exists():
+            continue
+        with np.load(path) as payload:
+            support_ids = [str(value) for value in payload["support_ids"]]
+            if support_ids != values["support_ids"]:
+                raise ValueError(f"UCBShift-X support order mismatch: {path}")
+            target_ids = payload["target_ids"].astype(str)
+            prediction = payload["prediction_ppm"].astype(np.float32)
+        if prediction.shape != (len(target_ids), SUPPORT_COUNT):
+            raise ValueError(f"invalid UCBShift-X anchor shape: {path}")
+        for source_row, target_id in enumerate(target_ids):
+            destination = target_rows.get(target_id)
+            if destination is None:
+                continue
+            finite = np.isfinite(prediction[source_row])
+            ucb_support[destination, finite] = prediction[source_row, finite]
+            replaced[destination, finite] = True
+    values["sequence_support_anchor"] = sequence_support
+    values["ucb_support_anchor"] = ucb_support
+    return {
+        "aggregate_sha256": actual_hash,
+        "file_count": len(paths),
+        "ucb_finite_values": int(replaced.sum()),
+        "total_values": int(replaced.size),
+        "ucb_finite_fraction": float(replaced.mean()),
+    }
+
+
+def crossfit_anchor_selection(
+    train: dict[str, Any], evaluation: dict[str, Any]
+) -> dict[str, dict[str, float | int | str]]:
+    selection: dict[str, dict[str, float | int | str]] = {}
+    train_target = train["frame"]["target_value"].to_numpy(dtype=np.float64)
+    train_atom = train["frame"]["atom_id"].astype(str).to_numpy()
+
+    def ccc(target: np.ndarray, prediction: np.ndarray) -> float:
+        if len(target) < 2:
+            return 0.0
+        target_mean = float(target.mean())
+        prediction_mean = float(prediction.mean())
+        target_centered = target - target_mean
+        prediction_centered = prediction - prediction_mean
+        denominator = (
+            float(np.mean(target_centered**2))
+            + float(np.mean(prediction_centered**2))
+            + (target_mean - prediction_mean) ** 2
+        )
+        if denominator <= 1.0e-15:
+            return 0.0
+        return 2.0 * float(np.mean(target_centered * prediction_centered)) / denominator
+
+    for atom_id in sorted(set(train_atom)):
+        rows = np.flatnonzero(train_atom == atom_id)
+        ucb = train["ucb_support_anchor"][rows].mean(axis=1)
+        finite = np.isfinite(ucb)
+        sequence = train["sequence_support_anchor"][rows, 0]
+        sequence_ccc = ccc(train_target[rows][finite], sequence[finite])
+        ucb_ccc = ccc(train_target[rows][finite], ucb[finite])
+        source = "ucbshift_x" if finite.sum() >= 2 and ucb_ccc > sequence_ccc else "sequence"
+        selection[atom_id] = {
+            "source": source,
+            "source_train_rows": int(finite.sum()),
+            "source_train_sequence_ccc": sequence_ccc,
+            "source_train_ucbshift_x_ccc": ucb_ccc,
+        }
+
+    for values in (train, evaluation):
+        sequence = values["sequence_support_anchor"]
+        ucb = values["ucb_support_anchor"]
+        selected = sequence.copy()
+        for atom_id, receipt in selection.items():
+            if receipt["source"] != "ucbshift_x":
+                continue
+            rows = values["frame"]["atom_id"].astype(str).eq(atom_id).to_numpy()
+            finite = np.isfinite(ucb[rows])
+            selected_rows = selected[rows]
+            selected_rows[finite] = ucb[rows][finite]
+            selected[rows] = selected_rows
+        values["support_anchor"] = selected
+    return selection
 
 
 def embedding_path(cache: Path, sequence: str) -> Path:
@@ -280,11 +390,14 @@ def normalization(
             scales.append(
                 max(float(width) if math.isfinite(float(width)) else 0.1, 0.1)
             )
-        values["center"] = (
-            np.asarray(values["anchor"], dtype=np.float32)
-            if "anchor" in values
-            else np.asarray(centers, dtype=np.float32)
-        )
+        if "support_anchor" in values:
+            values["center"] = np.asarray(
+                values["support_anchor"], dtype=np.float32
+            ).mean(axis=1)
+        elif "anchor" in values:
+            values["center"] = np.asarray(values["anchor"], dtype=np.float32)
+        else:
+            values["center"] = np.asarray(centers, dtype=np.float32)
         values["scale"] = np.asarray(scales, dtype=np.float32)
         target = values["frame"]["target_value"].to_numpy(dtype=np.float32)
         values["normalized_target"] = (target - values["center"]) / values["scale"]
@@ -492,7 +605,8 @@ def predict_surface(
         )
         output.append(flat_prediction.detach().cpu().numpy())
     normalized = np.concatenate(output)
-    return values["center"][:, None] + values["scale"][:, None] * normalized
+    anchor = values.get("support_anchor", values["center"][:, None])
+    return np.asarray(anchor) + values["scale"][:, None] * normalized
 
 
 def optimize_assimilation(

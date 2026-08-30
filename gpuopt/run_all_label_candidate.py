@@ -16,7 +16,9 @@ from candidates.torsion_assimilator import (
     ACTUATOR_SPECS,
     SUPPORT_COUNT,
     actuator_delta,
+    attach_ucbshift_anchor,
     coordinate_audit,
+    crossfit_anchor_selection,
     fold_copy,
     load_fold,
     normalization,
@@ -127,11 +129,22 @@ def main() -> int:
         raw_folds[fold]["anchor"] = aligned.to_numpy(dtype=np.float32)
         sequence_anchor_hashes[fold] = actual_hash
 
+    ucb_anchor_root = (
+        args.data_root.parent
+        / "all_atom_shared_q_e2e_v0"
+        / "ucbshift_x_anchor_v0"
+    )
+    ucb_anchor_stats = {
+        fold: attach_ucbshift_anchor(raw_folds[fold], ucb_anchor_root)
+        for fold in ("A", "B")
+    }
+
     for direction_number, (train_fold, eval_fold, direction) in enumerate(
         (("A", "B", "A_to_B"), ("B", "A", "B_to_A"))
     ):
         train = fold_copy(raw_folds[train_fold])
         evaluation = fold_copy(raw_folds[eval_fold])
+        anchor_selection = crossfit_anchor_selection(train, evaluation)
         train, evaluation = normalization(train, evaluation)
         print(f"{direction}: training observer", flush=True)
         model = train_observer(
@@ -201,6 +214,7 @@ def main() -> int:
             "q_mean_entropy": float(
                 (-q * q.clamp_min(1.0e-30).log()).sum(dim=1).mean().item()
             ),
+            "crossfit_anchor_selection": anchor_selection,
         }
         del model, train, evaluation, delta, q
         torch.cuda.empty_cache()
@@ -216,6 +230,8 @@ def main() -> int:
         "outer_sealed_entities_read": False,
         "frozen_sequence_anchor_sha256": sequence_anchor_hashes,
         "sequence_anchor_columns_read": ["target_id", "prediction"],
+        "frozen_ucbshift_x_anchor": ucb_anchor_stats,
+        "ucbshift_x_arrays_read": ["target_ids", "support_ids", "prediction_ppm"],
         "directions": validity_directions,
         "output_sha256": {
             name: sha256_file(args.output_root / name) for name in output_names
