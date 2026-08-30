@@ -513,6 +513,12 @@ def train_observer(
     numeric = tensor(data["numeric"], device, torch.float32)
     torsion = tensor(data["torsion"], device, torch.float32)
     target = tensor(data["normalized_target"], device, torch.float32)
+    support_target = target[:, None] + tensor(
+        (data["support_anchor"] - data["center"][:, None])
+        / data["scale"][:, None],
+        device,
+        torch.float32,
+    )
     weight = tensor(atom_weights(data["frame"]), device, torch.float32)
     size = len(target)
     generator = torch.Generator(device=device).manual_seed(seed)
@@ -529,9 +535,9 @@ def train_observer(
                 torsion[row].reshape(-1, torsion.shape[-1]),
             ).reshape(count, SUPPORT_COUNT)
             loss = torch.mean(
-                weight[row]
+                weight[row, None]
                 * torch.nn.functional.smooth_l1_loss(
-                    prediction.mean(dim=1), target[row], reduction="none"
+                    prediction, support_target[row], reduction="none"
                 )
             )
             optimizer.zero_grad(set_to_none=True)
@@ -603,7 +609,7 @@ def coordinate_response(
     )
     base_mean = base.mean(dim=1, keepdim=True)
     return OBSERVER_RESIDUAL_GAIN * base_mean + STRUCTURAL_RESPONSE_GAIN * (
-        active - base_mean
+        active - base
     )
 
 
