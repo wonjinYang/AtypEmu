@@ -10,21 +10,21 @@
     "A": {
       "esm_receipt_sha256": "4d12baaeaae85b9cd77a79bb2e989dbf2d46ffca702ce0e24aef5ad2f9c6a027",
       "final_epoch": 8,
-      "macro_cell_ccc_diagnostic": 0.4042824674804696,
-      "predictions_sha256": "44c7440b449c904ebb8d1ca99ab329865c8588b679a5fb44308920b37fbeb6e2",
+      "macro_cell_ccc_diagnostic": 0.40925065295518975,
+      "predictions_sha256": "89037026daab7114db393f5f78553181cdc2fe64382770ad2bbe6fa45ee691c0",
       "split_receipt_sha256": "cf8c29b35ccf181264838d931d5dd4c78ec750c1c291e7a2a3a16c39d2a10bb6",
-      "summary_sha256": "4233868057db8181616d0edb7b987fe4129cfe2ec773b13c729c42ca13de6829"
+      "summary_sha256": "13b8d4d2a41105771cb58499bc3fd8673b3502e041b8c0e12dbc40a50f0cf79a"
     },
     "B": {
       "esm_receipt_sha256": "4d12baaeaae85b9cd77a79bb2e989dbf2d46ffca702ce0e24aef5ad2f9c6a027",
       "final_epoch": 8,
-      "macro_cell_ccc_diagnostic": 0.42967116600264,
-      "predictions_sha256": "d870d7b5bd9f647083202a66605e5cf0a5922c63d259be354c6e65d554e2a08f",
+      "macro_cell_ccc_diagnostic": 0.42563485377484145,
+      "predictions_sha256": "ead339b7012890f8880e1eff11e2ef15d33846caf7cd297093f46bba76a963b0",
       "split_receipt_sha256": "5ff539b9d61d61b1a06f3cc6468cb912fd9da3d4c3c14f88c54230c1659d564d",
-      "summary_sha256": "e822b85b2b95ab48d8785431a0b96a17820c5616d0a3e04044b54f6d86b13648"
+      "summary_sha256": "40ac934dd01f01fec4393347208ad5a013ee5ee8fbb7c65cbaa7d7aed376ed71"
     }
   },
-  "training_objective": "cell-balanced smooth-L1 plus 0.25 raw-ppm Atom_ID macro CCC",
+  "training_objective": "cell-balanced smooth-L1 plus raw-ppm Atom_ID macro CCC",
   "training_source_sha256": "20303eec8c7f458c89c829f2a9ce2faa6254d5a85334ccd9d216d59516fdd706",
   "upstream_training_source_sha256": "3018645d4042bc648c274d73ce44ec603884f3404d9adf474574c4abdc7aec87"
 }

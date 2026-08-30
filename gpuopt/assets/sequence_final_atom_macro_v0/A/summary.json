@@ -76,35 +76,35 @@
   "history": [
     {
       "epoch": 1,
-      "loss": 0.36279182289327894
+      "loss": 0.2908938964349883
     },
     {
       "epoch": 2,
-      "loss": 0.3125788305486952
+      "loss": 0.2521672173483031
     },
     {
       "epoch": 3,
-      "loss": 0.29515453679221015
+      "loss": 0.23991570783512933
     },
     {
       "epoch": 4,
-      "loss": 0.2830125801052366
+      "loss": 0.23139078161546162
     },
     {
       "epoch": 5,
-      "loss": 0.2749733376502991
+      "loss": 0.22561897661004748
     },
     {
       "epoch": 6,
-      "loss": 0.26841041892766954
+      "loss": 0.22074775023119791
     },
     {
       "epoch": 7,
-      "loss": 0.2623159057753427
+      "loss": 0.2169964018038341
     },
     {
       "epoch": 8,
-      "loss": 0.25766929579632625
+      "loss": 0.2140119481086731
     }
   ],
   "metrics": {
@@ -112,1862 +112,1862 @@
     "cells": [
       {
         "atom_id": "C",
-        "ccc": 0.7194767996205997,
+        "ccc": 0.6962469824263805,
         "comp_id": "ALA",
         "entity_count": 51,
         "row_count": 446
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7848816401142075,
+        "ccc": 0.7799103721326094,
         "comp_id": "ALA",
         "entity_count": 68,
         "row_count": 521
       },
       {
         "atom_id": "CB",
-        "ccc": 0.3944042388394636,
+        "ccc": 0.3908565848275524,
         "comp_id": "ALA",
         "entity_count": 68,
         "row_count": 509
       },
       {
         "atom_id": "H",
-        "ccc": 0.6706677968308619,
+        "ccc": 0.6770700994954483,
         "comp_id": "ALA",
         "entity_count": 68,
         "row_count": 521
       },
       {
         "atom_id": "HA",
-        "ccc": 0.6867997956288217,
+        "ccc": 0.6396044075884827,
         "comp_id": "ALA",
         "entity_count": 67,
         "row_count": 501
       },
       {
         "atom_id": "HB1",
-        "ccc": 0.33678057507967957,
+        "ccc": 0.29571066089785125,
         "comp_id": "ALA",
         "entity_count": 65,
         "row_count": 489
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.31700543408797366,
+        "ccc": 0.28495740433582273,
         "comp_id": "ALA",
         "entity_count": 65,
         "row_count": 489
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.29612987201256713,
+        "ccc": 0.28212413855030966,
         "comp_id": "ALA",
         "entity_count": 65,
         "row_count": 489
       },
       {
         "atom_id": "N",
-        "ccc": 0.815250729109959,
+        "ccc": 0.8213358343827929,
         "comp_id": "ALA",
         "entity_count": 64,
         "row_count": 515
       },
       {
         "atom_id": "C",
-        "ccc": 0.7188268520399037,
+        "ccc": 0.7018681663475688,
         "comp_id": "ARG",
         "entity_count": 50,
         "row_count": 228
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7415611397737092,
+        "ccc": 0.7383888617437468,
         "comp_id": "ARG",
         "entity_count": 66,
         "row_count": 301
       },
       {
         "atom_id": "CB",
-        "ccc": 0.34890395705659233,
+        "ccc": 0.41043908887452296,
         "comp_id": "ARG",
         "entity_count": 66,
         "row_count": 300
       },
       {
         "atom_id": "CD",
-        "ccc": 0.001165886758605419,
+        "ccc": -0.019483045884694305,
         "comp_id": "ARG",
         "entity_count": 46,
         "row_count": 198
       },
       {
         "atom_id": "CG",
-        "ccc": 0.002572149258314406,
+        "ccc": 0.008298534977289534,
         "comp_id": "ARG",
         "entity_count": 48,
         "row_count": 205
       },
       {
         "atom_id": "H",
-        "ccc": 0.6156862347740816,
+        "ccc": 0.6012547350134122,
         "comp_id": "ARG",
         "entity_count": 66,
         "row_count": 310
       },
       {
         "atom_id": "HA",
-        "ccc": 0.7123934088278021,
+        "ccc": 0.727794473939798,
         "comp_id": "ARG",
         "entity_count": 65,
         "row_count": 287
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.35999632203789805,
+        "ccc": 0.2427143594977838,
         "comp_id": "ARG",
         "entity_count": 60,
         "row_count": 252
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.2935892297740515,
+        "ccc": 0.2600200179875424,
         "comp_id": "ARG",
         "entity_count": 56,
         "row_count": 220
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.22633259358429816,
+        "ccc": 0.13164112583397222,
         "comp_id": "ARG",
         "entity_count": 48,
         "row_count": 185
       },
       {
         "atom_id": "HD3",
-        "ccc": 0.34808565593710167,
+        "ccc": 0.16092759522700328,
         "comp_id": "ARG",
         "entity_count": 42,
         "row_count": 157
       },
       {
         "atom_id": "HE",
-        "ccc": 0.025626181486223514,
+        "ccc": -0.2309048073889306,
         "comp_id": "ARG",
         "entity_count": 15,
         "row_count": 40
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.29522178625372514,
+        "ccc": 0.156678981628942,
         "comp_id": "ARG",
         "entity_count": 49,
         "row_count": 195
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.29038424606432367,
+        "ccc": 0.18763022661273765,
         "comp_id": "ARG",
         "entity_count": 44,
         "row_count": 170
       },
       {
         "atom_id": "N",
-        "ccc": 0.7635506220843987,
+        "ccc": 0.7967131637377395,
         "comp_id": "ARG",
         "entity_count": 62,
         "row_count": 299
       },
       {
         "atom_id": "NE",
-        "ccc": 0.2895930765100231,
+        "ccc": 0.0724120096325906,
         "comp_id": "ARG",
         "entity_count": 12,
         "row_count": 31
       },
       {
         "atom_id": "C",
-        "ccc": 0.4803506660306182,
+        "ccc": 0.51820609123867,
         "comp_id": "ASN",
         "entity_count": 47,
         "row_count": 177
       },
       {
         "atom_id": "CA",
-        "ccc": 0.49032738029393785,
+        "ccc": 0.5022617549708767,
         "comp_id": "ASN",
         "entity_count": 61,
         "row_count": 216
       },
       {
         "atom_id": "CB",
-        "ccc": 0.12729489206678019,
+        "ccc": 0.16600415441905442,
         "comp_id": "ASN",
         "entity_count": 61,
         "row_count": 215
       },
       {
         "atom_id": "CG",
-        "ccc": -0.001715345820580451,
+        "ccc": -0.015948521103038116,
         "comp_id": "ASN",
         "entity_count": 3,
         "row_count": 10
       },
       {
         "atom_id": "H",
-        "ccc": 0.7024079154956671,
+        "ccc": 0.7446835796817611,
         "comp_id": "ASN",
         "entity_count": 59,
         "row_count": 209
       },
       {
         "atom_id": "HA",
-        "ccc": 0.4544103214191301,
+        "ccc": 0.40407862857197796,
         "comp_id": "ASN",
         "entity_count": 58,
         "row_count": 195
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.5152965071127357,
+        "ccc": 0.5499396348084461,
         "comp_id": "ASN",
         "entity_count": 55,
         "row_count": 191
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.39519749682040234,
+        "ccc": 0.41041301507516126,
         "comp_id": "ASN",
         "entity_count": 56,
         "row_count": 183
       },
       {
         "atom_id": "HD21",
-        "ccc": 0.13299754134591737,
+        "ccc": 0.08856016127797615,
         "comp_id": "ASN",
         "entity_count": 29,
         "row_count": 83
       },
       {
         "atom_id": "HD22",
-        "ccc": 0.1671344156655777,
+        "ccc": 0.16361701609991358,
         "comp_id": "ASN",
         "entity_count": 27,
         "row_count": 81
       },
       {
         "atom_id": "N",
-        "ccc": 0.6484741539486985,
+        "ccc": 0.738133273186792,
         "comp_id": "ASN",
         "entity_count": 55,
         "row_count": 201
       },
       {
         "atom_id": "ND2",
-        "ccc": -0.11420119439249474,
+        "ccc": 0.254019763656909,
         "comp_id": "ASN",
         "entity_count": 23,
         "row_count": 71
       },
       {
         "atom_id": "C",
-        "ccc": 0.649867905199212,
+        "ccc": 0.6359771379720425,
         "comp_id": "ASP",
         "entity_count": 48,
         "row_count": 304
       },
       {
         "atom_id": "CA",
-        "ccc": 0.6405293745401575,
+        "ccc": 0.6333850115855982,
         "comp_id": "ASP",
         "entity_count": 63,
         "row_count": 379
       },
       {
         "atom_id": "CB",
-        "ccc": 0.2528941953870795,
+        "ccc": 0.23556927124007598,
         "comp_id": "ASP",
         "entity_count": 64,
         "row_count": 380
       },
       {
         "atom_id": "H",
-        "ccc": 0.5295884709931392,
+        "ccc": 0.5568464643515684,
         "comp_id": "ASP",
         "entity_count": 64,
         "row_count": 390
       },
       {
         "atom_id": "HA",
-        "ccc": 0.5141366699009448,
+        "ccc": 0.5019058612031376,
         "comp_id": "ASP",
         "entity_count": 62,
         "row_count": 340
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.2834266516473028,
+        "ccc": 0.24244708158248446,
         "comp_id": "ASP",
         "entity_count": 58,
         "row_count": 332
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.14067350256431155,
+        "ccc": 0.09086952214793896,
         "comp_id": "ASP",
         "entity_count": 58,
         "row_count": 323
       },
       {
         "atom_id": "N",
-        "ccc": 0.7265316746464784,
+        "ccc": 0.6982491654606751,
         "comp_id": "ASP",
         "entity_count": 60,
         "row_count": 377
       },
       {
         "atom_id": "C",
-        "ccc": 0.723101944765043,
+        "ccc": 0.5936022021247418,
         "comp_id": "CYS",
         "entity_count": 19,
         "row_count": 36
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7021008160408581,
+        "ccc": 0.685271777907833,
         "comp_id": "CYS",
         "entity_count": 27,
         "row_count": 49
       },
       {
         "atom_id": "CB",
-        "ccc": 0.5445857023527304,
+        "ccc": 0.6134339124734184,
         "comp_id": "CYS",
         "entity_count": 27,
         "row_count": 53
       },
       {
         "atom_id": "H",
-        "ccc": 0.663547621448538,
+        "ccc": 0.7910155481497277,
         "comp_id": "CYS",
         "entity_count": 25,
         "row_count": 51
       },
       {
         "atom_id": "HA",
-        "ccc": 0.37484596428182765,
+        "ccc": 0.428999939305973,
         "comp_id": "CYS",
         "entity_count": 26,
         "row_count": 49
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.24711175841853036,
+        "ccc": 0.2126756224608418,
         "comp_id": "CYS",
         "entity_count": 25,
         "row_count": 47
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.17486070936971082,
+        "ccc": 0.15210891301296192,
         "comp_id": "CYS",
         "entity_count": 21,
         "row_count": 40
       },
       {
         "atom_id": "N",
-        "ccc": 0.6199746309899257,
+        "ccc": 0.6898552467406872,
         "comp_id": "CYS",
         "entity_count": 25,
         "row_count": 51
       },
       {
         "atom_id": "C",
-        "ccc": 0.6397778300877097,
+        "ccc": 0.6441843684061831,
         "comp_id": "GLN",
         "entity_count": 51,
         "row_count": 260
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7177061710822468,
+        "ccc": 0.708972325347262,
         "comp_id": "GLN",
         "entity_count": 67,
         "row_count": 321
       },
       {
         "atom_id": "CB",
-        "ccc": 0.2506610608834,
+        "ccc": 0.23487766176762595,
         "comp_id": "GLN",
         "entity_count": 66,
         "row_count": 312
       },
       {
         "atom_id": "CG",
-        "ccc": 0.09425850526067227,
+        "ccc": 0.022727644576657716,
         "comp_id": "GLN",
         "entity_count": 49,
         "row_count": 212
       },
       {
         "atom_id": "H",
-        "ccc": 0.5302875162432114,
+        "ccc": 0.5159574032755521,
         "comp_id": "GLN",
         "entity_count": 67,
         "row_count": 321
       },
       {
         "atom_id": "HA",
-        "ccc": 0.6408050848004619,
+        "ccc": 0.636795342373599,
         "comp_id": "GLN",
         "entity_count": 64,
         "row_count": 305
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.26313491430775887,
+        "ccc": 0.21367253671905403,
         "comp_id": "GLN",
         "entity_count": 61,
         "row_count": 263
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.33753071095050424,
+        "ccc": 0.25983730259293447,
         "comp_id": "GLN",
         "entity_count": 60,
         "row_count": 247
       },
       {
         "atom_id": "HE21",
-        "ccc": -0.03737820845208305,
+        "ccc": 0.1014168740556541,
         "comp_id": "GLN",
         "entity_count": 29,
         "row_count": 85
       },
       {
         "atom_id": "HE22",
-        "ccc": 0.1567747578573527,
+        "ccc": 0.1824837104097714,
         "comp_id": "GLN",
         "entity_count": 28,
         "row_count": 83
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.3881740121758346,
+        "ccc": 0.24563110853352302,
         "comp_id": "GLN",
         "entity_count": 49,
         "row_count": 208
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.31963441739136755,
+        "ccc": 0.2129587954463537,
         "comp_id": "GLN",
         "entity_count": 48,
         "row_count": 183
       },
       {
         "atom_id": "N",
-        "ccc": 0.7134206057774987,
+        "ccc": 0.7240621239488294,
         "comp_id": "GLN",
         "entity_count": 63,
         "row_count": 313
       },
       {
         "atom_id": "NE2",
-        "ccc": 0.22110744061056903,
+        "ccc": 0.5221526806516487,
         "comp_id": "GLN",
         "entity_count": 25,
         "row_count": 80
       },
       {
         "atom_id": "C",
-        "ccc": 0.6677329618562964,
+        "ccc": 0.6581699383984952,
         "comp_id": "GLU",
         "entity_count": 48,
         "row_count": 437
       },
       {
         "atom_id": "CA",
-        "ccc": 0.6945633118460721,
+        "ccc": 0.7031819806440913,
         "comp_id": "GLU",
         "entity_count": 66,
         "row_count": 538
       },
       {
         "atom_id": "CB",
-        "ccc": 0.4535278576313376,
+        "ccc": 0.456793980496168,
         "comp_id": "GLU",
         "entity_count": 66,
         "row_count": 535
       },
       {
         "atom_id": "CG",
-        "ccc": -0.009721158884989102,
+        "ccc": -0.003012464284392951,
         "comp_id": "GLU",
         "entity_count": 47,
         "row_count": 399
       },
       {
         "atom_id": "H",
-        "ccc": 0.5997077168060346,
+        "ccc": 0.6428415999383696,
         "comp_id": "GLU",
         "entity_count": 66,
         "row_count": 557
       },
       {
         "atom_id": "HA",
-        "ccc": 0.6670402155914055,
+        "ccc": 0.700985352844879,
         "comp_id": "GLU",
         "entity_count": 63,
         "row_count": 525
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.250857860518883,
+        "ccc": 0.21070015450538293,
         "comp_id": "GLU",
         "entity_count": 60,
         "row_count": 487
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.24796582575580767,
+        "ccc": 0.2142520617951054,
         "comp_id": "GLU",
         "entity_count": 59,
         "row_count": 447
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.262225133657472,
+        "ccc": 0.19096106716422298,
         "comp_id": "GLU",
         "entity_count": 48,
         "row_count": 389
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.2569123936453269,
+        "ccc": 0.189565601803469,
         "comp_id": "GLU",
         "entity_count": 47,
         "row_count": 367
       },
       {
         "atom_id": "N",
-        "ccc": 0.6927187812599398,
+        "ccc": 0.7672549653938562,
         "comp_id": "GLU",
         "entity_count": 62,
         "row_count": 552
       },
       {
         "atom_id": "C",
-        "ccc": 0.5157038558543365,
+        "ccc": 0.5326947914668106,
         "comp_id": "GLY",
         "entity_count": 51,
         "row_count": 446
       },
       {
         "atom_id": "CA",
-        "ccc": 0.43335022774121645,
+        "ccc": 0.44516163760699495,
         "comp_id": "GLY",
         "entity_count": 68,
         "row_count": 535
       },
       {
         "atom_id": "H",
-        "ccc": 0.4791090350736491,
+        "ccc": 0.47775823721183197,
         "comp_id": "GLY",
         "entity_count": 68,
         "row_count": 541
       },
       {
         "atom_id": "HA2",
-        "ccc": 0.2463485516322161,
+        "ccc": 0.22971053891274376,
         "comp_id": "GLY",
         "entity_count": 63,
         "row_count": 457
       },
       {
         "atom_id": "HA3",
-        "ccc": 0.13408239742227207,
+        "ccc": 0.21744451405030157,
         "comp_id": "GLY",
         "entity_count": 62,
         "row_count": 371
       },
       {
         "atom_id": "N",
-        "ccc": 0.508846784048485,
+        "ccc": 0.5511719249183697,
         "comp_id": "GLY",
         "entity_count": 64,
         "row_count": 531
       },
       {
         "atom_id": "C",
-        "ccc": 0.7402895817118404,
+        "ccc": 0.6872220464311724,
         "comp_id": "HIS",
         "entity_count": 31,
         "row_count": 87
       },
       {
         "atom_id": "CA",
-        "ccc": 0.5629771167077643,
+        "ccc": 0.5435829699214417,
         "comp_id": "HIS",
         "entity_count": 44,
         "row_count": 128
       },
       {
         "atom_id": "CB",
-        "ccc": 0.03728308230290058,
+        "ccc": 0.015457706750676772,
         "comp_id": "HIS",
         "entity_count": 43,
         "row_count": 121
       },
       {
         "atom_id": "CD2",
-        "ccc": -0.03696149470811214,
+        "ccc": -0.016873702784756486,
         "comp_id": "HIS",
         "entity_count": 8,
         "row_count": 11
       },
       {
         "atom_id": "CE1",
-        "ccc": 0.10641753455509803,
+        "ccc": 0.013456023307929605,
         "comp_id": "HIS",
         "entity_count": 5,
         "row_count": 7
       },
       {
         "atom_id": "H",
-        "ccc": 0.4037769378971454,
+        "ccc": 0.40857858302482214,
         "comp_id": "HIS",
         "entity_count": 43,
         "row_count": 132
       },
       {
         "atom_id": "HA",
-        "ccc": 0.14214253597859716,
+        "ccc": 0.1676058662857574,
         "comp_id": "HIS",
         "entity_count": 43,
         "row_count": 113
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.07856840410605599,
+        "ccc": 0.06858237709060194,
         "comp_id": "HIS",
         "entity_count": 41,
         "row_count": 112
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.1890478133555303,
+        "ccc": 0.06508434063314689,
         "comp_id": "HIS",
         "entity_count": 39,
         "row_count": 104
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.11960625249510956,
+        "ccc": 0.09799989588864456,
         "comp_id": "HIS",
         "entity_count": 12,
         "row_count": 24
       },
       {
         "atom_id": "HE1",
-        "ccc": 0.09407933685236275,
+        "ccc": 0.13486520158306214,
         "comp_id": "HIS",
         "entity_count": 9,
         "row_count": 12
       },
       {
         "atom_id": "N",
-        "ccc": 0.5901794736213439,
+        "ccc": 0.5707222349925752,
         "comp_id": "HIS",
         "entity_count": 39,
         "row_count": 119
       },
       {
         "atom_id": "C",
-        "ccc": 0.5067818999608584,
+        "ccc": 0.5706765685154621,
         "comp_id": "ILE",
         "entity_count": 42,
         "row_count": 152
       },
       {
         "atom_id": "CA",
-        "ccc": 0.777570064917758,
+        "ccc": 0.7394558359890071,
         "comp_id": "ILE",
         "entity_count": 56,
         "row_count": 186
       },
       {
         "atom_id": "CB",
-        "ccc": 0.40891734399944657,
+        "ccc": 0.4546269506011744,
         "comp_id": "ILE",
         "entity_count": 56,
         "row_count": 180
       },
       {
         "atom_id": "CD1",
-        "ccc": 0.09279522166135384,
+        "ccc": 0.09480794359930801,
         "comp_id": "ILE",
         "entity_count": 36,
         "row_count": 125
       },
       {
         "atom_id": "CG1",
-        "ccc": 0.399594086163932,
+        "ccc": 0.33515723861275803,
         "comp_id": "ILE",
         "entity_count": 36,
         "row_count": 124
       },
       {
         "atom_id": "CG2",
-        "ccc": 0.03835360607199176,
+        "ccc": 0.037304985315888994,
         "comp_id": "ILE",
         "entity_count": 38,
         "row_count": 132
       },
       {
         "atom_id": "H",
-        "ccc": 0.6961386744573416,
+        "ccc": 0.7064932136239858,
         "comp_id": "ILE",
         "entity_count": 57,
         "row_count": 185
       },
       {
         "atom_id": "HA",
-        "ccc": 0.7376609229484522,
+        "ccc": 0.7351301602802337,
         "comp_id": "ILE",
         "entity_count": 55,
         "row_count": 180
       },
       {
         "atom_id": "HB",
-        "ccc": 0.36372543969454413,
+        "ccc": 0.4210853578202023,
         "comp_id": "ILE",
         "entity_count": 52,
         "row_count": 169
       },
       {
         "atom_id": "HD11",
-        "ccc": 0.39104386569679944,
+        "ccc": 0.46042767542594354,
         "comp_id": "ILE",
         "entity_count": 40,
         "row_count": 137
       },
       {
         "atom_id": "HD12",
-        "ccc": 0.40883567412066285,
+        "ccc": 0.4655518331927146,
         "comp_id": "ILE",
         "entity_count": 40,
         "row_count": 137
       },
       {
         "atom_id": "HD13",
-        "ccc": 0.3796913574187607,
+        "ccc": 0.4481857800014811,
         "comp_id": "ILE",
         "entity_count": 40,
         "row_count": 137
       },
       {
         "atom_id": "HG12",
-        "ccc": 0.14160157953073552,
+        "ccc": 0.17606460288644302,
         "comp_id": "ILE",
         "entity_count": 37,
         "row_count": 130
       },
       {
         "atom_id": "HG13",
-        "ccc": 0.1169401930761703,
+        "ccc": 0.18478259546912296,
         "comp_id": "ILE",
         "entity_count": 36,
         "row_count": 126
       },
       {
         "atom_id": "HG21",
-        "ccc": 0.2786890107830471,
+        "ccc": 0.5081603482198281,
         "comp_id": "ILE",
         "entity_count": 39,
         "row_count": 138
       },
       {
         "atom_id": "HG22",
-        "ccc": 0.23757891405812184,
+        "ccc": 0.49473906638318976,
         "comp_id": "ILE",
         "entity_count": 39,
         "row_count": 138
       },
       {
         "atom_id": "HG23",
-        "ccc": 0.26848023396011306,
+        "ccc": 0.4999825684324206,
         "comp_id": "ILE",
         "entity_count": 39,
         "row_count": 138
       },
       {
         "atom_id": "N",
-        "ccc": 0.7115528138787579,
+        "ccc": 0.718698412010322,
         "comp_id": "ILE",
         "entity_count": 53,
         "row_count": 181
       },
       {
         "atom_id": "C",
-        "ccc": 0.6482885586482716,
+        "ccc": 0.6741315567385748,
         "comp_id": "LEU",
         "entity_count": 49,
         "row_count": 344
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7567420726801107,
+        "ccc": 0.754733524720733,
         "comp_id": "LEU",
         "entity_count": 67,
         "row_count": 466
       },
       {
         "atom_id": "CB",
-        "ccc": 0.3737775684250964,
+        "ccc": 0.3797349110995707,
         "comp_id": "LEU",
         "entity_count": 67,
         "row_count": 464
       },
       {
         "atom_id": "CD1",
-        "ccc": 0.01619258928231329,
+        "ccc": 0.02102957589779492,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 304
       },
       {
         "atom_id": "CD2",
-        "ccc": 0.062264591843569445,
+        "ccc": 0.046084684942898746,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 288
       },
       {
         "atom_id": "CG",
-        "ccc": 0.02182805737936695,
+        "ccc": 0.02267219681934239,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 280
       },
       {
         "atom_id": "H",
-        "ccc": 0.563461124528482,
+        "ccc": 0.5853251424995498,
         "comp_id": "LEU",
         "entity_count": 67,
         "row_count": 481
       },
       {
         "atom_id": "HA",
-        "ccc": 0.7586875818508308,
+        "ccc": 0.7836150140022851,
         "comp_id": "LEU",
         "entity_count": 64,
         "row_count": 441
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.17317593819811292,
+        "ccc": 0.18800441204435575,
         "comp_id": "LEU",
         "entity_count": 58,
         "row_count": 417
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.18863563623442456,
+        "ccc": 0.19457631902119882,
         "comp_id": "LEU",
         "entity_count": 57,
         "row_count": 368
       },
       {
         "atom_id": "HD11",
-        "ccc": 0.34658069498325816,
+        "ccc": 0.37401658121807035,
         "comp_id": "LEU",
         "entity_count": 47,
         "row_count": 317
       },
       {
         "atom_id": "HD12",
-        "ccc": 0.34758289146621046,
+        "ccc": 0.37228478430537565,
         "comp_id": "LEU",
         "entity_count": 47,
         "row_count": 317
       },
       {
         "atom_id": "HD13",
-        "ccc": 0.3487465256643028,
+        "ccc": 0.38679551296579956,
         "comp_id": "LEU",
         "entity_count": 47,
         "row_count": 317
       },
       {
         "atom_id": "HD21",
-        "ccc": 0.2215697408329888,
+        "ccc": 0.19048591027409081,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 293
       },
       {
         "atom_id": "HD22",
-        "ccc": 0.24015911941058768,
+        "ccc": 0.17539686526995452,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 293
       },
       {
         "atom_id": "HD23",
-        "ccc": 0.25637838770966903,
+        "ccc": 0.2283448754529838,
         "comp_id": "LEU",
         "entity_count": 46,
         "row_count": 293
       },
       {
         "atom_id": "HG",
-        "ccc": 0.3978989446512177,
+        "ccc": 0.3546350588180279,
         "comp_id": "LEU",
         "entity_count": 44,
         "row_count": 267
       },
       {
         "atom_id": "N",
-        "ccc": 0.741033835832862,
+        "ccc": 0.7414162487999554,
         "comp_id": "LEU",
         "entity_count": 67,
         "row_count": 478
       },
       {
         "atom_id": "C",
-        "ccc": 0.6682376383903649,
+        "ccc": 0.6888451873639492,
         "comp_id": "LYS",
         "entity_count": 46,
         "row_count": 351
       },
       {
         "atom_id": "CA",
-        "ccc": 0.6981980556199945,
+        "ccc": 0.7322853028247112,
         "comp_id": "LYS",
         "entity_count": 63,
         "row_count": 428
       },
       {
         "atom_id": "CB",
-        "ccc": 0.34575533273718084,
+        "ccc": 0.38923201721301215,
         "comp_id": "LYS",
         "entity_count": 64,
         "row_count": 417
       },
       {
         "atom_id": "CD",
-        "ccc": -0.0006450023521740569,
+        "ccc": -0.0009195200524455347,
         "comp_id": "LYS",
         "entity_count": 44,
         "row_count": 258
       },
       {
         "atom_id": "CE",
-        "ccc": -0.0031888478005370406,
+        "ccc": 0.007337491846584231,
         "comp_id": "LYS",
         "entity_count": 43,
         "row_count": 227
       },
       {
         "atom_id": "CG",
-        "ccc": 0.01921618430493398,
+        "ccc": 0.034743993887332986,
         "comp_id": "LYS",
         "entity_count": 45,
         "row_count": 285
       },
       {
         "atom_id": "H",
-        "ccc": 0.6276039538970458,
+        "ccc": 0.6207718204783833,
         "comp_id": "LYS",
         "entity_count": 64,
         "row_count": 435
       },
       {
         "atom_id": "HA",
-        "ccc": 0.5989487788098595,
+        "ccc": 0.5715657555029685,
         "comp_id": "LYS",
         "entity_count": 63,
         "row_count": 408
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.35665922666164296,
+        "ccc": 0.42427514650491976,
         "comp_id": "LYS",
         "entity_count": 59,
         "row_count": 359
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.24153694053212973,
+        "ccc": 0.3305723035224539,
         "comp_id": "LYS",
         "entity_count": 57,
         "row_count": 333
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.32530435489969267,
+        "ccc": 0.292261576259261,
         "comp_id": "LYS",
         "entity_count": 44,
         "row_count": 240
       },
       {
         "atom_id": "HD3",
-        "ccc": 0.39581375710541283,
+        "ccc": 0.41547757698915166,
         "comp_id": "LYS",
         "entity_count": 39,
         "row_count": 210
       },
       {
         "atom_id": "HE2",
-        "ccc": 0.20888976211656515,
+        "ccc": 0.338038615283106,
         "comp_id": "LYS",
         "entity_count": 40,
         "row_count": 215
       },
       {
         "atom_id": "HE3",
-        "ccc": 0.24462644168823097,
+        "ccc": 0.3826102168214322,
         "comp_id": "LYS",
         "entity_count": 37,
         "row_count": 191
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.4013675013259101,
+        "ccc": 0.37498195820594266,
         "comp_id": "LYS",
         "entity_count": 47,
         "row_count": 290
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.53516008156365,
+        "ccc": 0.4558175651059714,
         "comp_id": "LYS",
         "entity_count": 44,
         "row_count": 262
       },
       {
         "atom_id": "N",
-        "ccc": 0.6129374294256877,
+        "ccc": 0.6062952963088478,
         "comp_id": "LYS",
         "entity_count": 60,
         "row_count": 425
       },
       {
         "atom_id": "C",
-        "ccc": 0.6532027159390471,
+        "ccc": 0.6554541482920285,
         "comp_id": "MET",
         "entity_count": 36,
         "row_count": 99
       },
       {
         "atom_id": "CA",
-        "ccc": 0.5349626100036513,
+        "ccc": 0.5492106417192658,
         "comp_id": "MET",
         "entity_count": 51,
         "row_count": 121
       },
       {
         "atom_id": "CB",
-        "ccc": 0.3869198313751349,
+        "ccc": 0.4005885501713822,
         "comp_id": "MET",
         "entity_count": 49,
         "row_count": 116
       },
       {
         "atom_id": "CE",
-        "ccc": -0.01028720178017123,
+        "ccc": 0.1244917212873506,
         "comp_id": "MET",
         "entity_count": 16,
         "row_count": 36
       },
       {
         "atom_id": "CG",
-        "ccc": 0.06946322720339505,
+        "ccc": 0.06697193196820325,
         "comp_id": "MET",
         "entity_count": 31,
         "row_count": 76
       },
       {
         "atom_id": "H",
-        "ccc": 0.680710335050067,
+        "ccc": 0.6609192089967814,
         "comp_id": "MET",
         "entity_count": 49,
         "row_count": 115
       },
       {
         "atom_id": "HA",
-        "ccc": 0.6342474492060983,
+        "ccc": 0.5925339864313335,
         "comp_id": "MET",
         "entity_count": 48,
         "row_count": 111
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.20847045818362547,
+        "ccc": 0.1501878699844522,
         "comp_id": "MET",
         "entity_count": 44,
         "row_count": 97
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.3371054496885122,
+        "ccc": 0.2265802425579546,
         "comp_id": "MET",
         "entity_count": 42,
         "row_count": 86
       },
       {
         "atom_id": "HE1",
-        "ccc": 0.32296987127810833,
+        "ccc": 0.5814493943665275,
         "comp_id": "MET",
         "entity_count": 16,
         "row_count": 36
       },
       {
         "atom_id": "HE2",
-        "ccc": 0.40621918981129684,
+        "ccc": 0.6358324320813157,
         "comp_id": "MET",
         "entity_count": 16,
         "row_count": 36
       },
       {
         "atom_id": "HE3",
-        "ccc": 0.4186488390237682,
+        "ccc": 0.5859860813019767,
         "comp_id": "MET",
         "entity_count": 16,
         "row_count": 36
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.4746319466201305,
+        "ccc": 0.2918929456238788,
         "comp_id": "MET",
         "entity_count": 35,
         "row_count": 77
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.49862714998986246,
+        "ccc": 0.446589333066804,
         "comp_id": "MET",
         "entity_count": 36,
         "row_count": 79
       },
       {
         "atom_id": "N",
-        "ccc": 0.65388528458364,
+        "ccc": 0.6900552962264229,
         "comp_id": "MET",
         "entity_count": 46,
         "row_count": 112
       },
       {
         "atom_id": "C",
-        "ccc": 0.6778975041593379,
+        "ccc": 0.6565020586858629,
         "comp_id": "PHE",
         "entity_count": 44,
         "row_count": 126
       },
       {
         "atom_id": "CA",
-        "ccc": 0.74194032633017,
+        "ccc": 0.7676758062219697,
         "comp_id": "PHE",
         "entity_count": 57,
         "row_count": 154
       },
       {
         "atom_id": "CB",
-        "ccc": 0.4922206102197894,
+        "ccc": 0.5208221508131651,
         "comp_id": "PHE",
         "entity_count": 58,
         "row_count": 157
       },
       {
         "atom_id": "CD1",
-        "ccc": -0.041839660956033864,
+        "ccc": -0.08386829950681288,
         "comp_id": "PHE",
         "entity_count": 20,
         "row_count": 48
       },
       {
         "atom_id": "CD2",
-        "ccc": -0.031149511910269042,
+        "ccc": -0.055200294761322745,
         "comp_id": "PHE",
         "entity_count": 14,
         "row_count": 36
       },
       {
         "atom_id": "CE1",
-        "ccc": -0.027581103072818178,
+        "ccc": 0.10120003515644325,
         "comp_id": "PHE",
         "entity_count": 19,
         "row_count": 43
       },
       {
         "atom_id": "CE2",
-        "ccc": 0.1461447990050988,
+        "ccc": 0.12277663168832424,
         "comp_id": "PHE",
         "entity_count": 12,
         "row_count": 31
       },
       {
         "atom_id": "CZ",
-        "ccc": 0.12555972598982923,
+        "ccc": 0.055768816115501434,
         "comp_id": "PHE",
         "entity_count": 14,
         "row_count": 32
       },
       {
         "atom_id": "H",
-        "ccc": 0.5959842399251861,
+        "ccc": 0.5318604581957562,
         "comp_id": "PHE",
         "entity_count": 58,
         "row_count": 157
       },
       {
         "atom_id": "HA",
-        "ccc": 0.6599116164754575,
+        "ccc": 0.6991498933098973,
         "comp_id": "PHE",
         "entity_count": 53,
         "row_count": 140
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.2457111919053121,
+        "ccc": 0.27048956413991126,
         "comp_id": "PHE",
         "entity_count": 53,
         "row_count": 137
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.2610629343344891,
+        "ccc": 0.29166966435882785,
         "comp_id": "PHE",
         "entity_count": 51,
         "row_count": 131
       },
       {
         "atom_id": "HD1",
-        "ccc": 0.41949502255013105,
+        "ccc": 0.2985512073364376,
         "comp_id": "PHE",
         "entity_count": 28,
         "row_count": 62
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.2760623438197483,
+        "ccc": 0.24899110533099994,
         "comp_id": "PHE",
         "entity_count": 22,
         "row_count": 51
       },
       {
         "atom_id": "HE1",
-        "ccc": 0.3817571113051293,
+        "ccc": 0.46516568687697907,
         "comp_id": "PHE",
         "entity_count": 25,
         "row_count": 58
       },
       {
         "atom_id": "HE2",
-        "ccc": 0.3416213310142247,
+        "ccc": 0.4141984957154836,
         "comp_id": "PHE",
         "entity_count": 22,
         "row_count": 49
       },
       {
         "atom_id": "HZ",
-        "ccc": 0.530619700423088,
+        "ccc": 0.4823617462730779,
         "comp_id": "PHE",
         "entity_count": 17,
         "row_count": 39
       },
       {
         "atom_id": "N",
-        "ccc": 0.606242107538295,
+        "ccc": 0.6554882060849525,
         "comp_id": "PHE",
         "entity_count": 58,
         "row_count": 157
       },
       {
         "atom_id": "C",
-        "ccc": 0.4899520309250989,
+        "ccc": 0.5165151640721988,
         "comp_id": "PRO",
         "entity_count": 47,
         "row_count": 397
       },
       {
         "atom_id": "CA",
-        "ccc": 0.5193650317648563,
+        "ccc": 0.5049408787316088,
         "comp_id": "PRO",
         "entity_count": 61,
         "row_count": 445
       },
       {
         "atom_id": "CB",
-        "ccc": 0.0718957804800486,
+        "ccc": 0.11038829117147667,
         "comp_id": "PRO",
         "entity_count": 60,
         "row_count": 436
       },
       {
         "atom_id": "CD",
-        "ccc": 0.03595466753006894,
+        "ccc": 0.12362100182906706,
         "comp_id": "PRO",
         "entity_count": 45,
         "row_count": 261
       },
       {
         "atom_id": "CG",
-        "ccc": 0.05331784911566002,
+        "ccc": 0.07524116600348443,
         "comp_id": "PRO",
         "entity_count": 44,
         "row_count": 291
       },
       {
         "atom_id": "HA",
-        "ccc": 0.4002851978265212,
+        "ccc": 0.47829317015306794,
         "comp_id": "PRO",
         "entity_count": 57,
         "row_count": 400
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.3911933489910177,
+        "ccc": 0.3114764710067787,
         "comp_id": "PRO",
         "entity_count": 50,
         "row_count": 337
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.26252068851190774,
+        "ccc": 0.21490844144429389,
         "comp_id": "PRO",
         "entity_count": 49,
         "row_count": 329
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.449105010644135,
+        "ccc": 0.38471243542508077,
         "comp_id": "PRO",
         "entity_count": 40,
         "row_count": 196
       },
       {
         "atom_id": "HD3",
-        "ccc": 0.5526425138116703,
+        "ccc": 0.5633480600700055,
         "comp_id": "PRO",
         "entity_count": 36,
         "row_count": 168
       },
       {
         "atom_id": "HG2",
-        "ccc": 0.5792703221098792,
+        "ccc": 0.4555431494949019,
         "comp_id": "PRO",
         "entity_count": 39,
         "row_count": 222
       },
       {
         "atom_id": "HG3",
-        "ccc": 0.7955294224491725,
+        "ccc": 0.6702867744824264,
         "comp_id": "PRO",
         "entity_count": 33,
         "row_count": 197
       },
       {
         "atom_id": "N",
-        "ccc": 0.680225831539472,
+        "ccc": 0.6894619412260096,
         "comp_id": "PRO",
         "entity_count": 6,
         "row_count": 119
       },
       {
         "atom_id": "C",
-        "ccc": 0.47300074807543985,
+        "ccc": 0.4797280830214333,
         "comp_id": "SER",
         "entity_count": 50,
         "row_count": 434
       },
       {
         "atom_id": "CA",
-        "ccc": 0.5758441338007972,
+        "ccc": 0.5892404534649567,
         "comp_id": "SER",
         "entity_count": 66,
         "row_count": 517
       },
       {
         "atom_id": "CB",
-        "ccc": 0.2588479521254613,
+        "ccc": 0.23938465639497453,
         "comp_id": "SER",
         "entity_count": 67,
         "row_count": 519
       },
       {
         "atom_id": "H",
-        "ccc": 0.5133462327661112,
+        "ccc": 0.49539564380188306,
         "comp_id": "SER",
         "entity_count": 67,
         "row_count": 520
       },
       {
         "atom_id": "HA",
-        "ccc": 0.7166267880870731,
+        "ccc": 0.6682936262383202,
         "comp_id": "SER",
         "entity_count": 64,
         "row_count": 434
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.12219433147371529,
+        "ccc": 0.13506389036496377,
         "comp_id": "SER",
         "entity_count": 61,
         "row_count": 441
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.29891005891772593,
+        "ccc": 0.3546172203403124,
         "comp_id": "SER",
         "entity_count": 59,
         "row_count": 381
       },
       {
         "atom_id": "N",
-        "ccc": 0.6531999949679304,
+        "ccc": 0.6905781881139713,
         "comp_id": "SER",
         "entity_count": 63,
         "row_count": 511
       },
       {
         "atom_id": "C",
-        "ccc": 0.5034235480475542,
+        "ccc": 0.5181380845823579,
         "comp_id": "THR",
         "entity_count": 48,
         "row_count": 242
       },
       {
         "atom_id": "CA",
-        "ccc": 0.6869051402359307,
+        "ccc": 0.7139937166331661,
         "comp_id": "THR",
         "entity_count": 65,
         "row_count": 298
       },
       {
         "atom_id": "CB",
-        "ccc": 0.13766338571564876,
+        "ccc": 0.16836787908705797,
         "comp_id": "THR",
         "entity_count": 65,
         "row_count": 294
       },
       {
         "atom_id": "CG2",
-        "ccc": 0.06831060142148214,
+        "ccc": 0.09396196749743803,
         "comp_id": "THR",
         "entity_count": 47,
         "row_count": 191
       },
       {
         "atom_id": "H",
-        "ccc": 0.5927695896190718,
+        "ccc": 0.5906892335625746,
         "comp_id": "THR",
         "entity_count": 64,
         "row_count": 297
       },
       {
         "atom_id": "HA",
-        "ccc": 0.5708704628698322,
+        "ccc": 0.5523800572365932,
         "comp_id": "THR",
         "entity_count": 63,
         "row_count": 274
       },
       {
         "atom_id": "HB",
-        "ccc": 0.5357948600585412,
+        "ccc": 0.5159719745323182,
         "comp_id": "THR",
         "entity_count": 59,
         "row_count": 256
       },
       {
         "atom_id": "HG21",
-        "ccc": 0.47177825698167286,
+        "ccc": 0.30974376070177656,
         "comp_id": "THR",
         "entity_count": 48,
         "row_count": 190
       },
       {
         "atom_id": "HG22",
-        "ccc": 0.47496095551471346,
+        "ccc": 0.33643205501653645,
         "comp_id": "THR",
         "entity_count": 48,
         "row_count": 190
       },
       {
         "atom_id": "HG23",
-        "ccc": 0.48053949378166855,
+        "ccc": 0.335204995403813,
         "comp_id": "THR",
         "entity_count": 48,
         "row_count": 190
       },
       {
         "atom_id": "N",
-        "ccc": 0.6699326269126478,
+        "ccc": 0.7185480360350094,
         "comp_id": "THR",
         "entity_count": 60,
         "row_count": 288
       },
       {
         "atom_id": "C",
-        "ccc": 0.6508092647240994,
+        "ccc": 0.6692845323828935,
         "comp_id": "TRP",
         "entity_count": 23,
         "row_count": 41
       },
       {
         "atom_id": "CA",
-        "ccc": 0.5832366829217753,
+        "ccc": 0.6225429723586589,
         "comp_id": "TRP",
         "entity_count": 32,
         "row_count": 57
       },
       {
         "atom_id": "CB",
-        "ccc": 0.5626195595430395,
+        "ccc": 0.5356529605321163,
         "comp_id": "TRP",
         "entity_count": 32,
         "row_count": 57
       },
       {
         "atom_id": "CD1",
-        "ccc": 0.0005480226647157191,
+        "ccc": 0.2251816136495227,
         "comp_id": "TRP",
         "entity_count": 10,
         "row_count": 16
       },
       {
         "atom_id": "CE3",
-        "ccc": -0.3165069657299012,
+        "ccc": 0.2779930244653409,
         "comp_id": "TRP",
         "entity_count": 8,
         "row_count": 14
       },
       {
         "atom_id": "CH2",
-        "ccc": 0.27858611512449777,
+        "ccc": 0.32093143839853405,
         "comp_id": "TRP",
         "entity_count": 8,
         "row_count": 12
       },
       {
         "atom_id": "CZ2",
-        "ccc": -0.11451593138167303,
+        "ccc": -0.022204725171311487,
         "comp_id": "TRP",
         "entity_count": 9,
         "row_count": 13
       },
       {
         "atom_id": "CZ3",
-        "ccc": 0.11319188508896529,
+        "ccc": 0.05707181492880302,
         "comp_id": "TRP",
         "entity_count": 8,
         "row_count": 14
       },
       {
         "atom_id": "H",
-        "ccc": 0.7063583933995838,
+        "ccc": 0.6412674951814875,
         "comp_id": "TRP",
         "entity_count": 32,
         "row_count": 57
       },
       {
         "atom_id": "HA",
-        "ccc": 0.7991603282643222,
+        "ccc": 0.7966482205266125,
         "comp_id": "TRP",
         "entity_count": 30,
         "row_count": 53
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.49369598417273863,
+        "ccc": 0.5326317237465953,
         "comp_id": "TRP",
         "entity_count": 30,
         "row_count": 52
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.5514996956889103,
+        "ccc": 0.5119053660584961,
         "comp_id": "TRP",
         "entity_count": 28,
         "row_count": 49
       },
       {
         "atom_id": "HD1",
-        "ccc": 0.5292680728541571,
+        "ccc": 0.6409327259494058,
         "comp_id": "TRP",
         "entity_count": 16,
         "row_count": 29
       },
       {
         "atom_id": "HE1",
-        "ccc": 0.21682221089160245,
+        "ccc": 0.4792813851935206,
         "comp_id": "TRP",
         "entity_count": 19,
         "row_count": 33
       },
       {
         "atom_id": "HE3",
-        "ccc": 0.007561756160196328,
+        "ccc": -0.02717466624169718,
         "comp_id": "TRP",
         "entity_count": 15,
         "row_count": 25
       },
       {
         "atom_id": "HH2",
-        "ccc": 0.5270175502623798,
+        "ccc": 0.4984942008357649,
         "comp_id": "TRP",
         "entity_count": 12,
         "row_count": 21
       },
       {
         "atom_id": "HZ2",
-        "ccc": 0.5982945160672529,
+        "ccc": 0.605000856485217,
         "comp_id": "TRP",
         "entity_count": 15,
         "row_count": 24
       },
       {
         "atom_id": "HZ3",
-        "ccc": 0.2760921971679815,
+        "ccc": 0.21605888541088647,
         "comp_id": "TRP",
         "entity_count": 13,
         "row_count": 24
       },
       {
         "atom_id": "N",
-        "ccc": 0.6194478621616795,
+        "ccc": 0.6141314784177806,
         "comp_id": "TRP",
         "entity_count": 31,
         "row_count": 56
       },
       {
         "atom_id": "NE1",
-        "ccc": 0.5378295814134412,
+        "ccc": 0.38468636607336076,
         "comp_id": "TRP",
         "entity_count": 16,
         "row_count": 28
       },
       {
         "atom_id": "C",
-        "ccc": 0.663727597512256,
+        "ccc": 0.6712290416904356,
         "comp_id": "TYR",
         "entity_count": 37,
         "row_count": 113
       },
       {
         "atom_id": "CA",
-        "ccc": 0.7272805121811872,
+        "ccc": 0.7590296851265725,
         "comp_id": "TYR",
         "entity_count": 49,
         "row_count": 135
       },
       {
         "atom_id": "CB",
-        "ccc": 0.43690692869423386,
+        "ccc": 0.48460445843262817,
         "comp_id": "TYR",
         "entity_count": 49,
         "row_count": 138
       },
       {
         "atom_id": "CD1",
-        "ccc": 0.1265037826832173,
+        "ccc": 0.12087054362407859,
         "comp_id": "TYR",
         "entity_count": 18,
         "row_count": 46
       },
       {
         "atom_id": "CD2",
-        "ccc": 0.059086578658769234,
+        "ccc": 0.015498445923114139,
         "comp_id": "TYR",
         "entity_count": 14,
         "row_count": 36
       },
       {
         "atom_id": "CE1",
-        "ccc": 0.06851118897390035,
+        "ccc": 0.1042314609070072,
         "comp_id": "TYR",
         "entity_count": 20,
         "row_count": 49
       },
       {
         "atom_id": "CE2",
-        "ccc": 0.1616948827784987,
+        "ccc": 0.11613061704987537,
         "comp_id": "TYR",
         "entity_count": 13,
         "row_count": 34
       },
       {
         "atom_id": "H",
-        "ccc": 0.7737527129393897,
+        "ccc": 0.753592786287082,
         "comp_id": "TYR",
         "entity_count": 49,
         "row_count": 138
       },
       {
         "atom_id": "HA",
-        "ccc": 0.592968950493038,
+        "ccc": 0.7498728627925155,
         "comp_id": "TYR",
         "entity_count": 49,
         "row_count": 129
       },
       {
         "atom_id": "HB2",
-        "ccc": 0.34321524876372306,
+        "ccc": 0.2742783418506985,
         "comp_id": "TYR",
         "entity_count": 45,
         "row_count": 123
       },
       {
         "atom_id": "HB3",
-        "ccc": 0.3237503606928213,
+        "ccc": 0.3145290902833525,
         "comp_id": "TYR",
         "entity_count": 44,
         "row_count": 115
       },
       {
         "atom_id": "HD1",
-        "ccc": 0.6331476972284685,
+        "ccc": 0.5813211376715184,
         "comp_id": "TYR",
         "entity_count": 25,
         "row_count": 63
       },
       {
         "atom_id": "HD2",
-        "ccc": 0.60169578453472,
+        "ccc": 0.5645816032332854,
         "comp_id": "TYR",
         "entity_count": 21,
         "row_count": 55
       },
       {
         "atom_id": "HE1",
-        "ccc": 0.5430470524421652,
+        "ccc": 0.5597543857720787,
         "comp_id": "TYR",
         "entity_count": 25,
         "row_count": 60
       },
       {
         "atom_id": "HE2",
-        "ccc": 0.5874654769149066,
+        "ccc": 0.5652647219315219,
         "comp_id": "TYR",
         "entity_count": 21,
         "row_count": 53
       },
       {
         "atom_id": "N",
-        "ccc": 0.674515613124879,
+        "ccc": 0.6850310773237642,
         "comp_id": "TYR",
         "entity_count": 49,
         "row_count": 138
       },
       {
         "atom_id": "C",
-        "ccc": 0.558703089628434,
+        "ccc": 0.5075438311865306,
         "comp_id": "VAL",
         "entity_count": 48,
         "row_count": 230
       },
       {
         "atom_id": "CA",
-        "ccc": 0.775067126289221,
+        "ccc": 0.7684020571974385,
         "comp_id": "VAL",
         "entity_count": 64,
         "row_count": 284
       },
       {
         "atom_id": "CB",
-        "ccc": 0.5286260574271335,
+        "ccc": 0.4979654354749755,
         "comp_id": "VAL",
         "entity_count": 64,
         "row_count": 283
       },
       {
         "atom_id": "CG1",
-        "ccc": 0.25005390692136037,
+        "ccc": 0.1986639090529585,
         "comp_id": "VAL",
         "entity_count": 45,
         "row_count": 185
       },
       {
         "atom_id": "CG2",
-        "ccc": 0.1895095597632749,
+        "ccc": 0.11978799948428155,
         "comp_id": "VAL",
         "entity_count": 48,
         "row_count": 178
       },
       {
         "atom_id": "H",
-        "ccc": 0.6677865233313524,
+        "ccc": 0.6237754184043762,
         "comp_id": "VAL",
         "entity_count": 64,
         "row_count": 290
       },
       {
         "atom_id": "HA",
-        "ccc": 0.8370647008621704,
+        "ccc": 0.8235472477536117,
         "comp_id": "VAL",
         "entity_count": 62,
         "row_count": 280
       },
       {
         "atom_id": "HB",
-        "ccc": 0.40153453547233814,
+        "ccc": 0.45383138055683936,
         "comp_id": "VAL",
         "entity_count": 61,
         "row_count": 265
       },
       {
         "atom_id": "HG11",
-        "ccc": 0.40944302911437047,
+        "ccc": 0.4876211041049557,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 202
       },
       {
         "atom_id": "HG12",
-        "ccc": 0.41171861956929595,
+        "ccc": 0.4306565144064796,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 202
       },
       {
         "atom_id": "HG13",
-        "ccc": 0.40553332208127035,
+        "ccc": 0.4369398098699131,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 202
       },
       {
         "atom_id": "HG21",
-        "ccc": 0.4819995002647735,
+        "ccc": 0.4561932974287709,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 192
       },
       {
         "atom_id": "HG22",
-        "ccc": 0.4834359171267307,
+        "ccc": 0.4576062814298022,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 192
       },
       {
         "atom_id": "HG23",
-        "ccc": 0.48702942615830436,
+        "ccc": 0.46305248901863455,
         "comp_id": "VAL",
         "entity_count": 47,
         "row_count": 192
       },
       {
         "atom_id": "N",
-        "ccc": 0.6511590536022246,
+        "ccc": 0.6620340239686563,
         "comp_id": "VAL",
         "entity_count": 60,
         "row_count": 283
       }
     ],
-    "macro_cell_ccc": 0.4042824674804696,
-    "minimum_cell_ccc": -0.3165069657299012,
+    "macro_cell_ccc": 0.40925065295518975,
+    "minimum_cell_ccc": -0.2309048073889306,
     "row_count": 58312
   },
   "outer_development_targets_read": false,
