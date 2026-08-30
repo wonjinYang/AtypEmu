@@ -196,7 +196,11 @@ def crossfit_anchor_selection(
         sequence = train["sequence_support_anchor"][rows, 0]
         sequence_ccc = ccc(train_target[rows][finite], sequence[finite])
         ucb_ccc = ccc(train_target[rows][finite], ucb[finite])
-        source = "ucbshift_x" if finite.sum() >= 2 and ucb_ccc > sequence_ccc else "sequence"
+        source = (
+            "ucbshift_x"
+            if finite.sum() >= 50 and ucb_ccc > sequence_ccc + 0.02
+            else "sequence"
+        )
         selection[atom_id] = {
             "source": source,
             "source_train_rows": int(finite.sum()),
