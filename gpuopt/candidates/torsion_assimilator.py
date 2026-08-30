@@ -648,6 +648,16 @@ def optimize_assimilation(
             support_prediction = coordinate_response(
                 model, esm, categorical, numeric, base_torsion, torsion
             )
+            anchor_deviation = tensor(
+                (
+                    values["support_anchor"][start:stop]
+                    - values["center"][start:stop, None]
+                )
+                / values["scale"][start:stop, None],
+                device,
+                torch.float32,
+            )
+            support_prediction = support_prediction + anchor_deviation
             q = torch.softmax(q_logits[entities], dim=1)
             aggregate = torch.sum(q * support_prediction, dim=1)
             loss = torch.sum(weight * torch.square(aggregate - target)) / row_count
