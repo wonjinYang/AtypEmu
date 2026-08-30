@@ -363,7 +363,7 @@ def train_observer(
     atom_levels: int,
     device: torch.device,
     seed: int,
-    epochs: int = 128,
+    epochs: int = 256,
     batch_size: int = 4096,
 ) -> CoordinateObserver:
     torch.manual_seed(seed)
