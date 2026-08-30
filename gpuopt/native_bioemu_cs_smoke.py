@@ -242,7 +242,11 @@ def main() -> int:
     sdes["node_orientations"].prior_sampling = (
         lambda shape, device=None: fixed_orientation_prior.clone().to(device)
     )
-    template = read_template(ROOT / "data/BioEmu/bmr25218/bmr25218_BioEmu_1.pdb", device)
+    template_support_id = 626
+    template = read_template(
+        ROOT / f"data/BioEmu/bmr25218/bmr25218_BioEmu_{template_support_id}.pdb",
+        device,
+    )
     chi_raw = torch.nn.Parameter(torch.zeros(len(SEQUENCE), 4, device=device))
     parameters = [parameter for parameter in generator.parameters() if parameter.requires_grad]
     optimizer = torch.optim.Adam(
@@ -309,6 +313,7 @@ def main() -> int:
         "source_entity_uid": ENTITY_UID,
         "assigned_row_count": int(rows.numel()),
         "complete_atom_count": int(coordinates_before.shape[0]),
+        "target_free_template_support_id": template_support_id,
         "fixed_diffusion_prior_control": True,
         "loss_before": float(loss_before.detach()),
         "loss_after_one_step": float(loss_after),
