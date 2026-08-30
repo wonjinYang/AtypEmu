@@ -31,13 +31,16 @@ from candidates.torsion_assimilator import (
 )
 
 SEQUENCE_ANCHOR_SHA256 = {
-    "A": "4fbf641b8ffe072ecd9dac565b473dca4f870f8004f1a0a6baf4167d90b13953",
-    "B": "d6f708e40f84c4f08f7cb8d7e62bd6ddbef1df48d62031610f42ba2d33e3374a",
+    "A": "032a7695b248f533b90a8c61225e10d0d0b40237d53f2be8a9327e1419138979",
+    "B": "9f34a325b2d571e91bea0b5a311d19274de7b0f2ac3dbebeec4ead4e7d02933e",
 }
 SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
-    "A": "4412eb7ab9e46d587bf5ec1cc05715cd366f6ed3c64f630acfa0f86550ffd8da",
-    "B": "b872437bf425b9fb1d2e77d20336a8e2466405b6801a1168fce591cbed5ca107",
+    "A": "63647b34b13ff2e1d4d78f4eaa473432eadc6b9ce7dd0eaeb96781e5270ae735",
+    "B": "bf678aefc9c4fe42024117e5aa61542ec96e7f0d63cb93827705232db165dc1c",
 }
+SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
+    "bbc2ffe4be1c36aa3c31827e5776ec0b4d1fd96173808656e9cb9d4ecaf4d3ff"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -115,7 +118,7 @@ def main() -> int:
         anchor_root = (
             Path(__file__).resolve().parent
             / "assets"
-            / "sequence_final_noesm_v0"
+            / "sequence_final_esm_v1"
             / fold
         )
         anchor_path = anchor_root / "predictions.parquet"
@@ -129,9 +132,12 @@ def main() -> int:
         if (
             anchor_summary.get("checkpoint_selection")
             != "final_epoch_target_unread"
-            or len(anchor_summary.get("history", ())) != 15
+            or len(anchor_summary.get("history", ())) != 8
         ):
             raise ValueError(f"sequence anchor is not fixed-final for fold {fold}")
+        receipt_path = anchor_root.parent / "receipt.json"
+        if sha256_file(receipt_path) != SEQUENCE_ANCHOR_RECEIPT_SHA256:
+            raise ValueError("sequence anchor provenance receipt hash mismatch")
         # Column projection is part of the independence contract: the colocated
         # target_value column is never materialized in this candidate process.
         anchor = pd.read_parquet(anchor_path, columns=("target_id", "prediction"))
