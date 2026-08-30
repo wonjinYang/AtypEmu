@@ -1,0 +1,23 @@
+{
+  "artifact_kind": "atypemu_fixed_final_atom_macro_sequence_anchor_receipt_v1",
+  "bilinear_cell_head": false,
+  "cell_ccc_weight": 0.1,
+  "checkpoint_selection": "final_epoch_target_unread",
+  "fixed_epochs": 32,
+  "folds": {
+    "A": {
+      "checkpoint_sha256": "3eb7ebc33e9432c0abe252103dbbda95ba34f562c0fefce4c83d673c593c8ee6",
+      "predictions_sha256": "b1b641fb183bc8f27bb122503174b1829fed529726ccacd265e411e3ba2ea480",
+      "split_receipt_sha256": "cf8c29b35ccf181264838d931d5dd4c78ec750c1c291e7a2a3a16c39d2a10bb6",
+      "summary_sha256": "428fda2ff38c4e4d52df94036c026167925aef125a4aeeb065a0a8cd3b2a7033"
+    },
+    "B": {
+      "checkpoint_sha256": "c85617f467bb1e280e5c0281a30c9b9c9d2533548055ad81a2ac5995fb40c9de",
+      "predictions_sha256": "8ee7bb050ddd040b1500b519631fa0dd48cadd7fe560e8184e2c70d9c83c015a",
+      "split_receipt_sha256": "5ff539b9d61d61b1a06f3cc6468cb912fd9da3d4c3c14f88c54230c1659d564d",
+      "summary_sha256": "b69a394c126c831eded774bb67858180ce4df60bbd75b24f2d217f7e8de58b60"
+    }
+  },
+  "seed": 20260830,
+  "training_source_sha256": "20303eec8c7f458c89c829f2a9ce2faa6254d5a85334ccd9d216d59516fdd706"
+}
