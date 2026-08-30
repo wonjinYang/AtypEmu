@@ -478,7 +478,7 @@ def optimize_assimilation(
     values: dict[str, Any],
     *,
     device: torch.device,
-    steps: int = 30,
+    steps: int = 100,
     chunk_size: int = 2048,
 ) -> tuple[torch.Tensor, torch.Tensor, float]:
     residue_count = len(values["residue_keys"])
