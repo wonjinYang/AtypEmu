@@ -96,6 +96,36 @@ NUMERIC_COLUMNS = (
     "solution_ionic_strength_mm_available",
     "solution_pressure_atm_available",
 )
+GEOMETRY_DISTANCE_COLUMNS = tuple(
+    column
+    for element in ("H", "C", "N", "O", "S")
+    for column in (
+        f"nearest_{element}_distance_angstrom",
+        f"nearest_interresidue_{element}_distance_angstrom",
+    )
+) + (
+    "hbond_acceptor_distance_angstrom",
+    "nearest_aromatic_ring_distance_angstrom",
+)
+GEOMETRY_COLUMNS = (
+    "target_residue_atom_count",
+    *tuple(
+        column
+        for element in ("H", "C", "N", "O", "S")
+        for column in (
+            f"nearest_{element}_distance_angstrom",
+            f"nearest_interresidue_{element}_distance_angstrom",
+            *(f"interresidue_{element}_contact_count_{radius}a" for radius in (2, 3, 4, 5)),
+        )
+    ),
+    "hbond_acceptor_distance_angstrom",
+    "hbond_donor_h_acceptor_cosine",
+    "nearest_aromatic_ring_distance_angstrom",
+    "ring_current_geometry_factor_inverse_a3",
+    "aromatic_ring_count",
+    "geometry_available",
+    "geometry_feature_complete",
+)
 FEATURE_COLUMNS = (
     "entity_uid",
     "target_id",
@@ -104,6 +134,7 @@ FEATURE_COLUMNS = (
     "comp_id",
     "atom_id",
     *NUMERIC_COLUMNS[2:],
+    *GEOMETRY_COLUMNS,
     *TORSION_COLUMNS,
 )
 
@@ -246,6 +277,7 @@ def load_fold(
     frames: list[pd.DataFrame] = []
     esm_arrays: list[np.ndarray] = []
     torsion_arrays: list[np.ndarray] = []
+    geometry_arrays: list[np.ndarray] = []
     support_ids_reference: list[str] | None = None
     residue_lookup: dict[tuple[str, int], int] = {}
     residue_keys: list[tuple[str, int]] = []
@@ -303,6 +335,20 @@ def load_fold(
             .reshape(len(first), SUPPORT_COUNT, len(TORSION_COLUMNS))
         )
         torsion_arrays.append(torsion)
+        geometry_frame = feature[list(GEOMETRY_COLUMNS)].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        geometry_frame.loc[:, list(GEOMETRY_DISTANCE_COLUMNS)] = geometry_frame[
+            list(GEOMETRY_DISTANCE_COLUMNS)
+        ].fillna(10.0)
+        geometry = (
+            geometry_frame.fillna(0.0)
+            .to_numpy(dtype=np.float32)
+            .reshape(len(first), SUPPORT_COUNT, len(GEOMETRY_COLUMNS))
+        )
+        if not np.isfinite(geometry).all():
+            raise ValueError(f"nonfinite geometry surface: {entity_uid}")
+        geometry_arrays.append(geometry)
 
         first["entity_number"] = entity_number
         first["comp_number"] = first["comp_id"].map(residue_index)
@@ -347,6 +393,7 @@ def load_fold(
         ].copy(),
         "esm": np.concatenate(esm_arrays),
         "torsion": np.concatenate(torsion_arrays),
+        "geometry": np.concatenate(geometry_arrays),
         "numeric": numeric,
         "categorical": frame[
             ["comp_number", "atom_number", "previous_number", "next_number"]
@@ -366,6 +413,14 @@ def normalization(
     scale = train["numeric"].std(axis=0).clip(min=1.0e-5)
     train["numeric"] = ((train["numeric"] - mean) / scale).astype(np.float32)
     evaluation["numeric"] = ((evaluation["numeric"] - mean) / scale).astype(np.float32)
+    geometry_mean = train["geometry"].mean(axis=(0, 1), keepdims=True)
+    geometry_scale = train["geometry"].std(axis=(0, 1), keepdims=True).clip(min=1.0e-5)
+    train["geometry"] = ((train["geometry"] - geometry_mean) / geometry_scale).astype(
+        np.float32
+    )
+    evaluation["geometry"] = (
+        (evaluation["geometry"] - geometry_mean) / geometry_scale
+    ).astype(np.float32)
 
     train_frame = train["frame"]
     cell = train_frame.groupby(["comp_id", "atom_id"])["target_value"].agg(
@@ -418,6 +473,7 @@ def fold_copy(values: dict[str, Any]) -> dict[str, Any]:
 
     output = dict(values)
     output["numeric"] = values["numeric"].copy()
+    output["geometry"] = values["geometry"].copy()
     return output
 
 
@@ -451,8 +507,9 @@ class CoordinateObserver(nn.Module):
             nn.LayerNorm(ESM_DIM), nn.Linear(ESM_DIM, 48), nn.SiLU()
         )
         self.numeric = nn.Sequential(nn.Linear(10, 16), nn.SiLU())
+        self.geometry = nn.Sequential(nn.Linear(len(GEOMETRY_COLUMNS), 32), nn.SiLU())
         self.torsion = nn.Sequential(nn.Linear(len(TORSION_COLUMNS), 24), nn.SiLU())
-        total = 12 + 24 + 2 * 8 + 48 + 16 + 24
+        total = 12 + 24 + 2 * 8 + 48 + 16 + 32 + 24
         self.readout = nn.Sequential(
             nn.LayerNorm(total),
             nn.Linear(total, width),
@@ -467,6 +524,7 @@ class CoordinateObserver(nn.Module):
         esm: torch.Tensor,
         categorical: torch.Tensor,
         numeric: torch.Tensor,
+        geometry: torch.Tensor,
         torsion: torch.Tensor,
     ) -> torch.Tensor:
         state = torch.cat(
@@ -477,6 +535,7 @@ class CoordinateObserver(nn.Module):
                 self.neighbor(categorical[:, 3]),
                 self.esm(esm),
                 self.numeric(numeric),
+                self.geometry(geometry),
                 self.torsion(torsion),
             ),
             dim=1,
@@ -511,6 +570,7 @@ def train_observer(
     esm = tensor(data["esm"], device, torch.float32)
     categorical = tensor(data["categorical"], device, torch.long)
     numeric = tensor(data["numeric"], device, torch.float32)
+    geometry = tensor(data["geometry"], device, torch.float32)
     torsion = tensor(data["torsion"], device, torch.float32)
     target = tensor(data["normalized_target"], device, torch.float32)
     weight = tensor(atom_weights(data["frame"]), device, torch.float32)
@@ -526,6 +586,7 @@ def train_observer(
                 esm[row].repeat_interleave(SUPPORT_COUNT, dim=0),
                 categorical[row].repeat_interleave(SUPPORT_COUNT, dim=0),
                 numeric[row].repeat_interleave(SUPPORT_COUNT, dim=0),
+                geometry[row].reshape(-1, geometry.shape[-1]),
                 torsion[row].reshape(-1, torsion.shape[-1]),
             ).reshape(count, SUPPORT_COUNT)
             loss = torch.mean(
@@ -576,6 +637,7 @@ def coordinate_response(
     esm: torch.Tensor,
     categorical: torch.Tensor,
     numeric: torch.Tensor,
+    geometry: torch.Tensor,
     base_torsion: torch.Tensor,
     active_torsion: torch.Tensor,
 ) -> torch.Tensor:
@@ -589,6 +651,7 @@ def coordinate_response(
         repeated_esm,
         repeated_categorical,
         repeated_numeric,
+        geometry.reshape(-1, geometry.shape[-1]),
         base_torsion.reshape(-1, base_torsion.shape[-1]),
     ).reshape(count, SUPPORT_COUNT)
     active = (
@@ -598,6 +661,7 @@ def coordinate_response(
             repeated_esm,
             repeated_categorical,
             repeated_numeric,
+            geometry.reshape(-1, geometry.shape[-1]),
             active_torsion.reshape(-1, active_torsion.shape[-1]),
         ).reshape(count, SUPPORT_COUNT)
     )
@@ -622,13 +686,14 @@ def predict_surface(
         esm = tensor(values["esm"][start:stop], device, torch.float32)
         categorical = tensor(values["categorical"][start:stop], device, torch.long)
         numeric = tensor(values["numeric"][start:stop], device, torch.float32)
+        geometry = tensor(values["geometry"][start:stop], device, torch.float32)
         base_torsion = tensor(values["torsion"][start:stop], device, torch.float32)
         torsion = base_torsion
         if delta_raw is not None:
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
             torsion = actuate_torsions(torsion, residues, delta_raw)
         flat_prediction = coordinate_response(
-            model, esm, categorical, numeric, base_torsion, torsion
+            model, esm, categorical, numeric, geometry, base_torsion, torsion
         )
         output.append(flat_prediction.detach().cpu().numpy())
     normalized = np.concatenate(output)
@@ -682,6 +747,7 @@ def optimize_assimilation(
             esm = tensor(values["esm"][start:stop], device, torch.float32)
             categorical = tensor(values["categorical"][start:stop], device, torch.long)
             numeric = tensor(values["numeric"][start:stop], device, torch.float32)
+            geometry = tensor(values["geometry"][start:stop], device, torch.float32)
             base_torsion = tensor(values["torsion"][start:stop], device, torch.float32)
             residues = tensor(values["residue_index"][start:stop], device, torch.long)
             entities = tensor(values["entity_index"][start:stop], device, torch.long)
@@ -691,7 +757,13 @@ def optimize_assimilation(
             weight = tensor(weights[start:stop], device, torch.float32)
             torsion = actuate_torsions(base_torsion, residues, delta_raw)
             support_prediction = coordinate_response(
-                model, esm, categorical, numeric, base_torsion, torsion
+                model,
+                esm,
+                categorical,
+                numeric,
+                geometry,
+                base_torsion,
+                torsion,
             )
             anchor_deviation = tensor(
                 (

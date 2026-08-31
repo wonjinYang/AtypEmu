@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pickle
 from pathlib import Path
 
@@ -14,6 +15,7 @@ import torch
 
 from candidates.torsion_assimilator import (
     ACTUATOR_SPECS,
+    GEOMETRY_COLUMNS,
     SUPPORT_COUNT,
     actuator_delta,
     attach_ucbshift_anchor,
@@ -42,6 +44,51 @@ SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
 SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
     "2869e7b28d08580de1046c453a6acafe04f77a45a0b1eecd6aba86ec2bd6149f"
 )
+GEOMETRY_OBSERVER_PLAN_SHA256 = (
+    "1d3bf7035d46fa257a8e6167e9b2f7bfdc5e60037f2aa9eb64d268b491d46d3d"
+)
+
+
+def candidate_source_hashes(inventory_path: Path, data_root: Path) -> dict[str, str]:
+    root = Path(__file__).resolve().parents[1]
+    inventory_path = inventory_path.resolve()
+    data_root = data_root.resolve()
+    if inventory_path != (root / ".auto/frozen/all_label_inventory.json").resolve():
+        raise ValueError("candidate requires the frozen all-label inventory")
+    paths = (
+        root / ".auto/measure.sh",
+        root / ".auto/checks.sh",
+        inventory_path,
+        root / ".auto/preunblind/run85_geometry_observer_plan.json",
+        data_root / "commitment.json",
+        data_root / "feature_receipt.json",
+        Path(__file__).resolve(),
+        root / "gpuopt/candidates/torsion_assimilator.py",
+    )
+    hashes: dict[str, str] = {}
+    for path in paths:
+        try:
+            identity = str(path.relative_to(root))
+        except ValueError:
+            identity = str(path)
+        hashes[identity] = sha256_file(path)
+    return hashes
+
+
+def freeze_candidate_sources(
+    output_root: Path, inventory_path: Path, data_root: Path
+) -> dict[str, str]:
+    hashes = candidate_source_hashes(inventory_path, data_root)
+    if (
+        hashes[".auto/preunblind/run85_geometry_observer_plan.json"]
+        != GEOMETRY_OBSERVER_PLAN_SHA256
+    ):
+        raise ValueError("geometry observer plan hash mismatch")
+    path = output_root / "geometry_observer_source_commitment.json"
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o444)
+    with os.fdopen(descriptor, "w") as handle:
+        handle.write(json.dumps(hashes, indent=2, sort_keys=True) + "\n")
+    return hashes
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +102,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     args.output_root.mkdir(parents=True, exist_ok=True)
+    source_hashes = freeze_candidate_sources(
+        args.output_root, args.inventory, args.data_root
+    )
+    plan = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / ".auto/preunblind/run85_geometry_observer_plan.json"
+        ).read_text()
+    )
+    if tuple(plan["geometry_columns"]) != GEOMETRY_COLUMNS:
+        raise ValueError("geometry observer columns differ from frozen plan")
     commitment = json.loads((args.data_root / "commitment.json").read_text())
     inventory = json.loads(args.inventory.read_text())
     atom_index = {"<UNK>": 0}
@@ -83,7 +141,7 @@ def main() -> int:
     output_names = []
     cache_root = args.output_root.parents[1] / "cache"
     cache_root.mkdir(parents=True, exist_ok=True)
-    cache_path = cache_root / "torsion_assimilator_folds_v1.pkl"
+    cache_path = cache_root / "torsion_geometry_observer_folds_v1.pkl"
     cache_key = {
         "version": 1,
         "commitment_sha256": sha256_file(args.data_root / "commitment.json"),
@@ -263,6 +321,9 @@ def main() -> int:
                 (-q * q.clamp_min(1.0e-30).log()).sum(dim=1).mean().item()
             ),
             "crossfit_anchor_selection": anchor_selection,
+            "target_free_complete_coordinate_geometry_features": list(
+                GEOMETRY_COLUMNS
+            ),
         }
         del model, train, evaluation, delta, q
         torch.cuda.empty_cache()
@@ -276,6 +337,8 @@ def main() -> int:
         "observer_reads_assigned_target_values_directly": False,
         "support_predictions_derived_from_complete_coordinates": True,
         "outer_sealed_entities_read": False,
+        "target_free_complete_coordinate_geometry_observer": True,
+        "geometry_observer_source_commitment": source_hashes,
         "frozen_sequence_anchor_sha256": sequence_anchor_hashes,
         "sequence_anchor_columns_read": ["target_id", "prediction"],
         "frozen_ucbshift_x_anchor": ucb_anchor_stats,
@@ -285,6 +348,8 @@ def main() -> int:
             name: sha256_file(args.output_root / name) for name in output_names
         },
     }
+    if source_hashes != candidate_source_hashes(args.inventory, args.data_root):
+        raise ValueError("candidate sources changed during geometry-observer execution")
     (args.output_root / "validity.json").write_text(
         json.dumps(validity, indent=2, sort_keys=True) + "\n"
     )
