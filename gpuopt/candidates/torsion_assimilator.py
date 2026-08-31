@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 import torch
+import freesasa
 from torch import nn
 
 
@@ -126,6 +129,13 @@ GEOMETRY_COLUMNS = (
     "geometry_available",
     "geometry_feature_complete",
 )
+SASA_COLUMNS = (
+    "target_atom_sasa_angstrom2",
+    "target_residue_sasa_angstrom2",
+    "target_atom_sasa_available",
+    "target_residue_sasa_available",
+)
+OBSERVER_GEOMETRY_COLUMNS = (*GEOMETRY_COLUMNS, *SASA_COLUMNS)
 FEATURE_COLUMNS = (
     "entity_uid",
     "target_id",
@@ -145,6 +155,40 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def verify_support_structure_receipt(
+    data_root: Path, structure_root: Path
+) -> dict[str, Any]:
+    """Verify every consumed support PDB against the frozen feature receipt."""
+
+    receipt = json.loads((data_root / "feature_receipt.json").read_text())
+    inputs: list[tuple[str, Path, str]] = []
+    for row in receipt["files"]:
+        bmrb_id = str(row["bmrb_id"])
+        for support_index, expected in sorted(row["structure_sha256"].items()):
+            identity = f"{bmrb_id}:BioEmu_{support_index}"
+            path = (
+                structure_root
+                / bmrb_id
+                / f"{bmrb_id}_BioEmu_{support_index}.pdb"
+            )
+            inputs.append((identity, path, str(expected)))
+    aggregate = hashlib.sha256()
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        actual_hashes = executor.map(
+            sha256_file, (path for _identity, path, _expected in inputs)
+        )
+        for (identity, path, expected), actual in zip(
+            inputs, actual_hashes, strict=True
+        ):
+            if actual != expected:
+                raise ValueError(f"support structure hash mismatch: {path}")
+            aggregate.update(identity.encode() + b"\0" + actual.encode() + b"\n")
+    return {
+        "support_structure_count": len(inputs),
+        "aggregate_sha256": aggregate.hexdigest(),
+    }
 
 
 def attach_ucbshift_anchor(
@@ -267,20 +311,90 @@ def residue_index(value: object) -> int:
     return AA_INDEX.get(AA1_TO_3.get(token, token), 0)
 
 
+def support_sasa_features(path: Path, targets: pd.DataFrame) -> np.ndarray:
+    """All-hydrogen FreeSASA features using target identity but never values."""
+
+    freesasa.setVerbosity(freesasa.nowarnings)
+    structure = freesasa.Structure(
+        str(path),
+        options={
+            "hetatm": False,
+            "hydrogen": True,
+            "join-models": False,
+            "skip-unknown": False,
+            "halt-at-unknown": False,
+        },
+    )
+    parameters = freesasa.Parameters(
+        {
+            "algorithm": freesasa.LeeRichards,
+            "probe-radius": 1.4,
+            "n-slices": 20,
+            "n-threads": 1,
+        }
+    )
+    result = freesasa.calc(structure, parameters)
+    atom_area: dict[tuple[int, str, str], float] = {}
+    residue_area: dict[tuple[int, str], float] = {}
+    for index in range(structure.nAtoms()):
+        seq_id = int(str(structure.residueNumber(index)).strip())
+        comp_id = str(structure.residueName(index)).strip().upper()
+        atom_id = str(structure.atomName(index)).strip().upper()
+        atom_key = (seq_id, comp_id, atom_id)
+        if atom_key in atom_area:
+            raise ValueError(f"ambiguous SASA atom identity in {path}: {atom_key}")
+        area = float(result.atomArea(index))
+        if not math.isfinite(area) or area < 0.0:
+            raise ValueError(f"invalid SASA atom area in {path}: {atom_key}")
+        atom_area[atom_key] = area
+        residue_key = (seq_id, comp_id)
+        residue_area[residue_key] = residue_area.get(residue_key, 0.0) + area
+
+    output = np.zeros((len(targets), len(SASA_COLUMNS)), dtype=np.float32)
+    for row_number, row in enumerate(
+        targets[["seq_id", "comp_id", "atom_id"]].itertuples(index=False)
+    ):
+        seq_id = int(row.seq_id)
+        comp_id = str(row.comp_id).strip().upper()
+        atom_id = str(row.atom_id).strip().upper()
+        atom_alias = "H" if atom_id == "HN" else atom_id
+        atom_key = (seq_id, comp_id, atom_alias)
+        residue_key = (seq_id, comp_id)
+        if atom_key in atom_area:
+            output[row_number, 0] = atom_area[atom_key]
+            output[row_number, 2] = 1.0
+        if residue_key in residue_area:
+            output[row_number, 1] = residue_area[residue_key]
+            output[row_number, 3] = 1.0
+    return output
+
+
 def load_fold(
     data_root: Path,
     entities: list[dict[str, Any]],
     *,
     atom_index: dict[str, int],
     embedding_cache: Path,
+    structure_root: Path,
 ) -> dict[str, Any]:
+    feature_receipt = json.loads((data_root / "feature_receipt.json").read_text())
+    receipted_supports = {
+        str(row["bmrb_id"]): {
+            f"BioEmu_{support_index}" for support_index in row["structure_sha256"]
+        }
+        for row in feature_receipt["files"]
+    }
     frames: list[pd.DataFrame] = []
     esm_arrays: list[np.ndarray] = []
     torsion_arrays: list[np.ndarray] = []
     geometry_arrays: list[np.ndarray] = []
+    sasa_arrays: list[np.ndarray] = []
     support_ids_reference: list[str] | None = None
     residue_lookup: dict[tuple[str, int], int] = {}
     residue_keys: list[tuple[str, int]] = []
+    sasa_atom_available_count = 0
+    sasa_residue_available_count = 0
+    sasa_target_support_count = 0
 
     for entity_number, entity in enumerate(entities):
         entity_uid = str(entity["entity_uid"])
@@ -289,6 +403,8 @@ def load_fold(
         support_ids = [str(value) for value in entity["support_ids"]]
         if len(support_ids) != SUPPORT_COUNT:
             raise ValueError(f"unexpected support count: {entity_uid}")
+        if set(support_ids) != receipted_supports.get(bmrb_id):
+            raise ValueError(f"consumed support set differs from receipt: {entity_uid}")
         if support_ids_reference is None:
             support_ids_reference = support_ids
         elif support_ids != support_ids_reference:
@@ -349,6 +465,30 @@ def load_fold(
         if not np.isfinite(geometry).all():
             raise ValueError(f"nonfinite geometry surface: {entity_uid}")
         geometry_arrays.append(geometry)
+        support_sasa = []
+        for support_id in support_ids:
+            structure_path = (
+                structure_root
+                / bmrb_id
+                / f"{bmrb_id}_{support_id}.pdb"
+            )
+            support_sasa.append(support_sasa_features(structure_path, first))
+        sasa = np.stack(support_sasa, axis=1)
+        if not np.isfinite(sasa).all():
+            raise ValueError(f"nonfinite SASA surface: {entity_uid}")
+        expected_atom_available = (
+            feature["geometry_feature_complete"]
+            .astype(bool)
+            .to_numpy()
+            .reshape(len(first), SUPPORT_COUNT)
+        )
+        actual_atom_available = sasa[:, :, 2] > 0.5
+        if not np.array_equal(actual_atom_available, expected_atom_available):
+            raise ValueError(f"SASA/geometry atom coverage mismatch: {entity_uid}")
+        sasa_atom_available_count += int(actual_atom_available.sum())
+        sasa_residue_available_count += int((sasa[:, :, 3] > 0.5).sum())
+        sasa_target_support_count += int(actual_atom_available.size)
+        sasa_arrays.append(sasa)
 
         first["entity_number"] = entity_number
         first["comp_number"] = first["comp_id"].map(residue_index)
@@ -380,6 +520,13 @@ def load_fold(
         ]
         frames.append(first)
 
+    sasa_atom_coverage = sasa_atom_available_count / sasa_target_support_count
+    sasa_residue_coverage = sasa_residue_available_count / sasa_target_support_count
+    if min(sasa_atom_coverage, sasa_residue_coverage) < 0.999:
+        raise ValueError(
+            "SASA coverage below frozen gate: "
+            f"atom={sasa_atom_coverage}, residue={sasa_residue_coverage}"
+        )
     frame = pd.concat(frames, ignore_index=True)
     numeric = (
         frame[list(NUMERIC_COLUMNS)]
@@ -393,7 +540,13 @@ def load_fold(
         ].copy(),
         "esm": np.concatenate(esm_arrays),
         "torsion": np.concatenate(torsion_arrays),
-        "geometry": np.concatenate(geometry_arrays),
+        "geometry": np.concatenate(
+            (
+                np.concatenate(geometry_arrays),
+                np.concatenate(sasa_arrays),
+            ),
+            axis=2,
+        ),
         "numeric": numeric,
         "categorical": frame[
             ["comp_number", "atom_number", "previous_number", "next_number"]
@@ -403,6 +556,14 @@ def load_fold(
         "residue_keys": residue_keys,
         "support_ids": support_ids_reference or [],
         "entities": entities,
+        "sasa_audit": {
+            "target_support_count": sasa_target_support_count,
+            "atom_available_count": sasa_atom_available_count,
+            "residue_available_count": sasa_residue_available_count,
+            "atom_coverage": sasa_atom_coverage,
+            "residue_coverage": sasa_residue_coverage,
+            "atom_availability_matches_geometry_complete": True,
+        },
     }
 
 
@@ -498,7 +659,9 @@ def calibrate_reference_bounds(values: dict[str, Any]) -> np.ndarray:
 
 
 class CoordinateObserver(nn.Module):
-    def __init__(self, atom_levels: int, width: int = 96) -> None:
+    def __init__(
+        self, atom_levels: int, width: int = 96, *, use_sasa: bool = True
+    ) -> None:
         super().__init__()
         self.comp = nn.Embedding(len(AA3), 12)
         self.atom = nn.Embedding(atom_levels, 24)
@@ -507,7 +670,12 @@ class CoordinateObserver(nn.Module):
             nn.LayerNorm(ESM_DIM), nn.Linear(ESM_DIM, 48), nn.SiLU()
         )
         self.numeric = nn.Sequential(nn.Linear(10, 16), nn.SiLU())
-        self.geometry = nn.Sequential(nn.Linear(len(GEOMETRY_COLUMNS), 32), nn.SiLU())
+        self.geometry_dimensions = len(
+            OBSERVER_GEOMETRY_COLUMNS if use_sasa else GEOMETRY_COLUMNS
+        )
+        self.geometry = nn.Sequential(
+            nn.Linear(self.geometry_dimensions, 32), nn.SiLU()
+        )
         self.torsion = nn.Sequential(nn.Linear(len(TORSION_COLUMNS), 24), nn.SiLU())
         total = 12 + 24 + 2 * 8 + 48 + 16 + 32 + 24
         self.readout = nn.Sequential(
@@ -535,7 +703,7 @@ class CoordinateObserver(nn.Module):
                 self.neighbor(categorical[:, 3]),
                 self.esm(esm),
                 self.numeric(numeric),
-                self.geometry(geometry),
+                self.geometry(geometry[:, : self.geometry_dimensions]),
                 self.torsion(torsion),
             ),
             dim=1,
@@ -563,9 +731,10 @@ def train_observer(
     seed: int,
     epochs: int = 1024,
     batch_size: int = 4096,
+    use_sasa: bool = True,
 ) -> CoordinateObserver:
     torch.manual_seed(seed)
-    model = CoordinateObserver(atom_levels).to(device)
+    model = CoordinateObserver(atom_levels, use_sasa=use_sasa).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=2.0e-3, weight_decay=1.0e-4)
     esm = tensor(data["esm"], device, torch.float32)
     categorical = tensor(data["categorical"], device, torch.long)

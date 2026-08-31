@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import json
 import os
 import pickle
@@ -16,6 +17,8 @@ import torch
 from candidates.torsion_assimilator import (
     ACTUATOR_SPECS,
     GEOMETRY_COLUMNS,
+    OBSERVER_GEOMETRY_COLUMNS,
+    SASA_COLUMNS,
     SUPPORT_COUNT,
     actuator_delta,
     attach_ucbshift_anchor,
@@ -31,6 +34,7 @@ from candidates.torsion_assimilator import (
     sha256_file,
     surface_frame,
     train_observer,
+    verify_support_structure_receipt,
 )
 
 SEQUENCE_ANCHOR_SHA256 = {
@@ -47,6 +51,9 @@ SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
 GEOMETRY_OBSERVER_PLAN_SHA256 = (
     "1d3bf7035d46fa257a8e6167e9b2f7bfdc5e60037f2aa9eb64d268b491d46d3d"
 )
+SASA_OBSERVER_PLAN_SHA256 = (
+    "a6e4f8b8a33d4f0685c555b0395fb92998e41b6a40a23e70bbd4df415460218b"
+)
 
 
 def candidate_source_hashes(inventory_path: Path, data_root: Path) -> dict[str, str]:
@@ -60,6 +67,7 @@ def candidate_source_hashes(inventory_path: Path, data_root: Path) -> dict[str, 
         root / ".auto/checks.sh",
         inventory_path,
         root / ".auto/preunblind/run85_geometry_observer_plan.json",
+        root / ".auto/preunblind/run86_sasa_observer_plan.json",
         data_root / "commitment.json",
         data_root / "feature_receipt.json",
         Path(__file__).resolve(),
@@ -84,7 +92,12 @@ def freeze_candidate_sources(
         != GEOMETRY_OBSERVER_PLAN_SHA256
     ):
         raise ValueError("geometry observer plan hash mismatch")
-    path = output_root / "geometry_observer_source_commitment.json"
+    if (
+        hashes[".auto/preunblind/run86_sasa_observer_plan.json"]
+        != SASA_OBSERVER_PLAN_SHA256
+    ):
+        raise ValueError("SASA observer plan hash mismatch")
+    path = output_root / "sasa_observer_source_commitment.json"
     descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o444)
     with os.fdopen(descriptor, "w") as handle:
         handle.write(json.dumps(hashes, indent=2, sort_keys=True) + "\n")
@@ -113,6 +126,17 @@ def main() -> int:
     )
     if tuple(plan["geometry_columns"]) != GEOMETRY_COLUMNS:
         raise ValueError("geometry observer columns differ from frozen plan")
+    sasa_plan = json.loads(
+        (
+            Path(__file__).resolve().parents[1]
+            / ".auto/preunblind/run86_sasa_observer_plan.json"
+        ).read_text()
+    )
+    if tuple(sasa_plan["features"]) != SASA_COLUMNS:
+        raise ValueError("SASA observer columns differ from frozen plan")
+    freesasa_version = importlib.metadata.version("freesasa")
+    if freesasa_version != str(sasa_plan["sasa_contract"]["implementation"]).split()[1]:
+        raise ValueError(f"unexpected FreeSASA version: {freesasa_version}")
     commitment = json.loads((args.data_root / "commitment.json").read_text())
     inventory = json.loads(args.inventory.read_text())
     atom_index = {"<UNK>": 0}
@@ -137,16 +161,24 @@ def main() -> int:
     device = torch.device("cuda")
     embedding_cache = args.data_root.parent / "all_atom_shared_q_e2e_v0" / "esm2_cache"
     structure_root = args.data_root.parent / "BioEmu"
+    structure_receipt_audit = verify_support_structure_receipt(
+        args.data_root, structure_root
+    )
     validity_directions = {}
     output_names = []
     cache_root = args.output_root.parents[1] / "cache"
     cache_root.mkdir(parents=True, exist_ok=True)
-    cache_path = cache_root / "torsion_geometry_observer_folds_v1.pkl"
+    cache_path = cache_root / "torsion_geometry_sasa_observer_folds_v1.pkl"
     cache_key = {
         "version": 1,
         "commitment_sha256": sha256_file(args.data_root / "commitment.json"),
         "feature_receipt_sha256": sha256_file(args.data_root / "feature_receipt.json"),
         "inventory_sha256": sha256_file(args.inventory),
+        "freesasa_version": freesasa_version,
+        "candidate_sha256": sha256_file(
+            Path(__file__).resolve().parent / "candidates/torsion_assimilator.py"
+        ),
+        "sasa_plan_sha256": SASA_OBSERVER_PLAN_SHA256,
     }
     raw_folds = None
     if cache_path.exists():
@@ -163,6 +195,7 @@ def main() -> int:
                 fold_entities[fold],
                 atom_index=atom_index,
                 embedding_cache=embedding_cache,
+                structure_root=structure_root,
             )
             for fold in ("A", "B")
         }
@@ -324,6 +357,8 @@ def main() -> int:
             "target_free_complete_coordinate_geometry_features": list(
                 GEOMETRY_COLUMNS
             ),
+            "target_free_support_sasa_features": list(SASA_COLUMNS),
+            "target_free_support_sasa_audit": evaluation["sasa_audit"],
         }
         del model, train, evaluation, delta, q
         torch.cuda.empty_cache()
@@ -338,7 +373,11 @@ def main() -> int:
         "support_predictions_derived_from_complete_coordinates": True,
         "outer_sealed_entities_read": False,
         "target_free_complete_coordinate_geometry_observer": True,
-        "geometry_observer_source_commitment": source_hashes,
+        "target_free_explicit_hydrogen_sasa_observer": True,
+        "observer_geometry_feature_count": len(OBSERVER_GEOMETRY_COLUMNS),
+        "freesasa_version": freesasa_version,
+        "sasa_observer_source_commitment": source_hashes,
+        "support_structure_receipt_audit": structure_receipt_audit,
         "frozen_sequence_anchor_sha256": sequence_anchor_hashes,
         "sequence_anchor_columns_read": ["target_id", "prediction"],
         "frozen_ucbshift_x_anchor": ucb_anchor_stats,
@@ -349,7 +388,11 @@ def main() -> int:
         },
     }
     if source_hashes != candidate_source_hashes(args.inventory, args.data_root):
-        raise ValueError("candidate sources changed during geometry-observer execution")
+        raise ValueError("candidate sources changed during SASA-observer execution")
+    if structure_receipt_audit != verify_support_structure_receipt(
+        args.data_root, structure_root
+    ):
+        raise ValueError("support structures changed during SASA-observer execution")
     (args.output_root / "validity.json").write_text(
         json.dumps(validity, indent=2, sort_keys=True) + "\n"
     )
