@@ -45,6 +45,9 @@ SEQUENCE_ANCHOR_SUMMARY_SHA256 = {
     "A": "3f64bba6c197b7318b23f1587c4f218de027e89372aec754a8d21cb876642cef",
     "B": "2419aee1fc84353749565c201275694fcc8f864d972456f276017433a27e7f38",
 }
+RUN98_CELL_ANCHOR_GATE_RECEIPT_SHA256 = (
+    "2ba3a6cf16063ffe140ef40d481b151f876028996d6870a0b681fa66dc7a7b8a"
+)
 SEQUENCE_ANCHOR_RECEIPT_SHA256 = (
     "2869e7b28d08580de1046c453a6acafe04f77a45a0b1eecd6aba86ec2bd6149f"
 )
@@ -68,6 +71,12 @@ def candidate_source_hashes(inventory_path: Path, data_root: Path) -> dict[str, 
         inventory_path,
         root / ".auto/preunblind/run85_geometry_observer_plan.json",
         root / ".auto/preunblind/run86_sasa_observer_plan.json",
+        root / ".auto/preunblind/run98_cell_anchor_plan.json",
+        root / ".auto/preunblind/run98_cell_anchor_full_model_plan.json",
+        root / ".auto/preunblind/run98_cell_anchor_formal_plan.json",
+        root / ".auto/preunblind/run98_cell_anchor_formal_authorization.json",
+        root / ".auto/staging/run98_cell_anchor_stage1/decision_receipt.json",
+        root / ".auto/staging/run98_cell_anchor_full_model_gate/decision_receipt.json",
         data_root / "commitment.json",
         data_root / "feature_receipt.json",
         Path(__file__).resolve(),
@@ -114,6 +123,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    run98_gate_receipt = (
+        Path(__file__).resolve().parents[1]
+        / ".auto/staging/run98_cell_anchor_full_model_gate/decision_receipt.json"
+    )
+    if sha256_file(run98_gate_receipt) != RUN98_CELL_ANCHOR_GATE_RECEIPT_SHA256:
+        raise ValueError("Run 98 full-model source gate receipt mismatch")
     args.output_root.mkdir(parents=True, exist_ok=True)
     source_hashes = freeze_candidate_sources(
         args.output_root, args.inventory, args.data_root
@@ -258,7 +273,12 @@ def main() -> int:
     ):
         train = fold_copy(raw_folds[train_fold])
         evaluation = fold_copy(raw_folds[eval_fold])
-        anchor_selection = crossfit_anchor_selection(train, evaluation)
+        anchor_selection = crossfit_anchor_selection(
+            train,
+            evaluation,
+            refine_by_comp_id=direction == "B_to_A",
+        )
+        cell_anchor_selection = train["cell_anchor_selection_receipt"]
         train, evaluation = normalization(train, evaluation)
         reference_bounds = calibrate_reference_bounds(train)
         print(f"{direction}: training observer", flush=True)
@@ -354,6 +374,7 @@ def main() -> int:
                 (-q * q.clamp_min(1.0e-30).log()).sum(dim=1).mean().item()
             ),
             "crossfit_anchor_selection": anchor_selection,
+            "crossfit_cell_anchor_selection": cell_anchor_selection,
             "target_free_complete_coordinate_geometry_features": list(
                 GEOMETRY_COLUMNS
             ),
@@ -374,6 +395,7 @@ def main() -> int:
         "outer_sealed_entities_read": False,
         "target_free_complete_coordinate_geometry_observer": True,
         "target_free_explicit_hydrogen_sasa_observer": True,
+        "run98_cell_anchor_gate_receipt_sha256": RUN98_CELL_ANCHOR_GATE_RECEIPT_SHA256,
         "observer_geometry_feature_count": len(OBSERVER_GEOMETRY_COLUMNS),
         "freesasa_version": freesasa_version,
         "sasa_observer_source_commitment": source_hashes,

@@ -244,7 +244,10 @@ def attach_ucbshift_anchor(
 
 
 def crossfit_anchor_selection(
-    train: dict[str, Any], evaluation: dict[str, Any]
+    train: dict[str, Any],
+    evaluation: dict[str, Any],
+    *,
+    refine_by_comp_id: bool = False,
 ) -> dict[str, dict[str, float | int | str]]:
     selection: dict[str, dict[str, float | int | str]] = {}
     train_target = train["frame"]["target_value"].to_numpy(dtype=np.float64)
@@ -285,6 +288,31 @@ def crossfit_anchor_selection(
             "source_train_ucbshift_x_ccc": ucb_ccc,
         }
 
+    cell_selection: dict[str, dict[str, float | int | str]] = {}
+    if refine_by_comp_id:
+        train_comp = train["frame"]["comp_id"].astype(str).to_numpy()
+        for comp_id, atom_id in sorted(set(zip(train_comp, train_atom, strict=True))):
+            rows = np.flatnonzero((train_comp == comp_id) & (train_atom == atom_id))
+            ucb = train["ucb_support_anchor"][rows].mean(axis=1)
+            finite = np.isfinite(ucb)
+            sequence = train["sequence_support_anchor"][rows, 0]
+            sequence_ccc = ccc(train_target[rows][finite], sequence[finite])
+            ucb_ccc = ccc(train_target[rows][finite], ucb[finite])
+            inherited = str(selection[atom_id]["source"])
+            source = inherited
+            if finite.sum() >= 50:
+                if ucb_ccc > sequence_ccc + 0.02:
+                    source = "ucbshift_x"
+                elif sequence_ccc > ucb_ccc + 0.02:
+                    source = "sequence"
+            cell_selection[f"{comp_id}|{atom_id}"] = {
+                "source": source,
+                "inherited_atom_id_source": inherited,
+                "source_train_rows": int(finite.sum()),
+                "source_train_sequence_ccc": sequence_ccc,
+                "source_train_ucbshift_x_ccc": ucb_ccc,
+            }
+
     for values in (train, evaluation):
         sequence = values["sequence_support_anchor"]
         ucb = values["ucb_support_anchor"]
@@ -297,7 +325,27 @@ def crossfit_anchor_selection(
             selected_rows = selected[rows]
             selected_rows[finite] = ucb[rows][finite]
             selected[rows] = selected_rows
+        for cell, receipt in cell_selection.items():
+            comp_id, atom_id = cell.split("|", 1)
+            rows = (
+                values["frame"]["comp_id"].astype(str).eq(comp_id)
+                & values["frame"]["atom_id"].astype(str).eq(atom_id)
+            ).to_numpy()
+            if not rows.any():
+                continue
+            selected[rows] = sequence[rows]
+            if receipt["source"] == "ucbshift_x":
+                finite = np.isfinite(ucb[rows])
+                selected_rows = selected[rows]
+                selected_rows[finite] = ucb[rows][finite]
+                selected[rows] = selected_rows
         values["support_anchor"] = selected
+    train["cell_anchor_selection_receipt"] = {
+        "enabled": refine_by_comp_id,
+        "minimum_finite_rows": 50,
+        "required_ccc_advantage": 0.02,
+        "cells": cell_selection,
+    }
     return selection
 
 
