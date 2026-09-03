@@ -2,7 +2,9 @@
   "contract": "atypemu_job134710_post_handoff_audit_v1",
   "date": "2026-09-03",
   "effect": {
+    "existing_k32_wip_repair_or_execution_allowed": false,
     "formal_or_outer_authorized": false,
+    "job_result_reuse_as_approval_allowed": false,
     "k32_followup_authorized": false,
     "ordinary_authorization_reuse_allowed": false,
     "source_gate_evidence_valid": false
