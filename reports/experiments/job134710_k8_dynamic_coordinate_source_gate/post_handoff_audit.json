@@ -1,0 +1,39 @@
+{
+  "contract": "atypemu_job134710_post_handoff_audit_v1",
+  "date": "2026-09-03",
+  "effect": {
+    "formal_or_outer_authorized": false,
+    "k32_followup_authorized": false,
+    "ordinary_authorization_reuse_allowed": false,
+    "source_gate_evidence_valid": false
+  },
+  "evidence_branch": "quarantine/job134710-invalid-source-gate",
+  "evidence_commit": "95a8906efe7cfb7db5cc80666c2287004cccf284",
+  "finding": {
+    "actual": "The full source-fold rows enter normalization, observer fitting, and assimilation; the >=2-finite-target and nonzero-target-variance eligibility filter is applied only while scoring.",
+    "actual_locations": [
+      "95a8906:gpuopt/run_dynamic_coordinate_source_gate.py:226-237",
+      "95a8906:gpuopt/run_dynamic_coordinate_source_gate.py:366-374",
+      "95a8906:gpuopt/candidates/torsion_assimilator.py:847-872",
+      "95a8906:gpuopt/candidates/torsion_assimilator.py:918-962",
+      "95a8906:gpuopt/candidates/torsion_assimilator.py:1057-1060"
+    ],
+    "required": "Each fold subset must include only inventory labels with at least two finite source targets and nonzero source-target variance before training and assimilation.",
+    "required_location": "95a8906:.auto/preunblind/loss_gradient_v2_dynamic_coordinate_plan.json:49-51",
+    "severity": "P1"
+  },
+  "independence_disclosure": {
+    "affects_finding": false,
+    "outside_requested_scope_read": [
+      ".auto/prompt.md",
+      ".auto/ideas.md",
+      ".auto/staging/loss_gradient_v2_dynamic_source_gate_v4/recovery1/remote result and receipt JSON files"
+    ],
+    "review_type": "post_handoff_read_only"
+  },
+  "job_id": "134710",
+  "outer_or_formal_metric_opened": false,
+  "source_commitment_sha256": "315602dbe66f78a9a56230f29c10ad822ed690ce4a0214f5af15ee65773a3320",
+  "supersedes_decision_for_promotion": true,
+  "verdict": "INVALIDATED"
+}
