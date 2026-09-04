@@ -1,0 +1,17 @@
+{
+  "canonical_disposition_commit": "ad099b8131a0e25fefe5b3f0fd85937d55c0288a",
+  "contract": "atypemu_autoresearch_log_supersession_v1",
+  "historical_log_rows_mutated": false,
+  "invalidated_log_line_sha256": {
+    "8": "1bf069f15f5d28cf767d9253e6a5d0a88e683feb003ffeed43940bf6992927b9",
+    "9": "bdc866cc8c923ae55052bc92e90a7a0fcb4127c50123ba01203a762ec4d5d0dd"
+  },
+  "invalidated_log_runs": [
+    7,
+    8
+  ],
+  "job_id": "134710",
+  "reason": "plan_runner_source_label_eligibility_mismatch",
+  "selected_for_k32_followup": false,
+  "source_gate_evidence_valid": false
+}
