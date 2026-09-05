@@ -165,6 +165,7 @@ def execute_source_cells(
     epochs: int,
     steps: int,
     device_name: str,
+    execution_binding: dict[str, str],
     adapter_module: Any | None = None,
 ) -> dict[str, Any]:
     """Execute exactly four source cells after authorization; do not score."""
@@ -172,6 +173,35 @@ def execute_source_cells(
         raise FileExistsError("source-gate output directory already exists")
     if (epochs, steps) != (1024, 100):
         raise ValueError("source-gate hyperparameters differ from frozen plan")
+    binding_keys = {
+        "authorization_git_blob",
+        "authorization_ref",
+        "authorization_sha256",
+        "consumed_authorization_sha256",
+        "container_image_sha256",
+        "external_claim_sha256",
+        "slurm_job_id",
+    }
+    if set(execution_binding) != binding_keys:
+        raise ValueError("source-gate execution binding schema mismatch")
+    binding_lengths = {
+        "authorization_git_blob": 40,
+        "authorization_sha256": 64,
+        "consumed_authorization_sha256": 64,
+        "container_image_sha256": 64,
+        "external_claim_sha256": 64,
+    }
+    for key, length in binding_lengths.items():
+        if len(execution_binding[key]) != length:
+            raise ValueError(f"source-gate execution binding malformed: {key}")
+    if (
+        execution_binding["authorization_ref"]
+        != f"refs/atypemu-authorizations/k32-source/job-{execution_binding['slurm_job_id']}"
+        or not execution_binding["slurm_job_id"].isdigit()
+    ):
+        raise ValueError("source-gate execution job/ref binding mismatch")
+    if execution_binding["authorization_sha256"] != consumed.authorization_sha256:
+        raise ValueError("source-gate authorization binding mismatch")
     if adapter_module is None:
         from gpuopt.candidates import k32_nested_k8_adapter as adapter_module
     import torch
@@ -239,7 +269,6 @@ def execute_source_cells(
             )
         )
     execution = {
-        "authorization_sha256": consumed.authorization_sha256,
         "cell_receipt_sha256": {
             identity: sha256(cells_dir / f"cell_{identity}" / "receipt.json")
             for identity in sorted(cell_receipts)
@@ -249,6 +278,7 @@ def execute_source_cells(
         "source_commitment_sha256": consumed.source_commitment_sha256,
         "source_entity_count": len(entities),
         "source_target_values_opened": True,
+        **execution_binding,
     }
     write_json_new(output_dir / "execution_receipt.json", execution)
     return execution
@@ -333,6 +363,15 @@ def main() -> int:
         ),
         authorization_git_dir=args.authorization_git_dir,
     )
+    execution_binding = {
+        "authorization_git_blob": args.authorization_git_blob,
+        "authorization_ref": args.authorization_ref,
+        "authorization_sha256": sha256(args.authorization),
+        "consumed_authorization_sha256": sha256(args.consumed),
+        "container_image_sha256": args.container_image_sha256,
+        "external_claim_sha256": sha256(args.external_claim),
+        "slurm_job_id": args.slurm_job_id,
+    }
     execute_source_cells(
         root,
         commitment,
@@ -341,6 +380,7 @@ def main() -> int:
         epochs=args.epochs,
         steps=args.steps,
         device_name=args.device,
+        execution_binding=execution_binding,
     )
     subprocess.run(
         [
@@ -352,6 +392,24 @@ def main() -> int:
             str(args.output_dir),
             "--output",
             str(args.output_dir / "decision.json"),
+            "--source-commitment",
+            str(args.source_commitment),
+            "--authorization",
+            str(args.authorization),
+            "--consumed",
+            str(args.consumed),
+            "--external-claim",
+            str(args.external_claim),
+            "--authorization-git-dir",
+            str(args.authorization_git_dir),
+            "--authorization-ref",
+            args.authorization_ref,
+            "--authorization-git-blob",
+            args.authorization_git_blob,
+            "--container-image-sha256",
+            args.container_image_sha256,
+            "--slurm-job-id",
+            args.slurm_job_id,
         ],
         check=True,
     )

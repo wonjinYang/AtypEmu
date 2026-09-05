@@ -399,11 +399,12 @@ preflight="$(mktemp)"
 rm -f "$preflight"
 $PY gpuopt/run_k32_nested_k8_source_gate.py \
   --root . --draft-commitment "$draft" --preflight-output "$preflight" --preflight-only
-$PY - "$preflight" "$draft" <<'PY'
+$PY - "$preflight" "$draft" "$final_commitment" <<'PY'
 import ast
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -494,11 +495,21 @@ fake_consumed = SimpleNamespace(
     source_commitment_sha256="1" * 64,
     authorization_sha256="2" * 64,
 )
+fake_execution_binding = {
+    "authorization_git_blob": "3" * 40,
+    "authorization_ref": "refs/atypemu-authorizations/k32-source/job-123",
+    "authorization_sha256": "2" * 64,
+    "consumed_authorization_sha256": "4" * 64,
+    "container_image_sha256": "5" * 64,
+    "external_claim_sha256": "6" * 64,
+    "slurm_job_id": "123",
+}
 with tempfile.TemporaryDirectory() as temporary:
     fake_output = Path(temporary) / "source-run"
     execution = source_runner.execute_source_cells(
         Path("."), draft_commitment, fake_consumed, fake_output,
-        epochs=1024, steps=100, device_name="cpu", adapter_module=FakeAdapter,
+        epochs=1024, steps=100, device_name="cpu",
+        execution_binding=fake_execution_binding, adapter_module=FakeAdapter,
     )
     assert execution["source_entity_count"] == 135
     assert set(execution["cell_receipt_sha256"]) == {"A_0", "A_1", "B_0", "B_1"}
@@ -509,7 +520,8 @@ with tempfile.TemporaryDirectory() as temporary:
     try:
         source_runner.execute_source_cells(
             Path("."), draft_commitment, fake_consumed, fake_output,
-            epochs=1024, steps=100, device_name="cpu", adapter_module=FakeAdapter,
+            epochs=1024, steps=100, device_name="cpu",
+            execution_binding=fake_execution_binding, adapter_module=FakeAdapter,
         )
     except FileExistsError:
         pass
@@ -683,6 +695,97 @@ for frame in negative_frames:
     frame["full_nested_k8"] = frame["full_k32"]
 assert aggregate_source_scores(negative_frames, inventory)["passed"] is False
 import gpuopt.check_k32_nested_k8_source_gate as independent_checker
+with tempfile.TemporaryDirectory(dir=".auto/staging") as temporary:
+    results = Path(temporary) / "results"
+    run = results / "run"
+    run.mkdir(parents=True)
+    source_commitment_path = results / "source_commitment.json"
+    source_commitment_path.write_bytes(Path(sys.argv[3]).read_bytes())
+    source_hash = hashlib.sha256(source_commitment_path.read_bytes()).hexdigest()
+    job = "136001"
+    ref = f"refs/atypemu-authorizations/k32-source/job-{job}"
+    image_hash = "67418b92c18eb82988f41b4dd902b36a4ee5e6d6dae4c1a263df382eb73f7531"
+    authorization = {
+        "authorization_ref": ref, "authorized": True,
+        "container_image_sha256": image_hash,
+        "contract": independent_checker.AUTHORIZATION_CONTRACT,
+        "epochs": 1024, "slurm_job_id": job,
+        "source_commitment_sha256": source_hash, "steps": 100,
+    }
+    def write_json(path, payload):
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    authorization_path = results / "authorization.json"
+    write_json(authorization_path, authorization)
+    authorization_sha = hashlib.sha256(authorization_path.read_bytes()).hexdigest()
+    authorization_blob = independent_checker.git_blob(authorization_path.read_bytes())
+    claim = {
+        "authorization_git_blob": authorization_blob,
+        "authorization_ref": ref,
+        "authorization_sha256": authorization_sha,
+        "container_image_sha256": image_hash,
+        "contract": independent_checker.CLAIM_CONTRACT,
+        "slurm_job_id": job,
+        "source_commitment_sha256": source_hash,
+    }
+    claim_path = results / "external_claim.json"
+    write_json(claim_path, claim)
+    claim_sha = hashlib.sha256(claim_path.read_bytes()).hexdigest()
+    claim_blob = independent_checker.git_blob(claim_path.read_bytes())
+    consumed = {
+        **claim,
+        "contract": independent_checker.CONSUMED_CONTRACT,
+        "external_claim_git_blob": claim_blob,
+        "external_claim_sha256": claim_sha,
+    }
+    consumed_path = results / "consumed.json"
+    write_json(consumed_path, consumed)
+    cell_hashes = {f"{fold}_{half}": str(half + (0 if fold == "A" else 2)) * 64
+                   for fold in ("A", "B") for half in (0, 1)}
+    execution = {
+        "authorization_git_blob": authorization_blob,
+        "authorization_ref": ref,
+        "authorization_sha256": authorization_sha,
+        "cell_receipt_sha256": cell_hashes,
+        "consumed_authorization_sha256": hashlib.sha256(consumed_path.read_bytes()).hexdigest(),
+        "container_image_sha256": image_hash,
+        "contract": independent_checker.EXECUTION_CONTRACT,
+        "external_claim_sha256": claim_sha,
+        "formal_or_outer_metrics_opened": False,
+        "slurm_job_id": job,
+        "source_commitment_sha256": source_hash,
+        "source_entity_count": 135,
+        "source_target_values_opened": True,
+    }
+    execution_path = run / "execution_receipt.json"
+    write_json(execution_path, execution)
+    resolved_claim = subprocess.CompletedProcess([], 0, claim_blob + "\n", "")
+    provenance_kwargs = {
+        "source_commitment_path": source_commitment_path,
+        "authorization_path": authorization_path,
+        "consumed_path": consumed_path,
+        "external_claim_path": claim_path,
+        "authorization_git_dir": results / "external.git",
+        "authorization_ref": ref,
+        "authorization_git_blob": authorization_blob,
+        "container_image_sha256": image_hash,
+        "slurm_job_id": job,
+    }
+    with mock.patch.object(independent_checker.subprocess, "run", return_value=resolved_claim):
+        provenance = independent_checker.check_execution_provenance(
+            Path("."), run, **provenance_kwargs,
+        )
+        assert provenance["cell_receipt_sha256"] == cell_hashes
+        assert provenance["source_commitment_sha256"] == source_hash
+        execution["slurm_job_id"] = "136002"
+        write_json(execution_path, execution)
+        try:
+            independent_checker.check_execution_provenance(
+                Path("."), run, **provenance_kwargs,
+            )
+        except ValueError as error:
+            assert "execution receipt binding" in str(error)
+        else:
+            raise AssertionError("checker accepted a hash-consistent wrong-job execution receipt")
 with tempfile.TemporaryDirectory() as temporary:
     run_dir = Path(temporary) / "run"
     cells = run_dir / "cells"
@@ -707,10 +810,28 @@ with tempfile.TemporaryDirectory() as temporary:
         del args, kwargs
         return frame_by_cell[path.parent].copy()
 
+    def fake_provenance(root, checked_run_dir, **kwargs):
+        del root, kwargs
+        return {
+            "cell_receipt_sha256": {
+                identity: hashlib.sha256(
+                    (checked_run_dir / "cells" / f"cell_{identity}" / "receipt.json").read_bytes()
+                ).hexdigest()
+                for identity in ("A_0", "A_1", "B_0", "B_1")
+            },
+            "execution_receipt_sha256": "7" * 64,
+            "external_claim_git_blob": "8" * 40,
+            "source_commitment_sha256": "9" * 64,
+            "slurm_job_id": "136001",
+        }
+
     decision_path = run_dir / "decision.json"
     with (
         mock.patch.object(independent_checker, "check_cell_output", side_effect=fake_cell_check),
         mock.patch.object(independent_checker.pd, "read_parquet", side_effect=fake_read),
+        mock.patch.object(
+            independent_checker, "check_execution_provenance", side_effect=fake_provenance,
+        ),
         mock.patch.object(
             independent_checker,
             "expected_source_assignments",
@@ -718,20 +839,32 @@ with tempfile.TemporaryDirectory() as temporary:
         ),
     ):
         sealed_decision = independent_checker.check_source_gate(
-            Path("."), run_dir, decision_path
+            Path("."), run_dir, decision_path,
+            source_commitment_path=Path("source"), authorization_path=Path("auth"),
+            consumed_path=Path("consumed"), external_claim_path=Path("claim"),
+            authorization_git_dir=Path("git"), authorization_ref="ref",
+            authorization_git_blob="a" * 40, container_image_sha256="b" * 64,
+            slurm_job_id="136001",
         )
         assert sealed_decision["passed"] is True
         assert set(sealed_decision["cell_receipt_sha256"]) == {"A_0", "A_1", "B_0", "B_1"}
         assert sealed_decision["formal_or_outer_metrics_opened"] is False
         try:
-            independent_checker.check_source_gate(Path("."), run_dir, decision_path)
+            independent_checker.check_source_gate(
+                Path("."), run_dir, decision_path,
+                source_commitment_path=Path("source"), authorization_path=Path("auth"),
+                consumed_path=Path("consumed"), external_claim_path=Path("claim"),
+                authorization_git_dir=Path("git"), authorization_ref="ref",
+                authorization_git_blob="a" * 40, container_image_sha256="b" * 64,
+                slurm_job_id="136001",
+            )
         except FileExistsError:
             pass
         else:
             raise AssertionError("independent source decision was overwritten")
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=176")
+print("METRIC matched_adapter_checks=190")
 PY
 rm -f "$preflight"
 rm -f "$draft"

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,11 @@ STATE_KEYS = {
     "entity_uids", "modes", "residue_offsets", "residue_ids", "residue_delta",
     "coordinate_gradient_norm",
 }
+FINAL_COMMITMENT_CONTRACT = "k32_nested_k8_source_gate_source_commitment_v1"
+AUTHORIZATION_CONTRACT = "k32_nested_k8_source_gate_authorization_v1"
+CONSUMED_CONTRACT = "k32_nested_k8_source_gate_consumed_v1"
+CLAIM_CONTRACT = "k32_nested_k8_source_gate_external_claim_v1"
+EXECUTION_CONTRACT = "k32_nested_k8_source_gate_execution_v1"
 
 
 def sha256(path: Path) -> str:
@@ -75,6 +81,175 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def git_blob(payload: bytes) -> str:
+    return hashlib.sha1(  # noqa: S324 - Git object identity, not security
+        f"blob {len(payload)}\0".encode() + payload
+    ).hexdigest()
+
+
+def check_execution_provenance(
+    root: Path,
+    run_dir: Path,
+    *,
+    source_commitment_path: Path,
+    authorization_path: Path,
+    consumed_path: Path,
+    external_claim_path: Path,
+    authorization_git_dir: Path,
+    authorization_ref: str,
+    authorization_git_blob: str,
+    container_image_sha256: str,
+    slurm_job_id: str,
+) -> dict[str, Any]:
+    """Independently bind execution outputs to the consumed external grant."""
+    root, run_dir = root.resolve(), run_dir.resolve()
+    source_commitment_path = source_commitment_path.resolve()
+    result_parent = run_dir.parent
+    bound_paths = (
+        source_commitment_path,
+        authorization_path.resolve(),
+        consumed_path.resolve(),
+        external_claim_path.resolve(),
+    )
+    if root not in run_dir.parents or any(path.parent != result_parent for path in bound_paths):
+        raise ValueError("execution provenance path is outside the sealed result parent")
+    commitment = json.loads(source_commitment_path.read_text())
+    required_commitment = {
+        "assimilation_steps": 100,
+        "authorization_allowed": True,
+        "cache_file_count": 135,
+        "container_image_sha256": container_image_sha256,
+        "contract": FINAL_COMMITMENT_CONTRACT,
+        "draft_only": False,
+        "formal_or_outer_access": False,
+        "observer_epochs": 1024,
+        "required_node": "iREMB-C-08",
+        "required_partition": "l40sq",
+        "source_entity_count": 135,
+        "target_file_count": 135,
+        "target_values_opened": False,
+    }
+    if any(commitment.get(key) != value for key, value in required_commitment.items()):
+        raise ValueError("final source commitment metadata mismatch")
+    entities = commitment.get("source_entity_uids", ())
+    if len(entities) != 135 or len(set(entities)) != 135:
+        raise ValueError("final source commitment entity roster mismatch")
+    files = commitment.get("files")
+    if not isinstance(files, dict):
+        raise ValueError("final source commitment file manifest is absent")
+    for relative, expected in files.items():
+        path = (root / relative).resolve()
+        if (
+            root not in path.parents
+            or not isinstance(expected, str)
+            or len(expected) != 64
+            or sha256(path) != expected
+        ):
+            raise ValueError(f"final source commitment file mismatch: {relative}")
+    source_commitment_sha256 = sha256(source_commitment_path)
+    expected_ref = f"refs/atypemu-authorizations/k32-source/job-{slurm_job_id}"
+    if authorization_ref != expected_ref:
+        raise ValueError("authorization ref and Slurm job differ")
+    authorization = json.loads(authorization_path.read_text())
+    expected_authorization = {
+        "authorization_ref": authorization_ref,
+        "authorized": True,
+        "container_image_sha256": container_image_sha256,
+        "contract": AUTHORIZATION_CONTRACT,
+        "epochs": 1024,
+        "slurm_job_id": slurm_job_id,
+        "source_commitment_sha256": source_commitment_sha256,
+        "steps": 100,
+    }
+    if authorization != expected_authorization:
+        raise ValueError("source-gate authorization mismatch")
+    authorization_bytes = authorization_path.read_bytes()
+    authorization_sha256 = hashlib.sha256(authorization_bytes).hexdigest()
+    if git_blob(authorization_bytes) != authorization_git_blob:
+        raise ValueError("source-gate authorization Git blob mismatch")
+    claim = json.loads(external_claim_path.read_text())
+    expected_claim = {
+        "authorization_git_blob": authorization_git_blob,
+        "authorization_ref": authorization_ref,
+        "authorization_sha256": authorization_sha256,
+        "container_image_sha256": container_image_sha256,
+        "contract": CLAIM_CONTRACT,
+        "slurm_job_id": slurm_job_id,
+        "source_commitment_sha256": source_commitment_sha256,
+    }
+    if claim != expected_claim:
+        raise ValueError("source-gate external claim mismatch")
+    claim_bytes = external_claim_path.read_bytes()
+    external_claim_sha256 = hashlib.sha256(claim_bytes).hexdigest()
+    external_claim_git_blob = git_blob(claim_bytes)
+    consumed = json.loads(consumed_path.read_text())
+    expected_consumed = {
+        **expected_claim,
+        "contract": CONSUMED_CONTRACT,
+        "external_claim_git_blob": external_claim_git_blob,
+        "external_claim_sha256": external_claim_sha256,
+    }
+    if consumed != expected_consumed:
+        raise ValueError("consumed source-gate authorization mismatch")
+    resolved = subprocess.run(
+        [
+            "git",
+            f"--git-dir={authorization_git_dir}",
+            "rev-parse",
+            f"{authorization_ref}^{{blob}}",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if resolved != external_claim_git_blob:
+        raise ValueError("external authorization ref was not atomically consumed")
+    execution_path = run_dir / "execution_receipt.json"
+    execution = json.loads(execution_path.read_text())
+    required_execution = {
+        "authorization_git_blob",
+        "authorization_ref",
+        "authorization_sha256",
+        "cell_receipt_sha256",
+        "consumed_authorization_sha256",
+        "container_image_sha256",
+        "contract",
+        "external_claim_sha256",
+        "formal_or_outer_metrics_opened",
+        "slurm_job_id",
+        "source_commitment_sha256",
+        "source_entity_count",
+        "source_target_values_opened",
+    }
+    if set(execution) != required_execution:
+        raise ValueError("source-gate execution receipt schema mismatch")
+    expected_execution = {
+        "authorization_git_blob": authorization_git_blob,
+        "authorization_ref": authorization_ref,
+        "authorization_sha256": authorization_sha256,
+        "consumed_authorization_sha256": sha256(consumed_path),
+        "container_image_sha256": container_image_sha256,
+        "contract": EXECUTION_CONTRACT,
+        "external_claim_sha256": external_claim_sha256,
+        "formal_or_outer_metrics_opened": False,
+        "slurm_job_id": slurm_job_id,
+        "source_commitment_sha256": source_commitment_sha256,
+        "source_entity_count": 135,
+        "source_target_values_opened": True,
+    }
+    if any(execution.get(key) != value for key, value in expected_execution.items()):
+        raise ValueError("source-gate execution receipt binding mismatch")
+    cell_hashes = execution["cell_receipt_sha256"]
+    if set(cell_hashes) != {f"{fold}_{half}" for fold in ("A", "B") for half in (0, 1)}:
+        raise ValueError("source-gate execution cell binding mismatch")
+    return {
+        **expected_execution,
+        "cell_receipt_sha256": cell_hashes,
+        "execution_receipt_sha256": sha256(execution_path),
+        "external_claim_git_blob": external_claim_git_blob,
+    }
 
 
 def row_identity_sha256(frame: pd.DataFrame) -> str:
@@ -453,11 +628,40 @@ def write_json_new(path: Path, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
-def check_source_gate(root: Path, run_dir: Path, output: Path) -> dict[str, Any]:
+def check_source_gate(
+    root: Path,
+    run_dir: Path,
+    output: Path,
+    *,
+    source_commitment_path: Path,
+    authorization_path: Path,
+    consumed_path: Path,
+    external_claim_path: Path,
+    authorization_git_dir: Path,
+    authorization_ref: str,
+    authorization_git_blob: str,
+    container_image_sha256: str,
+    slurm_job_id: str,
+) -> dict[str, Any]:
     """Check exactly four sealed cells and emit one immutable source decision."""
     if output.exists():
         raise FileExistsError("source-gate decision already exists")
     root, run_dir = root.resolve(), run_dir.resolve()
+    if output.resolve().parent != run_dir or output.name != "decision.json":
+        raise ValueError("source-gate decision path is not canonical")
+    provenance = check_execution_provenance(
+        root,
+        run_dir,
+        source_commitment_path=source_commitment_path,
+        authorization_path=authorization_path,
+        consumed_path=consumed_path,
+        external_claim_path=external_claim_path,
+        authorization_git_dir=authorization_git_dir,
+        authorization_ref=authorization_ref,
+        authorization_git_blob=authorization_git_blob,
+        container_image_sha256=container_image_sha256,
+        slurm_job_id=slurm_job_id,
+    )
     cells_root = run_dir / "cells"
     names = {f"cell_{fold}_{half}" for fold in ("A", "B") for half in (0, 1)}
     if not cells_root.is_dir() or {path.name for path in cells_root.iterdir()} != names:
@@ -472,6 +676,8 @@ def check_source_gate(root: Path, run_dir: Path, output: Path) -> dict[str, Any]
                 raise ValueError("source-gate cell identity mismatch")
             cell_receipts[f"{fold}_{half}"] = sha256(cell / "receipt.json")
             frames.append(pd.read_parquet(cell / "predictions.parquet"))
+    if cell_receipts != provenance["cell_receipt_sha256"]:
+        raise ValueError("source-gate execution and cell receipts differ")
     inventory_path = root / ".auto/frozen/all_label_inventory.json"
     inventory_receipt = json.loads(inventory_path.read_text())
     atom_inventory = tuple(str(value) for value in inventory_receipt["eligible_atom_ids"])
@@ -487,6 +693,10 @@ def check_source_gate(root: Path, run_dir: Path, output: Path) -> dict[str, Any]
         "contract": "k32_nested_k8_source_gate_independent_decision_v1",
         "formal_or_outer_metrics_opened": False,
         "frozen_inventory_sha256": sha256(inventory_path),
+        "execution_receipt_sha256": provenance["execution_receipt_sha256"],
+        "external_claim_git_blob": provenance["external_claim_git_blob"],
+        "final_source_commitment_sha256": provenance["source_commitment_sha256"],
+        "slurm_job_id": provenance["slurm_job_id"],
         "source_commitment_sha256": SOURCE_COMMITMENT_SHA256,
         "source_entity_count": 135,
         "source_target_values_opened": True,
@@ -501,8 +711,30 @@ def main() -> int:
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source-commitment", type=Path, required=True)
+    parser.add_argument("--authorization", type=Path, required=True)
+    parser.add_argument("--consumed", type=Path, required=True)
+    parser.add_argument("--external-claim", type=Path, required=True)
+    parser.add_argument("--authorization-git-dir", type=Path, required=True)
+    parser.add_argument("--authorization-ref", required=True)
+    parser.add_argument("--authorization-git-blob", required=True)
+    parser.add_argument("--container-image-sha256", required=True)
+    parser.add_argument("--slurm-job-id", required=True)
     args = parser.parse_args()
-    decision = check_source_gate(args.root, args.run_dir, args.output)
+    decision = check_source_gate(
+        args.root,
+        args.run_dir,
+        args.output,
+        source_commitment_path=args.source_commitment,
+        authorization_path=args.authorization,
+        consumed_path=args.consumed,
+        external_claim_path=args.external_claim,
+        authorization_git_dir=args.authorization_git_dir,
+        authorization_ref=args.authorization_ref,
+        authorization_git_blob=args.authorization_git_blob,
+        container_image_sha256=args.container_image_sha256,
+        slurm_job_id=args.slurm_job_id,
+    )
     print(f"source gate: {'GO' if decision['passed'] else 'NO_GO'}")
     return 0
 
