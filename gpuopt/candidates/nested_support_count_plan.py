@@ -28,7 +28,13 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "e00bd9f36707b09df7528e9a1cd9a17cf2f2f99a05df1d7de1ce481a41f9776e"
+    "3c73e1de62c2b125b89da62c7a36dd36803aaef094145afa5584caa0ccd416c7"
+)
+CATALOG_RECEIPT_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
+)
+CATALOG_RECEIPT_SHA256 = (
+    "9069f0eea7a4db213babbfc02d09512b5bfe00051a46d7ae723fa90c65c58828"
 )
 TOP_LEVEL_FIELDS = {
     "artifact_kind",
@@ -52,6 +58,10 @@ TOP_LEVEL_FIELDS = {
     "target_unread_scope",
 }
 SAFE_EVIDENCE = {
+    "catalog_feasibility_receipt": {
+        "path": str(CATALOG_RECEIPT_RELATIVE),
+        "sha256": CATALOG_RECEIPT_SHA256,
+    },
     "current_k32_plan": {
         "path": "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",
         "sha256": "9ce0b48e8c4246ef3faf052460a486a97d02c8728b76cb379c019e012a34f50b",
@@ -66,9 +76,9 @@ SAFE_EVIDENCE = {
     },
 }
 EXPECTED_LEVEL_STATUS = {
-    "32": "EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
-    "128": "UNQUALIFIED",
-    "768": "UNQUALIFIED",
+    "32": "COUNT_FEASIBLE_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
+    "128": "COUNT_FEASIBLE_UNQUALIFIED_DIVERSITY_PHYSICALITY_NESTING",
+    "768": "COUNT_FEASIBLE_UNQUALIFIED_DIVERSITY_PHYSICALITY_NESTING",
     "1536": "BLOCKED_BY_CURRENT_SOURCE_CAPACITY",
 }
 EXPECTED_FIXED_PROTOCOL = {
@@ -92,6 +102,7 @@ EXPECTED_CONTROLS = {
 }
 EXPECTED_CROSSFIT = {
     "assignment": "sort descending whole-sequence-cluster size then lexical cluster ID; assign least-loaded half then half index",
+    "checker_scope": "future source-score arithmetic only, distinct from catalog integrity checking",
     "cluster_overlap_allowed": False,
     "directions": {
         "A_to_B": "source observer fold A only",
@@ -119,7 +130,8 @@ EXPECTED_PROVENANCE = {
 }
 EXPECTED_BLOCKERS = [
     "K1536 exceeds the only currently evidenced BioEmu index namespace",
-    "K128 and K768 complete-coordinate inventories are not yet qualified",
+    "K128 and K768 are count-feasible but diversity, complete-coordinate physicality, and exact nesting are unqualified",
+    "K32 original structural-source provenance replay is not established for this study",
     "support construction and diversity thresholds are not frozen",
     "primary and replicate ladder roots are not committed",
 ]
@@ -201,6 +213,8 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         feasibility.get("currently_evidenced_coordinate_methods") == ["BioEmu"]
         and feasibility.get("currently_evidenced_index_min") == 1
         and feasibility.get("currently_evidenced_index_max") == 1000
+        and feasibility.get("count_feasibility_definition")
+        == "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports"
         and feasibility.get("level_status") == EXPECTED_LEVEL_STATUS,
         "current target-unread coordinate-source evidence changed",
         checks,
@@ -234,10 +248,21 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         diversity.get("state") == "BLOCKED_PENDING_TARGET_UNREAD_THRESHOLDS"
         and diversity.get("near_duplicate_and_coverage_thresholds") == "UNFROZEN"
         and diversity.get("exact_coordinate_duplicate_count_max_per_entity") == 0
-        and diversity.get("all_supports_audited") is True,
+        and diversity.get("audit_scope") == "every support at every ladder level",
         "diversity readiness must fail closed until thresholds are frozen",
         checks,
         "diversity_hold",
+    )
+    _require(
+        diversity.get("canonical_heavy_atom_identity_must_match_within_entity")
+        is True
+        and diversity.get(
+            "hydrogen_topology_variation_requires_explicit_per_support_receipt"
+        )
+        is True,
+        "heavy-atom topology or hydrogen-variant audit rule changed",
+        checks,
+        "topology_audit_contract",
     )
     required_metrics = {
         "source_method_composition",
@@ -351,6 +376,7 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         )
     _require(
         evidence_ok and set(evidence) == {
+            "catalog_feasibility_receipt",
             "current_k32_plan",
             "current_selector",
             "jeon_thesis",
@@ -358,6 +384,123 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         "bound target-unread planning evidence mismatch",
         checks,
         "evidence_hashes",
+    )
+    receipt = json.loads((root / CATALOG_RECEIPT_RELATIVE).read_text())
+    _require(
+        receipt.get("contract")
+        == "atypemu_nested_support_count_v1_catalog_feasibility_receipt_v1"
+        and receipt.get("study_id") == "atypemu_nested_support_count_v1"
+        and receipt.get("status") == "COUNT_FEASIBILITY_ONLY_HOLD"
+        and receipt.get("artifact_kind")
+        == "target_unread_count_feasibility_receipt_not_authorization",
+        "catalog receipt identity or HOLD status changed",
+        checks,
+        "catalog_receipt_identity",
+    )
+    _require(
+        receipt.get("target_values_read") is False
+        and receipt.get("source_scores_read") is False
+        and receipt.get("outer_or_formal_metrics_opened") is False
+        and receipt.get("science_executed") is False
+        and receipt.get("authorization_consumed") is False,
+        "catalog receipt crossed a forbidden science boundary",
+        checks,
+        "catalog_receipt_target_score_authorization_unread",
+    )
+    catalog = receipt.get("catalog", {})
+    _require(
+        catalog.get("entity_count") == 135
+        and catalog.get("count_feasibility_definition")
+        == "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports"
+        and catalog.get("canonical_filename_count_minimum") == 991
+        and catalog.get("canonical_filename_count_maximum") == 1000
+        and catalog.get("total_canonical_filename_count") == 134850
+        and catalog.get("heavy_topology_compatible_unique_coordinate_count")
+        == 134850
+        and catalog.get("unexpected_entry_count") == 0,
+        "catalog count or topology inventory changed",
+        checks,
+        "catalog_count_inventory",
+    )
+    _require(
+        catalog.get("entities_with_hydrogen_topology_variation") == 108
+        and catalog.get("all_atom_topology_variant_maximum") == 89,
+        "hydrogen-topology variation evidence changed",
+        checks,
+        "catalog_hydrogen_variation_inventory",
+    )
+    expected_feasibility = {
+        "32": {
+            "all_entities_count_feasible": True,
+            "entity_count_feasible": 135,
+            "maximum_entity_shortfall": 0,
+            "total_shortfall": 0,
+        },
+        "128": {
+            "all_entities_count_feasible": True,
+            "entity_count_feasible": 135,
+            "maximum_entity_shortfall": 0,
+            "total_shortfall": 0,
+        },
+        "768": {
+            "all_entities_count_feasible": True,
+            "entity_count_feasible": 135,
+            "maximum_entity_shortfall": 0,
+            "total_shortfall": 0,
+        },
+        "1536": {
+            "all_entities_count_feasible": False,
+            "entity_count_feasible": 0,
+            "maximum_entity_shortfall": 545,
+            "total_shortfall": 72510,
+        },
+    }
+    _require(
+        receipt.get("level_count_feasibility") == expected_feasibility,
+        "support-level count feasibility changed",
+        checks,
+        "exact_level_count_feasibility",
+    )
+    claims = receipt.get("claims", {})
+    _require(
+        claims.get("count_feasible_levels") == [32, 128, 768]
+        and claims.get("source_method_composition") == {"BioEmu": 1.0}
+        and claims.get("adequate_conformer_sampling_established") is False
+        and claims.get("diversity_qualified") is False
+        and claims.get("k32_original_structural_source_replay_established") is False
+        and claims.get("physicality_qualified") is False
+        and claims.get("support_materialized") is False
+        and claims.get("scientific_gate_authorized") is False,
+        "count-only claim limitations changed",
+        checks,
+        "catalog_claim_limits",
+    )
+    summary = receipt.get("catalog_summary", {})
+    executions = receipt.get("executions", {})
+    summary_sha256 = "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41"
+    _require(
+        summary.get("sha256") == summary_sha256
+        and executions.get("yulab_mac_studio", {}).get(
+            "aggregate_summary_sha256"
+        )
+        == summary_sha256
+        and executions.get("iremb_slurm", {}).get("aggregate_summary_sha256")
+        == summary_sha256,
+        "independent catalog executions do not agree byte-for-byte",
+        checks,
+        "independent_execution_byte_agreement",
+    )
+    _require(
+        executions.get("yulab_mac_studio", {}).get("completed_shard_tasks") == 27
+        and executions.get("iremb_slurm", {}).get("completed_shard_tasks") == 27
+        and executions.get("netbird_gateway_checker", {}).get("status") == "PASS"
+        and executions.get("netbird_gateway_checker", {}).get("scope")
+        == "sealed catalog integrity and count arithmetic only, not a scientific gate checker"
+        and executions.get("netbird_gateway_checker", {}).get("checker_checks")
+        == 2029620,
+        "distributed execution or independent checker evidence incomplete",
+        checks,
+        "distributed_execution_and_checker_complete",
     )
     return checks
 

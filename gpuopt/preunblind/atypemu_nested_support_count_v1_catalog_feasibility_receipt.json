@@ -1,0 +1,107 @@
+{
+  "artifact_kind": "target_unread_count_feasibility_receipt_not_authorization",
+  "authorization_consumed": false,
+  "catalog": {
+    "all_atom_topology_variant_maximum": 89,
+    "canonical_filename_count_maximum": 1000,
+    "canonical_filename_count_minimum": 991,
+    "count_feasibility_definition": "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports",
+    "entities_with_hydrogen_topology_variation": 108,
+    "entity_count": 135,
+    "full_catalog_digest": "c82005e2ec0e8639fccc661315fa5b1fac9b6673f58e6696380eacc1d301a502",
+    "heavy_topology_compatible_unique_coordinate_count": 134850,
+    "total_canonical_filename_count": 134850,
+    "unexpected_entry_count": 0
+  },
+  "catalog_summary": {
+    "external_relative_path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json",
+    "sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41"
+  },
+  "claims": {
+    "adequate_conformer_sampling_established": false,
+    "count_feasible_levels": [
+      32,
+      128,
+      768
+    ],
+    "diversity_qualified": false,
+    "k32_original_structural_source_replay_established": false,
+    "physicality_qualified": false,
+    "scientific_gate_authorized": false,
+    "source_method_composition": {
+      "BioEmu": 1.0
+    },
+    "support_materialized": false
+  },
+  "contract": "atypemu_nested_support_count_v1_catalog_feasibility_receipt_v1",
+  "executions": {
+    "iremb_slurm": {
+      "aggregate_summary_sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41",
+      "completed_shard_tasks": 27,
+      "initial_pending_job_cancelled_before_execution": 136114,
+      "node": "iREMB-C-08",
+      "partition": "l40sq",
+      "primary_array_job": 136116,
+      "recovery_array_job": 136138,
+      "recovered_shard_indices": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ]
+    },
+    "netbird_gateway_checker": {
+      "checker_checks": 2029620,
+      "checker_sha256": "6d6078f5729b959e6c5cc9e24d8d56b97ccc516dcef3f1e375560988e9b32ab4",
+      "scope": "sealed catalog integrity and count arithmetic only, not a scientific gate checker",
+      "status": "PASS"
+    },
+    "yulab_mac_studio": {
+      "aggregate_summary_sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41",
+      "completed_shard_tasks": 27,
+      "status": "PASS"
+    }
+  },
+  "level_count_feasibility": {
+    "128": {
+      "all_entities_count_feasible": true,
+      "entity_count_feasible": 135,
+      "maximum_entity_shortfall": 0,
+      "total_shortfall": 0
+    },
+    "1536": {
+      "all_entities_count_feasible": false,
+      "entity_count_feasible": 0,
+      "maximum_entity_shortfall": 545,
+      "total_shortfall": 72510
+    },
+    "32": {
+      "all_entities_count_feasible": true,
+      "entity_count_feasible": 135,
+      "maximum_entity_shortfall": 0,
+      "total_shortfall": 0
+    },
+    "768": {
+      "all_entities_count_feasible": true,
+      "entity_count_feasible": 135,
+      "maximum_entity_shortfall": 0,
+      "total_shortfall": 0
+    }
+  },
+  "outer_or_formal_metrics_opened": false,
+  "producer_sha256": "4bd7c9463b34a9d6c268784fd13b45a01bf18c5e97905c0a5a4efd1cd7da0c28",
+  "roster_sha256": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9",
+  "science_executed": false,
+  "source_commitment_relative_path": ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json",
+  "source_commitment_sha256": "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8",
+  "source_scores_read": false,
+  "status": "COUNT_FEASIBILITY_ONLY_HOLD",
+  "study_id": "atypemu_nested_support_count_v1",
+  "target_values_read": false
+}
