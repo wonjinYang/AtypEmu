@@ -60,7 +60,37 @@ anchor = adapter.sequence_anchor(Path("."), "B", surface)
 assert anchor.shape == (len(surface.target_ids), 32) and np.array_equal(anchor[:, 0], anchor[:, -1])
 assert np.all(anchor[:, adapter.NESTED] == anchor[:, :1])
 assert surface.row_context is adapter.nested8(surface).row_context
-print("METRIC matched_adapter_checks=25")
+training_surface = adapter.Surface(
+    surface.target_ids[:16], surface.support_ids,
+    tuple(value[:16] for value in surface.arrays),
+    (
+        np.arange(1, 17, dtype=np.int32),
+        np.asarray(["ALA"] * 16),
+        np.asarray(["CA", "CB"] * 8),
+    ),
+)
+seq_ids, comp_ids, atom_ids = training_surface.row_context
+training_frame = pd.DataFrame({
+    "entity_uid": "synthetic",
+    "target_id": training_surface.target_ids,
+    "seq_id": seq_ids,
+    "comp_id": comp_ids,
+    "atom_id": atom_ids,
+    "target_value": np.arange(16, dtype=np.float32) + np.asarray([0.0, 0.25] * 8),
+})
+training_receipt = build_eligibility_receipt(training_frame, training_frame, frozen_atom_ids=sorted(set(atom_ids)), fold="A", held_half=0, role="smoke")
+synthetic_values = {"frame": training_frame, "source_eligibility_receipt": training_receipt}
+synthetic_anchor = np.zeros((16, 32), np.float32)
+targets = adapter.source_targets(synthetic_values, training_surface, synthetic_anchor)
+for name in set(atom_ids):
+    assert np.isclose(targets.weight[atom_ids == name].sum(), targets.weight.sum() / len(set(atom_ids)))
+torch.manual_seed(20260905)
+fit_model = adapter.DynamicDistanceObserver(len(inventory) + 1)
+fit_context = adapter.context_indices(training_surface, inventory)
+initial_loss, final_loss = adapter.fit_source_observer(fit_model, training_surface, targets, fit_context, epochs=96)
+assert final_loss < initial_loss * 0.5
+assert "evaluation" not in inspect.signature(adapter.fit_source_observer).parameters
+print("METRIC matched_adapter_checks=29")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

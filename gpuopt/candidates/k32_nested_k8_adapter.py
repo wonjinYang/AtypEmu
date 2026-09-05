@@ -85,6 +85,14 @@ class ModelInputs:
     support_anchor: np.ndarray
 
 
+@dataclass(frozen=True)
+class SourceTargets:
+    normalized: np.ndarray
+    center: np.ndarray
+    scale: np.ndarray
+    weight: np.ndarray
+
+
 class DynamicDistanceObserver(nn.Module):
     """Small shared observer for target-free dynamic distance channels only."""
 
@@ -257,6 +265,100 @@ def sequence_anchor(root: Path, fold: str, surface: Surface) -> np.ndarray:
     if not np.isfinite(values).all():
         raise ValueError("sequence anchor does not cover the K32 target inventory")
     return np.repeat(values[:, None], len(surface.support_ids), axis=1)
+
+
+def source_targets(
+    values: dict[str, Any], surface: Surface, anchor: np.ndarray
+) -> SourceTargets:
+    """Normalize source targets only after exact eligibility/identity replay."""
+    require_eligible(values)
+    frame = values["frame"]
+    if frame["target_id"].astype(str).tolist() != surface.target_ids.tolist():
+        raise ValueError("source target order differs from the frozen K32 surface")
+    if surface.row_context is not None:
+        seq_ids, comp_ids, atom_ids = surface.row_context
+        if (
+            frame["seq_id"].to_numpy(dtype=np.int32).tolist() != seq_ids.tolist()
+            or frame["comp_id"].astype(str).tolist() != comp_ids.tolist()
+            or frame["atom_id"].astype(str).tolist() != atom_ids.tolist()
+        ):
+            raise ValueError("source row context differs from the frozen K32 surface")
+    if anchor.shape != (len(frame), len(surface.support_ids)):
+        raise ValueError("source anchor shape mismatch")
+    target = frame["target_value"].to_numpy(dtype=np.float32)
+    if not np.isfinite(target).all():
+        raise ValueError("source target is nonfinite after eligibility")
+    cell = frame.groupby(["comp_id", "atom_id"])["target_value"].std()
+    atom = frame.groupby("atom_id")["target_value"].std()
+    element = frame.assign(
+        element=frame["atom_id"].astype(str).str[0]
+    ).groupby("element")["target_value"].std()
+    global_scale = max(float(frame["target_value"].std()), 0.1)
+    scales = []
+    for comp_id, atom_id in frame[["comp_id", "atom_id"]].itertuples(index=False):
+        candidates = (
+            cell.get((comp_id, atom_id)),
+            atom.get(atom_id),
+            element.get(str(atom_id)[0]),
+        )
+        width = next(
+            (
+                float(value)
+                for value in candidates
+                if pd.notna(value) and float(value) >= 0.1
+            ),
+            global_scale,
+        )
+        scales.append(width)
+    counts = frame.groupby("atom_id")["target_id"].transform("count").to_numpy(float)
+    weight = 1.0 / np.maximum(counts, 1.0)
+    weight /= weight.mean()
+    center = anchor.mean(axis=1, dtype=np.float64).astype(np.float32)
+    scale = np.asarray(scales, dtype=np.float32)
+    return SourceTargets(
+        normalized=(target - center) / scale,
+        center=center,
+        scale=scale,
+        weight=weight.astype(np.float32),
+    )
+
+
+def fit_source_observer(
+    model: DynamicDistanceObserver,
+    surface: Surface,
+    targets: SourceTargets,
+    context: tuple[np.ndarray, np.ndarray, np.ndarray],
+    *,
+    epochs: int,
+) -> tuple[float, float]:
+    """Fit one shared K32 observer; held-fold targets are not an input."""
+    distance = torch.from_numpy(surface.arrays[0])
+    available = torch.from_numpy(surface.arrays[5])
+    atom, residue, position = (torch.from_numpy(value) for value in context)
+    target = torch.from_numpy(targets.normalized)
+    weight = torch.from_numpy(targets.weight)
+
+    def objective() -> torch.Tensor:
+        prediction = model(distance, available, atom, residue, position).mean(dim=1)
+        row_loss = torch.nn.functional.smooth_l1_loss(
+            prediction, target, reduction="none"
+        )
+        return torch.mean(weight * row_loss)
+
+    initial = float(objective().detach())
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=2.0e-3, weight_decay=1.0e-4, foreach=False
+    )
+    for _ in range(epochs):
+        loss = objective()
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
+    final = float(objective().detach())
+    model.eval()
+    for parameter in model.parameters():
+        parameter.requires_grad_(False)
+    return initial, final
 
 
 def actuate(
