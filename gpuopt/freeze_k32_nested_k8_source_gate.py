@@ -18,7 +18,9 @@ CONTRACT = "k32_nested_k8_source_gate_source_commitment_v1"
 IMAGE_SHA256 = "67418b92c18eb82988f41b4dd902b36a4ee5e6d6dae4c1a263df382eb73f7531"
 STATIC_FILES = (
     *DRAFT_STATIC_FILES,
+    "gpuopt/check_k32_dynamic_distance_cache.py",
     "gpuopt/freeze_k32_nested_k8_source_gate.py",
+    "gpuopt/smoke_k32_nested_k8_production_entrypoint.py",
     "gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch",
 )
 

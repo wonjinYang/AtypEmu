@@ -1,0 +1,18 @@
+{
+  "authorization_consumed": false,
+  "cold_review_attempted": true,
+  "cold_review_completed": false,
+  "cold_review_unavailable_reason": "managed reviewer SSH route unavailable",
+  "container_entrypoint_reached": true,
+  "container_image_sha256": "67418b92c18eb82988f41b4dd902b36a4ee5e6d6dae4c1a263df382eb73f7531",
+  "contract": "k32_nested_k8_source_gate_container_smoke_receipt_v1",
+  "executor_boundary_reached": true,
+  "final_source_commitment_sha256": "b5bcff8717107feb79db425710672d7e4ce0d8a99357c718dbedaad2e2e83763",
+  "formal_or_outer_metrics_opened": false,
+  "remote_host": "iREMB-C-S",
+  "remote_receipt_sha256": "b382bb632d28175a5ae7e50436b0d481d89ae2fb2d9bb958cf2310156a064a52",
+  "remote_stage": "/scratch/wkyu514/yang07/atypemu_k32_entrypoint_smoke_20260905_215413",
+  "singularity_version": "4.3.4",
+  "source_target_values_read": 0,
+  "synthetic_authorization_calls": 1
+}

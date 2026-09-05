@@ -392,6 +392,35 @@ except FileExistsError:
 else:
     raise AssertionError("final source commitment was clobbered")
 PY
+smoke_receipt="$(dirname "$final_commitment")/production_entrypoint_smoke_$$.json"
+rm -f "$smoke_receipt"
+$PY -m gpuopt.smoke_k32_nested_k8_production_entrypoint \
+  --root . --source-commitment "$final_commitment" --output "$smoke_receipt"
+$PY - "$smoke_receipt" "$final_commitment" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+receipt_path, commitment_path = map(Path, sys.argv[1:])
+receipt = json.loads(receipt_path.read_text())
+assert receipt == {
+    "authorization_consumed": False,
+    "container_entrypoint_reached": True,
+    "contract": "k32_nested_k8_production_entrypoint_smoke_v1",
+    "executor_boundary_reached": True,
+    "final_source_commitment_sha256": hashlib.sha256(commitment_path.read_bytes()).hexdigest(),
+    "formal_or_outer_metrics_opened": False,
+    "source_target_values_read": 0,
+    "synthetic_authorization_calls": 1,
+}
+try:
+    receipt_path.open("x").close()
+except FileExistsError:
+    pass
+else:
+    raise AssertionError("production-entrypoint smoke receipt was clobberable")
+PY
 bash -n gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
 grep -qx '#SBATCH --partition=l40sq' gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
 grep -qx '#SBATCH --nodelist=iREMB-C-08' gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
@@ -864,7 +893,7 @@ with tempfile.TemporaryDirectory() as temporary:
             raise AssertionError("independent source decision was overwritten")
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=190")
+print("METRIC matched_adapter_checks=198")
 PY
 rm -f "$preflight"
 rm -f "$draft"
