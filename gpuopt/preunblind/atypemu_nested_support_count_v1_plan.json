@@ -1,0 +1,157 @@
+{
+  "authorization": {
+    "existing_k32_authorization_inherited": false,
+    "fresh_external_once_only_authorization_per_k_required": true,
+    "request_allowed_by_this_plan": false
+  },
+  "capabilities": {
+    "formal_metrics": false,
+    "outer_metrics": false,
+    "science_execution": false,
+    "source_scores": false,
+    "target_value_deserialization": false
+  },
+  "candidate_ids": {
+    "32": "atypemu_nested_support_count_v1_k32_seed",
+    "128": "atypemu_nested_support_count_v1_k128",
+    "768": "atypemu_nested_support_count_v1_k768",
+    "1536": "atypemu_nested_support_count_v1_k1536"
+  },
+  "contract": "atypemu_nested_support_count_feasibility_plan_v1",
+  "controls": {
+    "lower_k": "exact immediate-predecessor support projection with independently fitted observer and fresh assimilation state",
+    "no_coordinate": "same K roster with coordinate actuation disabled and independently optimized q/reference state",
+    "state_reuse_between_arms_allowed": false
+  },
+  "directional_source_crossfit": {
+    "assignment": "sort descending whole-sequence-cluster size then lexical cluster ID; assign least-loaded half then half index",
+    "cluster_overlap_allowed": false,
+    "directions": {
+      "A_to_B": "source observer fold A only",
+      "B_to_A": "source observer fold B only"
+    },
+    "held_halves": [
+      0,
+      1
+    ],
+    "independent_arithmetic_checker_required": true
+  },
+  "diversity_audit": {
+    "all_supports_audited": true,
+    "canonical_atom_identity_must_match_within_entity": true,
+    "exact_coordinate_duplicate_count_max_per_entity": 0,
+    "metrics": [
+      "source_method_composition",
+      "coordinate_sha256",
+      "rigid_aligned_ca_rmsd",
+      "backbone_torsion_occupancy",
+      "sidechain_torsion_occupancy",
+      "contact_map_occupancy",
+      "radius_of_gyration",
+      "secondary_structure_occupancy"
+    ],
+    "near_duplicate_and_coverage_thresholds": "UNFROZEN",
+    "state": "BLOCKED_PENDING_TARGET_UNREAD_THRESHOLDS"
+  },
+  "evidence": {
+    "current_k32_plan": {
+      "path": "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",
+      "sha256": "9ce0b48e8c4246ef3faf052460a486a97d02c8728b76cb379c019e012a34f50b"
+    },
+    "current_selector": {
+      "path": "gpuopt/materialize_k32_complete_coordinate_supports.py",
+      "sha256": "1123f6a9c725c29e07f312e657481a309a9bdb759166811f1ab50ce1aa6233fe"
+    },
+    "jeon_thesis": {
+      "path": "references/thesis_jeon.pdf",
+      "sha256": "8a51ff19002dfc028ed43fe99b39c5d363024b91ce4c1398a0246d8952cd925e"
+    }
+  },
+  "fixed_protocol": {
+    "assimilation_learning_rate": 0.08,
+    "assimilation_steps": 100,
+    "eligibility": "frozen inventory plus at least two finite rows and target variance above 1e-15, applied before normalization, fitting, and assimilation",
+    "entry_shared_q": "one softmax simplex per entry and arm across every eligible label",
+    "loss": "atom-balanced normalized SmoothL1 observer fit and normalized MSE assimilation; no CCC/concordance surrogate",
+    "observer_batch_size": 4096,
+    "observer_epochs": 1024,
+    "observer_learning_rate": 0.002,
+    "q_kl_weight": 0.003,
+    "reference_regularizer_weight": 0.003,
+    "torsion_regularizer_weight": 0.03,
+    "training_normalization_only": true
+  },
+  "interpretation": {
+    "bioemu_only_redundant_expansion": "count scaling only",
+    "general_sampling_sufficiency_established": false,
+    "jeon_transfer_claim_allowed": false,
+    "k32_role": "low-K coordinate/Jacobian causal-infrastructure smoke only",
+    "one_ladder_establishes_general_sufficiency": false
+  },
+  "ladder": {
+    "levels": [
+      32,
+      128,
+      768,
+      1536
+    ],
+    "larger_contains_lower": "ordered support IDs and coordinate bytes exactly",
+    "roles": {
+      "32": "causal_infrastructure_smoke",
+      "128": "feasibility_bridge",
+      "768": "approximately_700_regime_without_sufficiency_presumption",
+      "1536": "approximately_doubled_convergence_check"
+    }
+  },
+  "provenance": {
+    "allowed_construction_inputs": [
+      "target-unread coordinate catalogs",
+      "coordinate PDB bytes",
+      "sequence-cluster metadata"
+    ],
+    "forbidden_construction_inputs": [
+      "chemical-shift target values",
+      "source scores",
+      "development scores",
+      "outer scores",
+      "formal scores",
+      "target-derived support selection"
+    ],
+    "k32_seed_must_replay_to_original_structural_sources": true,
+    "mere_hash_rebinding_is_sufficient": false
+  },
+  "readiness": {
+    "blocking_conditions": [
+      "K1536 exceeds the only currently evidenced BioEmu index namespace",
+      "K128 and K768 complete-coordinate inventories are not yet qualified",
+      "support construction and diversity thresholds are not frozen",
+      "primary and replicate ladder roots are not committed"
+    ],
+    "formal_evaluation": "HOLD",
+    "materialization": "HOLD",
+    "science_authorization": "HOLD",
+    "science_execution": "HOLD"
+  },
+  "replication": {
+    "independently_generated_target_unread_replicate_required_for_general_sufficiency": true,
+    "primary_and_replicate_commitments_must_differ": true,
+    "replicate_manifest_state": "ABSENT"
+  },
+  "source_feasibility": {
+    "currently_evidenced_coordinate_methods": [
+      "BioEmu"
+    ],
+    "currently_evidenced_index_max": 1000,
+    "currently_evidenced_index_min": 1,
+    "level_status": {
+      "32": "EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
+      "128": "UNQUALIFIED",
+      "768": "UNQUALIFIED",
+      "1536": "BLOCKED_BY_CURRENT_SOURCE_CAPACITY"
+    },
+    "new_target_unread_generation_or_coordinate_source_required_for_k1536": true
+  },
+  "state": "HOLD_FEASIBILITY_BLOCKED",
+  "study_id": "atypemu_nested_support_count_v1",
+  "target_unread_scope": "No chemical-shift target value or score is deserialized during support construction, feasibility, or diversity audit"
+}
