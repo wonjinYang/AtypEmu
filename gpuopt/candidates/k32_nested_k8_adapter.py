@@ -1041,13 +1041,35 @@ def write_source_cell_outputs_new(
         raise ValueError("coordinate audit does not cover every retained state")
     output_dir.mkdir(parents=True, exist_ok=False)
     paths = {
-        "predictions": output_dir / "predictions.parquet",
-        "q": output_dir / "q.parquet",
-        "coordinate_audit": output_dir / "coordinate_audit.parquet",
+        "predictions.parquet": output_dir / "predictions.parquet",
+        "q.parquet": output_dir / "q.parquet",
+        "coordinate_audit.parquet": output_dir / "coordinate_audit.parquet",
+        "coordinate_states.npz": output_dir / "coordinate_states.npz",
     }
-    result.predictions.to_parquet(paths["predictions"], index=False)
-    result.q.to_parquet(paths["q"], index=False)
-    coordinate_audit.to_parquet(paths["coordinate_audit"], index=False)
+    result.predictions.to_parquet(paths["predictions.parquet"], index=False)
+    result.q.to_parquet(paths["q.parquet"], index=False)
+    coordinate_audit.to_parquet(paths["coordinate_audit.parquet"], index=False)
+    offsets = [0]
+    residue_ids = []
+    residue_delta = []
+    for state in result.coordinate_states:
+        residue_ids.append(np.asarray(state.residue_ids, dtype=np.int32))
+        residue_delta.append(np.asarray(state.residue_delta, dtype=np.float32))
+        offsets.append(offsets[-1] + len(state.residue_ids))
+    np.savez_compressed(
+        paths["coordinate_states.npz"],
+        entity_uids=np.asarray(
+            [state.entity_uid for state in result.coordinate_states]
+        ),
+        modes=np.asarray([state.mode for state in result.coordinate_states]),
+        residue_offsets=np.asarray(offsets, dtype=np.int64),
+        residue_ids=np.concatenate(residue_ids),
+        residue_delta=np.concatenate(residue_delta),
+        coordinate_gradient_norm=np.asarray(
+            [state.coordinate_gradient_norm for state in result.coordinate_states],
+            dtype=np.float64,
+        ),
+    )
     receipt = {
         "contract": "k32_nested_k8_source_gate_cell_output_v1",
         "coordinate_audit_rows": len(coordinate_audit),

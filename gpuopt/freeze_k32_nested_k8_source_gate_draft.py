@@ -18,6 +18,7 @@ STATIC_FILES = (
     ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json",
     "data/all_atom_observer_v1/commitment.json",
     "gpuopt/candidates/k32_nested_k8_adapter.py",
+    "gpuopt/check_k32_nested_k8_source_gate.py",
     "gpuopt/freeze_k32_nested_k8_source_gate_draft.py",
     "gpuopt/k32_source_gate_authorization.py",
     "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",

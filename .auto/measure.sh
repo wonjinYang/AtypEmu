@@ -481,19 +481,64 @@ with tempfile.TemporaryDirectory() as temporary:
     assert receipt["prediction_rows"] == len(result.predictions)
     assert receipt["q_rows"] == len(result.q)
     for name, expected in receipt["files"].items():
-        assert hashlib.sha256((output / f"{name}.parquet").read_bytes()).hexdigest() == expected
+        assert hashlib.sha256((output / name).read_bytes()).hexdigest() == expected
+    from gpuopt.check_k32_nested_k8_source_gate import (
+        aggregate_source_scores,
+        check_cell_output,
+    )
+    checked = check_cell_output(output)
+    assert checked["passed"] is True
+    assert checked["coordinate_audit_rows"] == len(coordinate_audit)
     try:
         adapter.write_source_cell_outputs_new(output, result, coordinate_audit)
     except FileExistsError:
         pass
     else:
         raise AssertionError("source-cell outputs were overwritten")
-print("METRIC matched_adapter_checks=125")
+
+score_frames = []
+for fold in ("A", "B"):
+    for half in (0, 1):
+        rows = []
+        entity_uid = f"bmrb:synthetic-{fold}-{half}:entity:1"
+        for atom_number, atom_id in enumerate(inventory):
+            center = 0.2 * atom_number
+            for replicate, deviation in enumerate((-1.0, 0.0, 1.0)):
+                rows.append({
+                    "fold": fold,
+                    "held_half": half,
+                    "entity_uid": entity_uid,
+                    "target_id": f"{entity_uid}:target:{atom_id}-{replicate}",
+                    "atom_id": atom_id,
+                    "target_value": center + deviation,
+                    "full_k32": center + deviation,
+                    "full_nested_k8": center + 0.9 * deviation,
+                    "no_coordinate": center + 0.8 * deviation,
+                    "uniform_q": center + 0.85 * deviation,
+                    "anchor_only": center + 0.7 * deviation,
+                })
+        score_frames.append(pd.DataFrame(rows))
+decision = aggregate_source_scores(tuple(score_frames), inventory)
+assert decision["passed"] is True and decision["threshold"] == 0.0005
+assert set(decision["scores"]) == {"A", "B", "OOF"}
+assert all(
+    gain > decision["threshold"]
+    for scope in decision["gains"].values()
+    for gain in scope.values()
+)
+negative_frames = tuple(frame.copy() for frame in score_frames)
+for frame in negative_frames:
+    frame["full_nested_k8"] = frame["full_k32"]
+assert aggregate_source_scores(negative_frames, inventory)["passed"] is False
+checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
+assert "gpuopt.candidates" not in checker_source
+print("METRIC matched_adapter_checks=137")
 PY
 rm -f "$preflight"
 rm -f "$draft"
 /home/yang07/anaconda3/bin/ruff check \
   gpuopt/candidates/k32_nested_k8_adapter.py \
   gpuopt/k32_source_gate_authorization.py \
+  gpuopt/check_k32_nested_k8_source_gate.py \
   gpuopt/freeze_k32_nested_k8_source_gate_draft.py \
   gpuopt/run_k32_nested_k8_source_gate.py
