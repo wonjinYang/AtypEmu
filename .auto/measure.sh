@@ -19,7 +19,7 @@ assert all(np.array_equal(right, left[:, adapter.NESTED]) for left, right in zip
 assert nested.target_ids.tolist() == surface.target_ids.tolist()
 left, right = adapter.fresh_state(3, 32), adapter.fresh_state(3, 8)
 assert all(not np.shares_memory(a, b) for a in left for b in right)
-print("METRIC matched_adapter_checks=5")
+print("METRIC matched_adapter_checks=9")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

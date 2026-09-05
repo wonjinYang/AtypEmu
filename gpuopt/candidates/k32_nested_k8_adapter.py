@@ -18,6 +18,13 @@ HASHES = {
     "gpuopt/check_k32_dynamic_distance_cache.py": "59b2a3b82c8d7937a34f661ead3a88d1acc13b6ce25505abf6cf762c0e02f21e",
     ".auto/runs/k32_dynamic_distance_cache_independent_check_v1r1.json": "54f16dd0d518aec9f3618df5c1f3240da91a1886d340161d76dfc4084f83eab2",
 }
+ARRAY_KEYS = {
+    "entity_uid", "bmrb_id", "target_ids", "support_ids", "support_indices",
+    "seq_ids", "comp_ids", "atom_ids", "element_order",
+    "nearest_interresidue_distances_angstrom", "distance_self_jacobian",
+    "distance_neighbor_jacobian", "distance_neighbor_seq_ids",
+    "target_atom_available", "distance_available",
+}
 
 
 def sha256(path: Path) -> str:
@@ -25,6 +32,13 @@ def sha256(path: Path) -> str:
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1 << 20), b""):
             digest.update(block)
+    return digest.hexdigest()
+
+
+def ids_sha256(values: np.ndarray) -> str:
+    digest = hashlib.sha256()
+    for value in values.astype(str):
+        digest.update(value.encode() + b"\n")
     return digest.hexdigest()
 
 
@@ -61,7 +75,7 @@ def load(root: Path, entity_uid: str) -> Surface:
     if len(rows) != 1:
         raise ValueError(f"cache entity is not unique: {entity_uid}")
     row = rows[0]
-    path = root / row["output_relative_path"]
+    path = (root / row["output_relative_path"]).resolve()
     if path.parent != root / "data/k32_dynamic_distance_cache_v1":
         raise ValueError("cache path mismatch")
     if sha256(path) != row["output_sha256"]:
@@ -75,14 +89,47 @@ def load(root: Path, entity_uid: str) -> Surface:
         "distance_available",
     )
     with np.load(path, allow_pickle=False) as values:
+        if set(values.files) != ARRAY_KEYS:
+            raise ValueError("cache array inventory mismatch")
         if values["entity_uid"].astype(str).tolist() != [entity_uid]:
             raise ValueError("cache entity mismatch")
-        if tuple(values["support_ids"].astype(str)) != SUPPORT_IDS:
+        if values["bmrb_id"].astype(str).tolist() != [row["bmrb_id"]]:
+            raise ValueError("cache BMRB identity mismatch")
+        if (
+            tuple(values["support_ids"].astype(str)) != SUPPORT_IDS
+            or values["support_indices"].dtype != np.int16
+            or tuple(values["support_indices"].tolist()) != SUPPORTS
+            or values["element_order"].astype(str).tolist() != ["H", "C", "N", "O", "S"]
+        ):
             raise ValueError("cache support mismatch")
         target_ids = values["target_ids"].astype(str)
+        if ids_sha256(target_ids) != row["target_ids_sha256"]:
+            raise ValueError("cache target identity mismatch")
         arrays = tuple(np.array(values[name], copy=True) for name in names)
     if any(array.shape[1] != 32 for array in arrays):
         raise ValueError("cache support axis mismatch")
+    if [array.dtype for array in arrays] != [
+        np.float32, np.float32, np.float32, np.int32, np.bool_, np.bool_
+    ]:
+        raise ValueError("cache array dtype mismatch")
+    if row["target_count"] != len(target_ids) or any(
+        list(array.shape) != row["array_shapes"][name]
+        for name, array in zip(names, arrays, strict=True)
+    ):
+        raise ValueError("cache array shape mismatch")
+    distance, self_j, neighbor_j, neighbor_seq, atom_available, available = arrays
+    missing = ~available
+    if (
+        np.any(available & ~atom_available[:, :, None])
+        or not np.all(distance[available] > 0)
+        or not np.all(distance[missing] == 10)
+        or not np.all(self_j[missing] == 0)
+        or not np.all(neighbor_j[missing] == 0)
+        or not np.all(neighbor_seq[missing] == -1)
+        or int(atom_available.sum()) != row["target_available_count"]
+        or int((~atom_available).sum()) != row["target_missing_count"]
+    ):
+        raise ValueError("cache availability invariant mismatch")
     return Surface(target_ids, SUPPORT_IDS, arrays)
 
 
