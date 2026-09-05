@@ -21,6 +21,7 @@ STATIC_FILES = (
     "gpuopt/freeze_k32_nested_k8_source_gate_draft.py",
     "gpuopt/k32_source_gate_authorization.py",
     "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",
+    "gpuopt/run_k32_nested_k8_source_gate.py",
     "gpuopt/source_gate_eligibility.py",
     "gpuopt/assets/sequence_final_atom_macro_ensemble3_v0/receipt.json",
     "gpuopt/assets/sequence_final_atom_macro_ensemble3_v0/A/predictions.parquet",

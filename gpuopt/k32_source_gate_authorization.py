@@ -8,8 +8,6 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from gpuopt.candidates.k32_nested_k8_adapter import ConsumedAuthorization, sha256
-
 AUTHORIZATION_CONTRACT = "k32_nested_k8_source_gate_authorization_v1"
 CONSUMED_CONTRACT = "k32_nested_k8_source_gate_consumed_v1"
 CLAIM_CONTRACT = "k32_nested_k8_source_gate_external_claim_v1"
@@ -24,6 +22,20 @@ class AuthorizationSpec:
     slurm_job_id: str
     authorization_ref: str
     authorization_git_blob: str
+
+
+@dataclass(frozen=True)
+class ConsumedAuthorization:
+    source_commitment_sha256: str
+    authorization_sha256: str
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _json_bytes(payload: dict[str, object]) -> bytes:

@@ -354,10 +354,38 @@ except FileExistsError:
     pass
 else:
     raise AssertionError("draft source commitment was clobbered")
-print("METRIC matched_adapter_checks=91")
 PY
+preflight="$(mktemp)"
+rm -f "$preflight"
+$PY gpuopt/run_k32_nested_k8_source_gate.py \
+  --root . --draft-commitment "$draft" --preflight-output "$preflight" --preflight-only
+$PY - "$preflight" <<'PY'
+import ast
+import json
+import sys
+from pathlib import Path
+
+receipt = json.loads(Path(sys.argv[1]).read_text())
+assert receipt["production_ready"] is False
+assert receipt["authorization_consumed"] is False
+assert receipt["source_target_values_read"] is False
+assert receipt["formal_or_outer_access"] is False
+assert receipt["crossfit_cells"] == 4 and receipt["support_count"] == 32
+assert receipt["source_target_reader_calls"] == 0 and receipt["anchor_rows"] > 0
+tree = ast.parse(Path("gpuopt/run_k32_nested_k8_source_gate.py").read_text())
+top_imports = set()
+for node in tree.body:
+    if isinstance(node, ast.Import):
+        top_imports.update(alias.name.split(".")[0] for alias in node.names)
+    elif isinstance(node, ast.ImportFrom):
+        top_imports.add(str(node.module).split(".")[0])
+assert top_imports <= {"__future__", "argparse", "hashlib", "json", "pathlib", "sys", "typing"}
+print("METRIC matched_adapter_checks=98")
+PY
+rm -f "$preflight"
 rm -f "$draft"
 /home/yang07/anaconda3/bin/ruff check \
   gpuopt/candidates/k32_nested_k8_adapter.py \
   gpuopt/k32_source_gate_authorization.py \
-  gpuopt/freeze_k32_nested_k8_source_gate_draft.py
+  gpuopt/freeze_k32_nested_k8_source_gate_draft.py \
+  gpuopt/run_k32_nested_k8_source_gate.py
