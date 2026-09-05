@@ -271,6 +271,129 @@ class DynamicDistanceCacheTests(unittest.TestCase):
 
     @mock.patch.object(cache, "EXPECTED_ENTITY_COUNT", 1)
     @mock.patch.object(cache, "EXPECTED_FEATURE_ROW_COUNT", 1)
+    def test_feature_roster_accepts_exact_target_unread_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            feature = root / cache.FEATURE_ROOT_RELATIVE / "bmr1.parquet"
+            feature.parent.mkdir(parents=True)
+            feature.write_bytes(b"target-unread fixture")
+            schema = mock.Mock(
+                names=[
+                    "entity_uid",
+                    "split",
+                    "observer_fold",
+                    "support_id",
+                    "torsion_phi_sin",
+                ]
+            )
+            scope = pd.DataFrame(
+                {
+                    "entity_uid": ["e"] * 8,
+                    "split": ["train"] * 8,
+                    "observer_fold": ["A"] * 8,
+                    "support_id": list(cache.EXPECTED_K8_SUPPORT_IDS),
+                }
+            )
+            with (
+                mock.patch.object(cache.pq, "read_schema", return_value=schema),
+                mock.patch.object(cache.pd, "read_parquet", return_value=scope),
+            ):
+                observed = cache._feature_roster(
+                    root, [{"entity_uid": "e", "bmrb_id": "bmr1"}]
+                )
+            self.assertEqual(len(observed), 1)
+            self.assertEqual(observed[0]["row_count"], 8)
+            self.assertEqual(observed[0]["sha256"], cache.sha256_file(feature))
+
+    @mock.patch.object(cache, "EXPECTED_ENTITY_COUNT", 1)
+    @mock.patch.object(cache, "EXPECTED_FEATURE_ROW_COUNT", 1)
+    @mock.patch.object(cache, "EXPECTED_TARGET_SUPPORT_ROWS", 32)
+    @mock.patch.object(cache, "EXPECTED_TARGET_AVAILABLE_ROWS", 32)
+    @mock.patch.object(cache, "EXPECTED_TARGET_MISSING_ROWS", 0)
+    def test_tiny_materialize_writes_valid_npz_and_receipt_and_rejects_rerun(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_commitment = root / cache.SOURCE_COMMITMENT_RELATIVE
+            source_commitment.parent.mkdir(parents=True)
+            source_commitment.write_text("{}")
+            output_root = root / cache.OUTPUT_ROOT_RELATIVE
+            receipt_path = root / cache.RECEIPT_RELATIVE
+            entity = {"entity_uid": "e", "bmrb_id": "bmr1"}
+            commitment = {
+                "entities": [entity],
+                "features": [{"bmrb_id": "bmr1", "relative_path": "feature.parquet"}],
+                "pdb_files": [
+                    {
+                        "entity_uid": "e",
+                        "support_index": support,
+                        "relative_path": f"{support}.pdb",
+                    }
+                    for support in cache.EXPECTED_SUPPORTS
+                ],
+                "parent_receipt_sha256": "parent",
+            }
+            targets = pd.DataFrame(
+                {
+                    "entity_uid": ["e"],
+                    "target_id": ["t"],
+                    "seq_id": [1],
+                    "comp_id": ["SER"],
+                    "atom_id": ["CA"],
+                }
+            )
+            geometry = {
+                "distances": np.ones((1, len(cache.ELEMENTS)), dtype=np.float32),
+                "distance_self_jacobian": np.zeros(
+                    (1, len(cache.ELEMENTS), cache.CHI_COUNT), dtype=np.float32
+                ),
+                "distance_neighbor_jacobian": np.zeros(
+                    (1, len(cache.ELEMENTS), cache.CHI_COUNT), dtype=np.float32
+                ),
+                "distance_neighbor_seq_ids": np.full(
+                    (1, len(cache.ELEMENTS)), -1, dtype=np.int32
+                ),
+                "target_atom_available": np.ones(1, dtype=bool),
+                "distance_available": np.ones((1, len(cache.ELEMENTS)), dtype=bool),
+            }
+            args = argparse.Namespace(
+                root=root,
+                source_commitment=source_commitment,
+                output_root=output_root,
+                receipt=receipt_path,
+            )
+            with (
+                mock.patch.object(cache, "verify_commitment", return_value=commitment),
+                mock.patch.object(cache, "_read_source_targets", return_value=targets),
+                mock.patch.object(cache, "pdb_records", return_value={}),
+                mock.patch.object(
+                    cache, "_support_dynamic_geometry", return_value=geometry
+                ),
+            ):
+                self.assertEqual(cache.materialize(args), 0)
+                with self.assertRaises(FileExistsError):
+                    cache.materialize(args)
+            receipt = json.loads(receipt_path.read_text())
+            self.assertFalse(receipt["target_values_read"])
+            self.assertEqual(receipt["target_support_row_count"], 32)
+            npz_path = output_root / "bmr1.npz"
+            with np.load(npz_path, allow_pickle=False) as loaded:
+                self.assertEqual(loaded["distance_self_jacobian"].shape, (1, 32, 5, 4))
+                self.assertTrue(np.isfinite(loaded["nearest_interresidue_distances_angstrom"]).all())
+            with self.assertRaises(FileExistsError):
+                cache._write_entity_npz(
+                    npz_path, entity, targets, [geometry] * len(cache.EXPECTED_SUPPORTS)
+                )
+
+            shutil.rmtree(output_root)
+            receipt_path.unlink()
+            output_root.with_name(f"{output_root.name}.partial").mkdir()
+            with self.assertRaises(FileExistsError):
+                cache.materialize(args)
+
+    @mock.patch.object(cache, "EXPECTED_ENTITY_COUNT", 1)
+    @mock.patch.object(cache, "EXPECTED_FEATURE_ROW_COUNT", 1)
     @mock.patch.object(cache, "EXPECTED_TARGET_SUPPORT_ROWS", 32)
     @mock.patch.object(cache, "EXPECTED_TARGET_AVAILABLE_ROWS", 32)
     @mock.patch.object(cache, "EXPECTED_TARGET_MISSING_ROWS", 0)
