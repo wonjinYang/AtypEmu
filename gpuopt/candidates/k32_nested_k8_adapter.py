@@ -13,7 +13,11 @@ import pandas as pd
 import torch
 from torch import nn
 
-from gpuopt.source_gate_eligibility import validate_eligibility_receipt
+from gpuopt.source_gate_eligibility import (
+    build_eligibility_receipt,
+    source_eligible_row_mask,
+    validate_eligibility_receipt,
+)
 
 SUPPORTS = (1, 32, 63, 94, 126, 157, 188, 221, 251, 281, 312, 344, 376, 407, 438, 469, 501, 533, 565, 595, 626, 656, 687, 719, 751, 781, 811, 843, 876, 906, 937, 968)
 SUPPORT_IDS = tuple(f"BioEmu_{value}" for value in SUPPORTS)
@@ -86,11 +90,20 @@ class ModelInputs:
 
 
 @dataclass(frozen=True)
+class SourceNormalization:
+    cell_scale: tuple[tuple[str, str, float], ...]
+    atom_scale: tuple[tuple[str, float], ...]
+    element_scale: tuple[tuple[str, float], ...]
+    global_scale: float
+
+
+@dataclass(frozen=True)
 class SourceTargets:
     normalized: np.ndarray
     center: np.ndarray
     scale: np.ndarray
     weight: np.ndarray
+    normalization: SourceNormalization
 
 
 @dataclass(frozen=True)
@@ -273,6 +286,62 @@ def concatenate_surfaces(surfaces: tuple[Surface, ...]) -> Surface:
     return Surface(target_ids, roster, arrays, context)
 
 
+def subset_surface(surface: Surface, target_ids: tuple[str, ...]) -> Surface:
+    if len(set(target_ids)) != len(target_ids):
+        raise ValueError("surface subset requests duplicate target identities")
+    lookup = {str(value): index for index, value in enumerate(surface.target_ids)}
+    if len(lookup) != len(surface.target_ids):
+        raise ValueError("source surface contains duplicate target identities")
+    try:
+        row = np.asarray([lookup[str(value)] for value in target_ids], dtype=np.int64)
+    except KeyError as error:
+        raise ValueError("surface subset target is absent") from error
+    context = (
+        None
+        if surface.row_context is None
+        else tuple(value[row].copy() for value in surface.row_context)
+    )
+    return Surface(
+        surface.target_ids[row].copy(),
+        surface.support_ids,
+        tuple(value[row].copy() for value in surface.arrays),
+        context,
+    )
+
+
+def eligible_source_subset(
+    frame: pd.DataFrame,
+    surface: Surface,
+    *,
+    frozen_atom_ids: tuple[str, ...],
+    fold: str,
+    held_half: int,
+    role: str,
+) -> tuple[dict[str, Any], Surface]:
+    """Apply target-only eligibility before normalization, fitting or assimilation."""
+    row_mask = np.asarray(
+        source_eligible_row_mask(
+            frame["atom_id"].astype(str).tolist(),
+            frame["target_value"].astype(float).tolist(),
+            frozen_atom_ids,
+        ),
+        dtype=bool,
+    )
+    selected = frame.loc[row_mask].reset_index(drop=True)
+    receipt = build_eligibility_receipt(
+        frame.reset_index(drop=True),
+        selected,
+        frozen_atom_ids=frozen_atom_ids,
+        fold=fold,
+        held_half=held_half,
+        role=role,
+    )
+    selected_surface = subset_surface(
+        surface, tuple(selected["target_id"].astype(str))
+    )
+    return {"frame": selected, "source_eligibility_receipt": receipt}, selected_surface
+
+
 def source_crossfit_plan(root: Path) -> tuple[CrossfitHalf, ...]:
     """Build fixed sequence-cluster-disjoint source halves without targets."""
     source_path = root / next(iter(HASHES))
@@ -384,7 +453,11 @@ def sequence_anchor(root: Path, fold: str, surface: Surface) -> np.ndarray:
 
 
 def source_targets(
-    values: dict[str, Any], surface: Surface, anchor: np.ndarray
+    values: dict[str, Any],
+    surface: Surface,
+    anchor: np.ndarray,
+    *,
+    normalization: SourceNormalization | None = None,
 ) -> SourceTargets:
     """Normalize source targets only after exact eligibility/identity replay."""
     require_eligible(values)
@@ -404,12 +477,29 @@ def source_targets(
     target = frame["target_value"].to_numpy(dtype=np.float32)
     if not np.isfinite(target).all():
         raise ValueError("source target is nonfinite after eligibility")
-    cell = frame.groupby(["comp_id", "atom_id"])["target_value"].std()
-    atom = frame.groupby("atom_id")["target_value"].std()
-    element = frame.assign(
-        element=frame["atom_id"].astype(str).str[0]
-    ).groupby("element")["target_value"].std()
-    global_scale = max(float(frame["target_value"].std()), 0.1)
+    if normalization is None:
+        cell_series = frame.groupby(["comp_id", "atom_id"])["target_value"].std()
+        atom_series = frame.groupby("atom_id")["target_value"].std()
+        element_series = frame.assign(
+            element=frame["atom_id"].astype(str).str[0]
+        ).groupby("element")["target_value"].std()
+
+        def finite_rows(series: pd.Series) -> tuple[tuple[Any, ...], ...]:
+            return tuple(
+                (*((key,) if not isinstance(key, tuple) else key), float(value))
+                for key, value in series.items()
+                if pd.notna(value) and float(value) >= 0.1
+            )
+
+        normalization = SourceNormalization(
+            cell_scale=finite_rows(cell_series),
+            atom_scale=finite_rows(atom_series),
+            element_scale=finite_rows(element_series),
+            global_scale=max(float(frame["target_value"].std()), 0.1),
+        )
+    cell = {(comp, atom): scale for comp, atom, scale in normalization.cell_scale}
+    atom = dict(normalization.atom_scale)
+    element = dict(normalization.element_scale)
     scales = []
     for comp_id, atom_id in frame[["comp_id", "atom_id"]].itertuples(index=False):
         candidates = (
@@ -423,7 +513,7 @@ def source_targets(
                 for value in candidates
                 if pd.notna(value) and float(value) >= 0.1
             ),
-            global_scale,
+            normalization.global_scale,
         )
         scales.append(width)
     counts = frame.groupby("atom_id")["target_id"].transform("count").to_numpy(float)
@@ -436,6 +526,7 @@ def source_targets(
         center=center,
         scale=scale,
         weight=weight.astype(np.float32),
+        normalization=normalization,
     )
 
 

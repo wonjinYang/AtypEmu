@@ -83,8 +83,10 @@ training_frame = pd.DataFrame({
     "atom_id": atom_ids,
     "target_value": np.arange(16, dtype=np.float32) + np.asarray([0.0, 0.25] * 8),
 })
-training_receipt = build_eligibility_receipt(training_frame, training_frame, frozen_atom_ids=sorted(set(atom_ids)), fold="A", held_half=0, role="smoke")
-synthetic_values = {"frame": training_frame, "source_eligibility_receipt": training_receipt}
+synthetic_values, training_surface = adapter.eligible_source_subset(
+    training_frame, training_surface,
+    frozen_atom_ids=tuple(sorted(set(atom_ids))), fold="A", held_half=0, role="smoke",
+)
 synthetic_anchor = np.zeros((16, 32), np.float32)
 targets = adapter.source_targets(synthetic_values, training_surface, synthetic_anchor)
 for name in set(atom_ids):
@@ -130,7 +132,32 @@ combined_nested = adapter.nested8(combined)
 separate_nested = adapter.concatenate_surfaces((adapter.nested8(surface), adapter.nested8(second)))
 assert np.array_equal(combined_nested.target_ids, separate_nested.target_ids)
 assert all(np.array_equal(left, right) for left, right in zip(combined_nested.arrays, separate_nested.arrays, strict=True))
-print("METRIC matched_adapter_checks=45")
+held_frame = training_frame.assign(target_value=training_frame["target_value"] * 10)
+held_values, held_surface = adapter.eligible_source_subset(
+    held_frame, training_surface,
+    frozen_atom_ids=("CA", "CB"), fold="A", held_half=1, role="assimilation_smoke",
+)
+held_targets = adapter.source_targets(
+    held_values, held_surface, synthetic_anchor, normalization=targets.normalization,
+)
+self_normalized_held = adapter.source_targets(held_values, held_surface, synthetic_anchor)
+assert np.array_equal(held_targets.scale, targets.scale)
+assert not np.array_equal(self_normalized_held.scale, targets.scale)
+ineligible_frame = training_frame.copy()
+ineligible_frame.loc[15, "atom_id"] = "ZZ"
+ineligible_context = list(training_surface.row_context)
+ineligible_context[2] = ineligible_frame["atom_id"].to_numpy(str)
+ineligible_surface = adapter.Surface(
+    training_surface.target_ids, training_surface.support_ids,
+    training_surface.arrays, tuple(ineligible_context),
+)
+eligible_values, eligible_surface = adapter.eligible_source_subset(
+    ineligible_frame, ineligible_surface,
+    frozen_atom_ids=("CA", "CB", "ZZ"), fold="A", held_half=0, role="exclusion_smoke",
+)
+assert len(eligible_values["frame"]) == 15 and len(eligible_surface.target_ids) == 15
+assert "ZZ" not in set(eligible_values["frame"]["atom_id"])
+print("METRIC matched_adapter_checks=50")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
