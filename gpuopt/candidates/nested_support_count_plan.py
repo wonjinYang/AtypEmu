@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "58ef7d7514d8d7728a13e87872dfc876877605c1be90f07efc63ff4968cfabbf"
+    "0c043839b1c373ca5f6e1aa7839226334dcfec3f850595b8e6f5d80af95fc5c5"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -69,7 +69,7 @@ SAFE_EVIDENCE = {
     },
     "all_atom_recount_producer": {
         "path": "gpuopt/candidates/nested_support_all_atom_recount.py",
-        "sha256": "093286f6863929d35ee2a1a460ee1e4cc4e8801bcbbe4a92e476673b8470761e",
+        "sha256": "41cd2261292d47c724138f8a671d50423245fa19eff0e71f1a5a95b19215e90c",
     },
     "catalog_feasibility_receipt": {
         "path": str(CATALOG_RECEIPT_RELATIVE),

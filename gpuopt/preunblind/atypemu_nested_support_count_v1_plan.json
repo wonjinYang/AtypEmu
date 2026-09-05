@@ -64,7 +64,7 @@
     },
     "all_atom_recount_producer": {
       "path": "gpuopt/candidates/nested_support_all_atom_recount.py",
-      "sha256": "093286f6863929d35ee2a1a460ee1e4cc4e8801bcbbe4a92e476673b8470761e"
+      "sha256": "41cd2261292d47c724138f8a671d50423245fa19eff0e71f1a5a95b19215e90c"
     },
     "catalog_feasibility_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json",

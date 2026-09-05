@@ -35,7 +35,7 @@ ENTITY_COUNT = 135
 LEVELS = (32, 128, 768, 1536)
 ELEMENTS = ("H", "C", "N", "O", "S")
 SOURCE_SUPPORT_IDS = tuple(
-    f"BioEmu_{index}" for index in (1, 32, 63, 94, 126, 157, 188, 221)
+    f"BioEmu_{index}" for index in (1, 126, 251, 376, 501, 626, 751, 876)
 )
 FALSE_SENTINELS = {
     "authorization_consumed": False,
@@ -731,6 +731,16 @@ def _pdb(atoms: list[tuple[str, str, str, int, str]], chain: str = "A") -> bytes
 
 
 def self_test() -> int:
+    assert SOURCE_SUPPORT_IDS == (
+        "BioEmu_1",
+        "BioEmu_126",
+        "BioEmu_251",
+        "BioEmu_376",
+        "BioEmu_501",
+        "BioEmu_626",
+        "BioEmu_751",
+        "BioEmu_876",
+    )
     reference_raw = _pdb(
         [
             ("N", "ALA", "N", 1, "ATOM"),
@@ -854,7 +864,7 @@ def self_test() -> int:
         pass
     else:
         raise AssertionError("self-test accepted ambiguous target identity")
-    return 9
+    return 10
 
 
 def main() -> int:
