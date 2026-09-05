@@ -1,0 +1,86 @@
+{
+  "artifact_kind": "hold_only_target_unread_all_atom_recount_receipt_not_authorization",
+  "authorization_consumed": false,
+  "blocking_entity": {
+    "catalog_support_count": 1000,
+    "entity_uid": "bmrb:50238:entity:1",
+    "policy_compliant_support_count": 0,
+    "reason": "non-HIS target atom is unavailable: bmrb:50238:entity:1:target:cs:1:328:1:1:_:36:GLU:HE2",
+    "rejected_support_count": 1000
+  },
+  "claims": {
+    "all_atom_count_feasible_levels": [],
+    "diversity_qualified": false,
+    "general_sampling_sufficiency_established": false,
+    "post_result_policy_relaxation_allowed": false,
+    "support_materialized": false
+  },
+  "contract": "atypemu_nested_support_count_v1_all_atom_recount_receipt_v1",
+  "evidence": {
+    "catalog_shard_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz",
+      "sha256": "69fee89d20588cbeb2a15cc1c4a4f002f63a50928f2028f5835c5b3b871061c2"
+    },
+    "execution_receipt": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_v1_yulab/execution_receipt.json",
+      "sha256": "70fe86bc0d3f28b6902a3ea29a457aff6cb388aff2926f0c23b4fa4a3e08f541"
+    },
+    "policy": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json",
+      "sha256": "f792ea47639f19d0376088b2c2e2fd5e9a161f33e4871205664bc9972e1b35ae"
+    },
+    "producer": {
+      "path": "gpuopt/candidates/nested_support_all_atom_recount.py",
+      "sha256": "41cd2261292d47c724138f8a671d50423245fa19eff0e71f1a5a95b19215e90c"
+    },
+    "result_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_v1_yulab/recount_results.tar.gz",
+      "sha256": "790a5cd77fdc10b46e5df85d80013938bb48a81732f5f9db00a7ef66cd483f16"
+    },
+    "source_commitment": {
+      "path": ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json",
+      "sha256": "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8"
+    }
+  },
+  "execution": {
+    "catalog_support_count": 134850,
+    "entity_count": 135,
+    "full_recount_digest": "4e5d8e845000cdb9b612dbd8a17ac791687f1418bc0215f4845219c82f1b38fd",
+    "host": "yulabs-Mac-Studio.local",
+    "policy_compliant_support_count": 133850,
+    "rejected_support_count": 1000,
+    "summary_sha256": "07fb86fc5ec4602d8e9d93856c8ff26af40dd0f45fe8754e398198cac502350c"
+  },
+  "level_count_feasibility": {
+    "128": {
+      "all_entities_count_feasible": false,
+      "entity_count_feasible": 134,
+      "maximum_entity_shortfall": 128,
+      "total_shortfall": 128
+    },
+    "1536": {
+      "all_entities_count_feasible": false,
+      "entity_count_feasible": 0,
+      "maximum_entity_shortfall": 1536,
+      "total_shortfall": 73510
+    },
+    "32": {
+      "all_entities_count_feasible": false,
+      "entity_count_feasible": 134,
+      "maximum_entity_shortfall": 32,
+      "total_shortfall": 32
+    },
+    "768": {
+      "all_entities_count_feasible": false,
+      "entity_count_feasible": 134,
+      "maximum_entity_shortfall": 768,
+      "total_shortfall": 768
+    }
+  },
+  "outer_or_formal_metrics_opened": false,
+  "science_executed": false,
+  "source_scores_read": false,
+  "status": "ALL_ATOM_COUNT_BLOCKED_ONE_ENTITY_NON_HIS_TARGET_UNAVAILABLE",
+  "study_id": "atypemu_nested_support_count_v1",
+  "target_values_read": false
+}

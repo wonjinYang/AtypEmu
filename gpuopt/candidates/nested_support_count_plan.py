@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "0c043839b1c373ca5f6e1aa7839226334dcfec3f850595b8e6f5d80af95fc5c5"
+    "8c73c7dcf2316ca0fe31b3e629969c1b3bb821eb8a085e7475670776e475a18a"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -70,6 +70,14 @@ SAFE_EVIDENCE = {
     "all_atom_recount_producer": {
         "path": "gpuopt/candidates/nested_support_all_atom_recount.py",
         "sha256": "41cd2261292d47c724138f8a671d50423245fa19eff0e71f1a5a95b19215e90c",
+    },
+    "all_atom_recount_checker": {
+        "path": "gpuopt/candidates/check_nested_support_all_atom_recount.py",
+        "sha256": "a2bcfe2e204dbfd248062d44dd6475aa313a55c906923385b364ef6fe3bdbe4e",
+    },
+    "all_atom_recount_receipt": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_recount_receipt.json",
+        "sha256": "c3296a61bc0bac156489f967dd66643b9476dc1a904e524a62d5e3549c789fda",
     },
     "catalog_feasibility_receipt": {
         "path": str(CATALOG_RECEIPT_RELATIVE),
@@ -129,6 +137,8 @@ EXPECTED_RECEIPT_EVIDENCE = {
 EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_policy",
     "all_atom_recount_producer",
+    "all_atom_recount_checker",
+    "all_atom_recount_receipt",
     "catalog_feasibility_receipt",
     "catalog_checker",
     "catalog_producer",
@@ -141,10 +151,36 @@ EVIDENCE_CHECK_ORDER = (
     "jeon_thesis",
 )
 EXPECTED_LEVEL_STATUS = {
-    "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
-    "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
-    "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
-    "1536": "HEAVY_TOPOLOGY_COUNT_BLOCKED_BY_CURRENT_SOURCE_CAPACITY_ALL_ATOM_UNCLAIMED",
+    "32": "ALL_ATOM_COUNT_BLOCKED_ONE_ENTITY_NON_HIS_TARGET_UNAVAILABLE_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
+    "128": "ALL_ATOM_COUNT_BLOCKED_ONE_ENTITY_NON_HIS_TARGET_UNAVAILABLE",
+    "768": "ALL_ATOM_COUNT_BLOCKED_ONE_ENTITY_NON_HIS_TARGET_UNAVAILABLE",
+    "1536": "HEAVY_TOPOLOGY_AND_ALL_ATOM_COUNT_BLOCKED_CURRENT_SOURCE_CAPACITY",
+}
+EXPECTED_ALL_ATOM_LEVEL_COUNTS = {
+    "32": {
+        "all_entities_count_feasible": False,
+        "entity_count_feasible": 134,
+        "maximum_entity_shortfall": 32,
+        "total_shortfall": 32,
+    },
+    "128": {
+        "all_entities_count_feasible": False,
+        "entity_count_feasible": 134,
+        "maximum_entity_shortfall": 128,
+        "total_shortfall": 128,
+    },
+    "768": {
+        "all_entities_count_feasible": False,
+        "entity_count_feasible": 134,
+        "maximum_entity_shortfall": 768,
+        "total_shortfall": 768,
+    },
+    "1536": {
+        "all_entities_count_feasible": False,
+        "entity_count_feasible": 0,
+        "maximum_entity_shortfall": 1536,
+        "total_shortfall": 73510,
+    },
 }
 EXPECTED_ALL_ATOM_DIAGNOSTICS = {
     "interpretation": "diagnostic topology counts only; not all-atom support usability",
@@ -210,7 +246,7 @@ EXPECTED_PROVENANCE = {
 }
 EXPECTED_BLOCKERS = [
     "K1536 exceeds the only currently evidenced BioEmu index namespace",
-    "K32, K128, and K768 are heavy-topology count-feasible only; the all-atom policy is frozen but its target-unread per-entity recount is not complete",
+    "K32, K128, and K768 are all-atom count-infeasible under the frozen policy because bmr50238 has zero compliant supports: assigned GLU:HE2 is unavailable across all 1000 catalog supports",
     "K32 original structural-source provenance replay is not established for this study",
     "support construction and diversity thresholds are not frozen",
     "primary and replicate ladder roots are not committed",
@@ -355,7 +391,7 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     )
     _require(
         feasibility.get("level_status", {}).get("1536")
-        == "HEAVY_TOPOLOGY_COUNT_BLOCKED_BY_CURRENT_SOURCE_CAPACITY_ALL_ATOM_UNCLAIMED"
+        == "HEAVY_TOPOLOGY_AND_ALL_ATOM_COUNT_BLOCKED_CURRENT_SOURCE_CAPACITY"
         and feasibility.get(
             "new_target_unread_generation_or_coordinate_source_required_for_k1536"
         )
@@ -366,17 +402,26 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     )
     _require(
         feasibility.get("all_atom_count_status")
-        == "UNCLAIMED_FROZEN_POLICY_PENDING_TARGET_UNREAD_RECOUNT"
-        and feasibility.get("all_atom_count_recount_required") is True
+        == "RECOUNT_COMPLETE_ALL_LEVELS_BLOCKED"
+        and feasibility.get("all_atom_count_recount_required") is False
         and feasibility.get("support_specific_hydrogen_canonicalization_policy_state")
-        == "FROZEN_RECOUNT_PENDING"
+        == "FROZEN_RECOUNT_COMPLETE"
         and feasibility.get("geometry_availability_mask_policy_state")
-        == "FROZEN_RECOUNT_PENDING"
+        == "FROZEN_RECOUNT_COMPLETE"
+        and feasibility.get("all_atom_level_count_feasibility")
+        == EXPECTED_ALL_ATOM_LEVEL_COUNTS
+        and feasibility.get("all_atom_blocking_entity")
+        == {
+            "catalog_support_count": 1000,
+            "entity_uid": "bmrb:50238:entity:1",
+            "policy_compliant_support_count": 0,
+            "reason": "non-HIS target atom is unavailable: bmrb:50238:entity:1:target:cs:1:328:1:1:_:36:GLU:HE2",
+        }
         and feasibility.get("all_atom_topology_count_diagnostics")
         == EXPECTED_ALL_ATOM_DIAGNOSTICS,
         "all-atom policy or recount HOLD state changed",
         checks,
-        "all_atom_count_unclaimed_with_frozen_policy_pending_recount",
+        "all_atom_recount_complete_with_all_levels_blocked",
     )
     policy = json.loads((root / ALL_ATOM_POLICY_RELATIVE).read_text())
     _require(
@@ -520,7 +565,8 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         and interpretation.get("jeon_transfer_claim_allowed") is False
         and interpretation.get("general_sampling_sufficiency_established") is False
         and interpretation.get("one_ladder_establishes_general_sufficiency") is False
-        and interpretation.get("all_atom_count_feasibility_established") is False,
+        and interpretation.get("all_atom_count_feasibility_established") is False
+        and interpretation.get("all_atom_recount_completed") is True,
         "K32, Jeon, or sampling-sufficiency interpretation drifted",
         checks,
         "interpretation_limits",
@@ -864,6 +910,14 @@ def main() -> int:
     checks = validate_plan(plan, root)
     checks.append("validator_and_plan_exact_paths")
     negative_checks = self_test(plan, root) if args.self_test else 0
+    from check_nested_support_all_atom_recount import (
+        self_test as recount_checker_self_test,
+        verify as verify_recount,
+    )
+
+    recount_checks = (
+        recount_checker_self_test(root) if args.self_test else verify_recount(root)
+    )
     if args.self_test:
         from nested_support_all_atom_recount import self_test as recount_self_test
 
@@ -872,7 +926,10 @@ def main() -> int:
         print("STATUS HOLD_FEASIBILITY_BLOCKED")
         print("REFUSAL this artifact is not science or authorization clearance")
         return 3
-    print(f"METRIC support_count_plan_checks={len(checks) + negative_checks}")
+    print(
+        f"METRIC support_count_plan_checks="
+        f"{len(checks) + negative_checks + recount_checks}"
+    )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
     print("METRIC authorization_consumed=0")
