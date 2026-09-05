@@ -73,6 +73,10 @@ ARRAY_KEYS = {
     "distance_neighbor_jacobian", "distance_neighbor_seq_ids",
     "target_atom_available", "distance_available",
 }
+CELL_OUTPUT_CONTRACT = "k32_nested_k8_source_gate_cell_output_v2"
+NORMALIZATION_PROVENANCE_CONTRACT = (
+    "k32_nested_k8_source_gate_eligibility_first_normalization_v1"
+)
 
 
 def sha256(path: Path) -> str:
@@ -131,6 +135,72 @@ class SourceTargets:
     normalization: SourceNormalization
 
 
+def normalization_provenance(
+    normalization: SourceNormalization,
+    train_receipt: dict[str, Any],
+    *,
+    applied_role: str,
+) -> dict[str, Any]:
+    """Serialize the training-only normalization fitted after eligibility."""
+    if applied_role not in {"train", "evaluation"}:
+        raise ValueError("normalization provenance role is invalid")
+    if train_receipt.get("role") != "train":
+        raise ValueError("normalization provenance was not fitted on training rows")
+    return {
+        "applied_role": applied_role,
+        "atom_scale": [
+            [str(atom_id), float(scale)]
+            for atom_id, scale in normalization.atom_scale
+        ],
+        "cell_scale": [
+            [str(comp_id), str(atom_id), float(scale)]
+            for comp_id, atom_id, scale in normalization.cell_scale
+        ],
+        "contract": NORMALIZATION_PROVENANCE_CONTRACT,
+        "element_scale": [
+            [str(element), float(scale)]
+            for element, scale in normalization.element_scale
+        ],
+        "fitted_fold": str(train_receipt["fold"]),
+        "fitted_held_half": int(train_receipt["held_half"]),
+        "fitted_role": "train",
+        "fitted_selected_row_identity_sha256": str(
+            train_receipt["selected_row_identity_sha256"]
+        ),
+        "global_scale": float(normalization.global_scale),
+    }
+
+
+def seal_cell_eligibility_receipts(
+    train: SourceHalfInputs, evaluation: SourceHalfInputs
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Bind both source roles to the one training-only normalization fit."""
+    train_receipt = train.eligibility_receipt
+    evaluation_receipt = evaluation.eligibility_receipt
+    if (
+        train_receipt.get("role") != "train"
+        or evaluation_receipt.get("role") != "evaluation"
+        or train_receipt.get("fold") != evaluation_receipt.get("fold")
+        or train_receipt.get("held_half") != evaluation_receipt.get("held_half")
+        or train.targets.normalization != evaluation.targets.normalization
+    ):
+        raise ValueError("source-cell eligibility receipt pairing mismatch")
+    return (
+        {
+            **train_receipt,
+            "normalization_provenance": normalization_provenance(
+                train.targets.normalization, train_receipt, applied_role="train"
+            ),
+        },
+        {
+            **evaluation_receipt,
+            "normalization_provenance": normalization_provenance(
+                train.targets.normalization, train_receipt, applied_role="evaluation"
+            ),
+        },
+    )
+
+
 @dataclass(frozen=True)
 class SourceHalfInputs:
     frame: pd.DataFrame
@@ -158,6 +228,8 @@ class SourceCellResult:
     observer_initial_loss: float
     observer_final_loss: float
     observer_state_sha256: str
+    train_eligibility_receipt: dict[str, Any]
+    evaluation_eligibility_receipt: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -955,6 +1027,9 @@ def run_source_crossfit_cell(
     sums = q.groupby(["entity_uid", "mode"], sort=True)["q"].sum().to_numpy()
     if not np.allclose(sums, 1.0, atol=1.0e-6, rtol=0.0):
         raise ValueError("source-cell q is not normalized per entity and mode")
+    train_sealed_receipt, evaluation_sealed_receipt = seal_cell_eligibility_receipts(
+        train, evaluation
+    )
     return SourceCellResult(
         predictions=frame,
         q=q,
@@ -962,6 +1037,8 @@ def run_source_crossfit_cell(
         observer_initial_loss=initial_loss,
         observer_final_loss=final_loss,
         observer_state_sha256=state_sha256,
+        train_eligibility_receipt=train_sealed_receipt,
+        evaluation_eligibility_receipt=evaluation_sealed_receipt,
     )
 
 
@@ -1033,6 +1110,21 @@ def write_source_cell_outputs_new(
     )
     if observed_audit != expected_audit:
         raise ValueError("coordinate audit does not cover every retained state")
+    train_receipt = result.train_eligibility_receipt
+    evaluation_receipt = result.evaluation_eligibility_receipt
+    if (
+        train_receipt.get("role") != "train"
+        or evaluation_receipt.get("role") != "evaluation"
+        or train_receipt.get("fold") != evaluation_receipt.get("fold")
+        or train_receipt.get("held_half") != evaluation_receipt.get("held_half")
+        or str(evaluation_receipt.get("fold"))
+        != str(result.predictions["fold"].iloc[0])
+        or int(evaluation_receipt.get("held_half", -1))
+        != int(result.predictions["held_half"].iloc[0])
+        or evaluation_receipt.get("selected_row_identity_sha256")
+        != row_identity_sha256(result.predictions)
+    ):
+        raise ValueError("source-cell eligibility output binding mismatch")
     output_dir.mkdir(parents=True, exist_ok=False)
     paths = {
         "predictions.parquet": output_dir / "predictions.parquet",
@@ -1065,8 +1157,9 @@ def write_source_cell_outputs_new(
         ),
     )
     receipt = {
-        "contract": "k32_nested_k8_source_gate_cell_output_v1",
+        "contract": CELL_OUTPUT_CONTRACT,
         "coordinate_audit_rows": len(coordinate_audit),
+        "evaluation_eligibility_receipt": evaluation_receipt,
         "files": {name: sha256(path) for name, path in paths.items()},
         "fold": str(result.predictions["fold"].iloc[0]),
         "held_half": int(result.predictions["held_half"].iloc[0]),
@@ -1076,6 +1169,7 @@ def write_source_cell_outputs_new(
         "prediction_row_identity_sha256": row_identity_sha256(result.predictions),
         "prediction_rows": len(result.predictions),
         "q_rows": len(result.q),
+        "train_eligibility_receipt": train_receipt,
     }
     with (output_dir / "receipt.json").open("x") as handle:
         json.dump(receipt, handle, indent=2, sort_keys=True)

@@ -73,6 +73,26 @@ AUTHORIZATION_CONTRACT = "k32_nested_k8_source_gate_authorization_v1"
 CONSUMED_CONTRACT = "k32_nested_k8_source_gate_consumed_v1"
 CLAIM_CONTRACT = "k32_nested_k8_source_gate_external_claim_v1"
 EXECUTION_CONTRACT = "k32_nested_k8_source_gate_execution_v1"
+CELL_OUTPUT_CONTRACT = "k32_nested_k8_source_gate_cell_output_v2"
+ELIGIBILITY_CONTRACT = "corrected_k8_source_subset_eligibility_v1"
+NORMALIZATION_PROVENANCE_CONTRACT = (
+    "k32_nested_k8_source_gate_eligibility_first_normalization_v1"
+)
+ELIGIBILITY_RECEIPT_FIELDS = {
+    "contract", "fold", "held_half", "role", "rule", "frozen_atom_ids",
+    "eligible_atom_ids", "input_row_count", "input_row_identity_sha256",
+    "selected_row_count", "selected_row_identity_sha256", "excluded_row_count",
+    "excluded_row_identity_sha256", "normalization_provenance",
+}
+NORMALIZATION_PROVENANCE_FIELDS = {
+    "applied_role", "atom_scale", "cell_scale", "contract", "element_scale",
+    "fitted_fold", "fitted_held_half", "fitted_role",
+    "fitted_selected_row_identity_sha256", "global_scale",
+}
+SOURCE_TARGET_COLUMNS = (
+    "entity_uid", "target_id", "seq_id", "comp_id", "atom_id", "target_value",
+    "split", "observer_fold",
+)
 
 
 def sha256(path: Path) -> str:
@@ -275,6 +295,244 @@ def row_identity_sha256(frame: pd.DataFrame) -> str:
     return digest.hexdigest()
 
 
+def canonical_atom_id(value: object) -> str:
+    return str(value).strip().upper()
+
+
+def independent_eligible_source_atom_ids(
+    atom_ids: list[str],
+    target_values: list[float],
+    frozen_atom_ids: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Reimplement the target-only eligibility rule without candidate imports."""
+    if len(atom_ids) != len(target_values):
+        raise ValueError("source atom/target length mismatch")
+    frozen = tuple(canonical_atom_id(value) for value in frozen_atom_ids)
+    if len(set(frozen)) != len(frozen):
+        raise ValueError("source inventory contains duplicate labels")
+    grouped = {atom_id: [] for atom_id in frozen}
+    for atom_id, target in zip(atom_ids, target_values, strict=True):
+        value = float(target)
+        atom_id = canonical_atom_id(atom_id)
+        if atom_id in grouped and math.isfinite(value):
+            grouped[atom_id].append(value)
+    return tuple(
+        atom_id
+        for atom_id in frozen
+        if len(grouped[atom_id]) >= 2
+        and float(np.var(grouped[atom_id])) > 1.0e-15
+    )
+
+
+def independent_eligibility_receipt(
+    input_frame: pd.DataFrame,
+    *,
+    frozen_atom_ids: tuple[str, ...],
+    fold: str,
+    held_half: int,
+    role: str,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Recompute every pre-selection, selected, and excluded identity exactly."""
+    if role not in {"train", "evaluation"}:
+        raise ValueError("source eligibility role is invalid")
+    frozen = tuple(canonical_atom_id(value) for value in frozen_atom_ids)
+    frame = input_frame.reset_index(drop=True)
+    atom_ids = frame["atom_id"].astype(str).tolist()
+    target_values = frame["target_value"].astype(float).tolist()
+    eligible = independent_eligible_source_atom_ids(
+        atom_ids, target_values, frozen
+    )
+    eligible_set = set(eligible)
+    selected_mask = np.asarray(
+        [
+            canonical_atom_id(atom_id) in eligible_set
+            and math.isfinite(float(target))
+            for atom_id, target in zip(atom_ids, target_values, strict=True)
+        ],
+        dtype=bool,
+    )
+    selected = frame.loc[selected_mask].reset_index(drop=True)
+    excluded = frame.loc[~selected_mask].reset_index(drop=True)
+    if set(selected["atom_id"].map(canonical_atom_id)) != eligible_set:
+        raise ValueError("selected source labels do not equal target-only eligibility")
+    return selected, {
+        "contract": ELIGIBILITY_CONTRACT,
+        "fold": str(fold),
+        "held_half": int(held_half),
+        "role": role,
+        "rule": (
+            "frozen_inventory_and_finite_count_ge_2_and_"
+            "population_variance_gt_1e-15"
+        ),
+        "frozen_atom_ids": list(frozen),
+        "eligible_atom_ids": list(eligible),
+        "input_row_count": int(len(frame)),
+        "input_row_identity_sha256": row_identity_sha256(frame),
+        "selected_row_count": int(len(selected)),
+        "selected_row_identity_sha256": row_identity_sha256(selected),
+        "excluded_row_count": int(len(excluded)),
+        "excluded_row_identity_sha256": row_identity_sha256(excluded),
+    }
+
+
+def independent_normalization_provenance(
+    train_frame: pd.DataFrame,
+    train_receipt: dict[str, Any],
+    *,
+    applied_role: str,
+) -> dict[str, Any]:
+    """Replay the adapter's eligibility-first training normalization exactly."""
+    if applied_role not in {"train", "evaluation"}:
+        raise ValueError("normalization provenance role is invalid")
+    cell_series = train_frame.groupby(["comp_id", "atom_id"])["target_value"].std()
+    atom_series = train_frame.groupby("atom_id")["target_value"].std()
+    element_series = train_frame.assign(
+        element=train_frame["atom_id"].astype(str).str[0]
+    ).groupby("element")["target_value"].std()
+
+    def finite_rows(series: pd.Series) -> list[list[Any]]:
+        output = []
+        for key, value in series.items():
+            if pd.notna(value) and float(value) >= 0.1:
+                values = (key,) if not isinstance(key, tuple) else key
+                output.append([*(str(item) for item in values), float(value)])
+        return output
+
+    return {
+        "applied_role": applied_role,
+        "atom_scale": finite_rows(atom_series),
+        "cell_scale": finite_rows(cell_series),
+        "contract": NORMALIZATION_PROVENANCE_CONTRACT,
+        "element_scale": finite_rows(element_series),
+        "fitted_fold": str(train_receipt["fold"]),
+        "fitted_held_half": int(train_receipt["held_half"]),
+        "fitted_role": "train",
+        "fitted_selected_row_identity_sha256": str(
+            train_receipt["selected_row_identity_sha256"]
+        ),
+        "global_scale": max(float(train_frame["target_value"].std()), 0.1),
+    }
+
+
+def sealed_independent_eligibility_receipt(
+    input_frame: pd.DataFrame,
+    *,
+    frozen_atom_ids: tuple[str, ...],
+    fold: str,
+    held_half: int,
+    role: str,
+    train_frame: pd.DataFrame,
+    train_receipt: dict[str, Any],
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    selected, receipt = independent_eligibility_receipt(
+        input_frame,
+        frozen_atom_ids=frozen_atom_ids,
+        fold=fold,
+        held_half=held_half,
+        role=role,
+    )
+    return selected, {
+        **receipt,
+        "normalization_provenance": independent_normalization_provenance(
+            train_frame, train_receipt, applied_role=role
+        ),
+    }
+
+
+def committed_source_target_frame(
+    root: Path,
+    commitment: dict[str, Any],
+    *,
+    entity_uid: str,
+    fold: str,
+) -> pd.DataFrame:
+    """Read one hash-bound source target file after provenance authorization."""
+    fields = entity_uid.split(":")
+    if len(fields) != 4 or fields[0] != "bmrb" or fields[2] != "entity":
+        raise ValueError("invalid source entity identity")
+    relative = f"data/all_atom_observer_v1/targets/bmr{fields[1]}.parquet"
+    expected = commitment.get("files", {}).get(relative)
+    path = (root / relative).resolve()
+    if (
+        root not in path.parents
+        or not isinstance(expected, str)
+        or len(expected) != 64
+        or sha256(path) != expected
+    ):
+        raise ValueError("committed source target binding mismatch")
+    frame = pd.read_parquet(path, columns=SOURCE_TARGET_COLUMNS)
+    frame = frame.loc[frame["entity_uid"].astype(str).eq(entity_uid)].copy()
+    if (
+        frame.empty
+        or frame["target_id"].duplicated().any()
+        or set(frame["split"].astype(str)) != {"train"}
+        or set(frame["observer_fold"].astype(str)) != {fold}
+    ):
+        raise ValueError("committed source target schema or fold mismatch")
+    return frame.reset_index(drop=True)
+
+
+def replay_committed_cell_eligibility(
+    root: Path,
+    commitment: dict[str, Any],
+    *,
+    fold: str,
+    held_half: int,
+    train_entities: set[str],
+    evaluation_entities: set[str],
+    frozen_atom_ids: tuple[str, ...],
+    sealed_train_receipt: dict[str, Any],
+    sealed_evaluation_receipt: dict[str, Any],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Reject source-row receipts not replayable from committed targets."""
+    if not train_entities or not evaluation_entities or train_entities & evaluation_entities:
+        raise ValueError("source cell entity partition is invalid")
+
+    def input_frame(entities: set[str]) -> pd.DataFrame:
+        return pd.concat(
+            [
+                committed_source_target_frame(
+                    root, commitment, entity_uid=entity_uid, fold=fold
+                )
+                for entity_uid in sorted(entities)
+            ],
+            ignore_index=True,
+        )
+
+    train_input = input_frame(train_entities)
+    evaluation_input = input_frame(evaluation_entities)
+    train_selected, train_base_receipt = independent_eligibility_receipt(
+        train_input,
+        frozen_atom_ids=frozen_atom_ids,
+        fold=fold,
+        held_half=held_half,
+        role="train",
+    )
+    expected_train_receipt = {
+        **train_base_receipt,
+        "normalization_provenance": independent_normalization_provenance(
+            train_selected, train_base_receipt, applied_role="train"
+        ),
+    }
+    evaluation_selected, expected_evaluation_receipt = (
+        sealed_independent_eligibility_receipt(
+            evaluation_input,
+            frozen_atom_ids=frozen_atom_ids,
+            fold=fold,
+            held_half=held_half,
+            role="evaluation",
+            train_frame=train_selected,
+            train_receipt=train_base_receipt,
+        )
+    )
+    if (
+        sealed_train_receipt != expected_train_receipt
+        or sealed_evaluation_receipt != expected_evaluation_receipt
+    ):
+        raise ValueError("source-cell eligibility receipt replay mismatch")
+    return train_selected, evaluation_selected
+
+
 def rotate(points: np.ndarray, origin: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
     unit = axis / np.linalg.norm(axis)
     shifted = points - origin
@@ -362,11 +620,32 @@ def replay_pdb(
 def check_cell_output(path: Path, *, root: Path) -> dict[str, Any]:
     receipt = json.loads((path / "receipt.json").read_text())
     required_receipt = {
-        "contract", "coordinate_audit_rows", "files", "fold", "held_half",
-        "observer_final_loss", "observer_initial_loss", "observer_state_sha256",
+        "contract", "coordinate_audit_rows", "evaluation_eligibility_receipt",
+        "files", "fold", "held_half", "observer_final_loss",
+        "observer_initial_loss", "observer_state_sha256",
         "prediction_row_identity_sha256", "prediction_rows", "q_rows",
+        "train_eligibility_receipt",
     }
-    if set(receipt) != required_receipt or receipt["contract"] != "k32_nested_k8_source_gate_cell_output_v1":
+    if set(receipt) != required_receipt or receipt["contract"] != CELL_OUTPUT_CONTRACT:
+        raise ValueError("source-cell receipt schema mismatch")
+    train_eligibility = receipt["train_eligibility_receipt"]
+    evaluation_eligibility = receipt["evaluation_eligibility_receipt"]
+    if (
+        not isinstance(train_eligibility, dict)
+        or not isinstance(evaluation_eligibility, dict)
+        or set(train_eligibility) != ELIGIBILITY_RECEIPT_FIELDS
+        or set(evaluation_eligibility) != ELIGIBILITY_RECEIPT_FIELDS
+        or train_eligibility.get("contract") != ELIGIBILITY_CONTRACT
+        or evaluation_eligibility.get("contract") != ELIGIBILITY_CONTRACT
+        or not isinstance(train_eligibility.get("normalization_provenance"), dict)
+        or not isinstance(
+            evaluation_eligibility.get("normalization_provenance"), dict
+        )
+        or set(train_eligibility["normalization_provenance"])
+        != NORMALIZATION_PROVENANCE_FIELDS
+        or set(evaluation_eligibility["normalization_provenance"])
+        != NORMALIZATION_PROVENANCE_FIELDS
+    ):
         raise ValueError("source-cell receipt schema mismatch")
     expected_files = {
         "predictions.parquet", "q.parquet", "coordinate_audit.parquet",
@@ -392,6 +671,9 @@ def check_cell_output(path: Path, *, root: Path) -> dict[str, Any]:
         or set(prediction["split"].astype(str)) != {"train"}
         or len(prediction) != int(receipt["prediction_rows"])
         or row_identity_sha256(prediction) != receipt["prediction_row_identity_sha256"]
+        or int(evaluation_eligibility["selected_row_count"]) != len(prediction)
+        or evaluation_eligibility["selected_row_identity_sha256"]
+        != receipt["prediction_row_identity_sha256"]
     ):
         raise ValueError("source-cell prediction identity mismatch")
     numeric = prediction[["target_value", *MODES]].to_numpy(dtype=np.float64)
@@ -509,6 +791,10 @@ def check_cell_output(path: Path, *, root: Path) -> dict[str, Any]:
         "q_rows": len(q),
         "coordinate_audit_rows": len(audit),
         "coordinate_replay_rows": replay_rows,
+        "eligibility_receipts": {
+            "train": train_eligibility,
+            "evaluation": evaluation_eligibility,
+        },
         "passed": True,
     }
 
@@ -667,7 +953,7 @@ def check_source_gate(
     if not cells_root.is_dir() or {path.name for path in cells_root.iterdir()} != names:
         raise ValueError("source-gate cell inventory mismatch")
     cell_receipts = {}
-    frames = []
+    frames: dict[tuple[str, int], pd.DataFrame] = {}
     for fold in ("A", "B"):
         for half in (0, 1):
             cell = cells_root / f"cell_{fold}_{half}"
@@ -675,18 +961,50 @@ def check_source_gate(
             if checked["fold"] != fold or checked["held_half"] != half:
                 raise ValueError("source-gate cell identity mismatch")
             cell_receipts[f"{fold}_{half}"] = sha256(cell / "receipt.json")
-            frames.append(pd.read_parquet(cell / "predictions.parquet"))
+            frames[(fold, half)] = pd.read_parquet(cell / "predictions.parquet")
     if cell_receipts != provenance["cell_receipt_sha256"]:
         raise ValueError("source-gate execution and cell receipts differ")
     inventory_path = root / ".auto/frozen/all_label_inventory.json"
     inventory_receipt = json.loads(inventory_path.read_text())
     atom_inventory = tuple(str(value) for value in inventory_receipt["eligible_atom_ids"])
-    if len(atom_inventory) != 62 or len(set(atom_inventory)) != 62:
+    frozen_atom_inventory = tuple(canonical_atom_id(value) for value in atom_inventory)
+    if len(atom_inventory) != 62 or len(set(frozen_atom_inventory)) != 62:
         raise ValueError("source-gate frozen Atom_ID inventory mismatch")
+    assignments = expected_source_assignments(root)
+    # The real provenance validator above requires this path and its exact hash.
+    # Aggregate-only synthetic callers may replace that validator and omit source
+    # files; they cannot reach this branch in a production invocation.
+    if source_commitment_path.is_file():
+        commitment = json.loads(source_commitment_path.read_text())
+        expected_entities = set().union(*assignments.values())
+        if set(map(str, commitment.get("source_entity_uids", ()))) != expected_entities:
+            raise ValueError("source-gate committed entity roster mismatch")
+        for fold in ("A", "B"):
+            for half in (0, 1):
+                cell = cells_root / f"cell_{fold}_{half}"
+                cell_receipt = json.loads((cell / "receipt.json").read_text())
+                _train, evaluation = replay_committed_cell_eligibility(
+                    root,
+                    commitment,
+                    fold=fold,
+                    held_half=half,
+                    train_entities=assignments[(fold, 1 - half)],
+                    evaluation_entities=assignments[(fold, half)],
+                    frozen_atom_ids=frozen_atom_inventory,
+                    sealed_train_receipt=cell_receipt["train_eligibility_receipt"],
+                    sealed_evaluation_receipt=cell_receipt[
+                        "evaluation_eligibility_receipt"
+                    ],
+                )
+                prediction = frames[(fold, half)]
+                if row_identity_sha256(prediction) != row_identity_sha256(evaluation):
+                    raise ValueError(
+                        "source-cell output rows differ from replayed eligibility"
+                    )
     decision = aggregate_source_scores(
-        tuple(frames),
+        tuple(frames.values()),
         atom_inventory,
-        expected_assignments=expected_source_assignments(root),
+        expected_assignments=assignments,
     )
     payload = {
         "cell_receipt_sha256": cell_receipts,

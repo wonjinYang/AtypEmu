@@ -3,6 +3,8 @@
 !gpuopt/
 !gpuopt/**
 gpuopt/__pycache__/
+gpuopt/**/__pycache__/
+gpuopt/**/*.pyc
 !autoresearch.checks.sh
 !autoresearch.sh
 !.auto/
