@@ -1,0 +1,108 @@
+{
+  "artifact_kind": "hold_only_target_unread_all_atom_recount_policy_not_authorization",
+  "capabilities": {
+    "authorization_consumption": false,
+    "outer_or_formal_metrics": false,
+    "science_execution": false,
+    "source_scores": false,
+    "target_value_deserialization": false
+  },
+  "contract": "atypemu_nested_support_count_v1_all_atom_policy_v1",
+  "evidence": {
+    "catalog_shard_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz",
+      "sha256": "69fee89d20588cbeb2a15cc1c4a4f002f63a50928f2028f5835c5b3b871061c2"
+    },
+    "catalog_summary": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json",
+      "sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41"
+    },
+    "entity_roster": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
+      "sha256": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
+    },
+    "source_commitment": {
+      "path": ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json",
+      "sha256": "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8"
+    }
+  },
+  "geometry_availability_mask": {
+    "distance_channels": [
+      "H",
+      "C",
+      "N",
+      "O",
+      "S"
+    ],
+    "distance_channel_available_definition": "target atom is available and at least one atom of the channel element exists in a different exact residue identity",
+    "missing_distance_fill_angstrom": 10.0,
+    "missing_neighbor_seq_id": -1,
+    "missing_torsion_jacobian": 0.0,
+    "no_target_row_may_be_removed": true,
+    "support_specific": true,
+    "target_atom_available_definition": "exactly one PDB atom matches canonical target seq_id, Comp_ID, and Atom_ID; zero matches is unavailable and multiple matches is an error"
+  },
+  "hydrogen_canonicalization": {
+    "allowed_target_atom_aliases": {
+      "HN": "H"
+    },
+    "case_and_whitespace_normalization_only_for_other_names": true,
+    "deuterium_satisfies_hydrogen_target": false,
+    "histidine_donor_rule": "each HIS residue retains exactly one support-emitted donor hydrogen, HD1 or HE2; neither name nor coordinate is relabeled, copied, or imputed",
+    "non_histidine_hydrogen_identity_must_match_reference": true,
+    "pdb_atom_identity_fields_preserved": [
+      "record_type",
+      "atom_name",
+      "residue_name",
+      "TER_segment",
+      "chain",
+      "residue_number",
+      "insertion_code",
+      "element"
+    ],
+    "source_pdb_atoms_may_be_added_removed_or_renamed": false,
+    "stereospecific_hydrogens_may_be_swapped": false,
+    "supported_reference_topology_difference": "within the same HIS residue only, a one-for-one HD1 versus HE2 donor-hydrogen tautomer difference",
+    "target_alias_requires_unique_match": true
+  },
+  "qualification": {
+    "all_atom_count_feasible_definition": "every one of 135 entities has at least K catalog supports that preserve exact heavy topology, satisfy the frozen hydrogen policy, and emit an explicit mask for every target identity",
+    "allowed_unavailable_target_atoms": [
+      "HIS:HD1",
+      "HIS:HE2"
+    ],
+    "ambiguous_target_identity_invalidates_support": true,
+    "catalog_pdb_sha256_must_replay_before_parsing": true,
+    "deuterium_invalidates_support": true,
+    "exact_heavy_topology_must_match_catalog_reference": true,
+    "future_support_rosters_may_use_target_availability_for_selection": false,
+    "levels": [
+      32,
+      128,
+      768,
+      1536
+    ],
+    "non_histidine_missing_target_invalidates_support": true,
+    "support_coordinate_or_identity_repair_allowed": false,
+    "target_identity_input_columns": [
+      "entity_uid",
+      "target_id",
+      "seq_id",
+      "comp_id",
+      "atom_id",
+      "support_id"
+    ],
+    "target_values_or_scores_may_be_requested": false
+  },
+  "recount_outputs": {
+    "exact_per_support_mask_digest": true,
+    "missing_counts_by_atom_id": true,
+    "per_element_distance_availability_counts": true,
+    "per_entity_policy_compliant_support_count": true,
+    "raw_pdb_sha256": true,
+    "target_identity_digest": true,
+    "unknown_or_rejected_hydrogen_difference_counts": true
+  },
+  "state": "FROZEN_POLICY_RECOUNT_NOT_RUN",
+  "study_id": "atypemu_nested_support_count_v1"
+}

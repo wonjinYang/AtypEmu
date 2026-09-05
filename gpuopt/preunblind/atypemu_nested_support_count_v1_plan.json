@@ -58,6 +58,10 @@
     "state": "BLOCKED_PENDING_TARGET_UNREAD_THRESHOLDS"
   },
   "evidence": {
+    "all_atom_recount_policy": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json",
+      "sha256": "f792ea47639f19d0376088b2c2e2fd5e9a161f33e4871205664bc9972e1b35ae"
+    },
     "catalog_feasibility_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json",
       "sha256": "c820e19bbf309f05427453f97f070162d394e3992e8583314df76309cf895c94"
@@ -156,7 +160,7 @@
   "readiness": {
     "blocking_conditions": [
       "K1536 exceeds the only currently evidenced BioEmu index namespace",
-      "K32, K128, and K768 are heavy-topology count-feasible only; all-atom usability is unclaimed pending a frozen support-specific hydrogen canonicalization policy, geometry-availability mask policy, and per-entity recount",
+      "K32, K128, and K768 are heavy-topology count-feasible only; the all-atom policy is frozen but its target-unread per-entity recount is not complete",
       "K32 original structural-source provenance replay is not established for this study",
       "support construction and diversity thresholds are not frozen",
       "primary and replicate ladder roots are not committed"
@@ -179,7 +183,7 @@
   },
   "source_feasibility": {
     "all_atom_count_recount_required": true,
-    "all_atom_count_status": "UNCLAIMED_PENDING_HYDROGEN_CANONICALIZATION_GEOMETRY_MASK_AND_RECOUNT",
+    "all_atom_count_status": "UNCLAIMED_FROZEN_POLICY_PENDING_TARGET_UNREAD_RECOUNT",
     "all_atom_topology_count_diagnostics": {
       "interpretation": "diagnostic topology counts only; not all-atom support usability",
       "largest_single_topology_variant_entity_count_ge_k": {
@@ -198,18 +202,18 @@
     "currently_evidenced_coordinate_methods": [
       "BioEmu"
     ],
-    "geometry_availability_mask_policy_state": "UNFROZEN",
+    "geometry_availability_mask_policy_state": "FROZEN_RECOUNT_PENDING",
     "heavy_topology_count_feasibility_definition": "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports",
     "currently_evidenced_index_max": 1000,
     "currently_evidenced_index_min": 1,
     "level_status": {
-      "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_UNCLAIMED",
-      "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
-      "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
+      "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
+      "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
+      "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
       "1536": "HEAVY_TOPOLOGY_COUNT_BLOCKED_BY_CURRENT_SOURCE_CAPACITY_ALL_ATOM_UNCLAIMED"
     },
     "new_target_unread_generation_or_coordinate_source_required_for_k1536": true,
-    "support_specific_hydrogen_canonicalization_policy_state": "UNFROZEN"
+    "support_specific_hydrogen_canonicalization_policy_state": "FROZEN_RECOUNT_PENDING"
   },
   "state": "HOLD_FEASIBILITY_BLOCKED",
   "study_id": "atypemu_nested_support_count_v1",

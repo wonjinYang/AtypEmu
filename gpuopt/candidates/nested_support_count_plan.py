@@ -27,13 +27,19 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "f870001a296a9232038aab9e536421a4ea71deef8aadf2d8ce9c739250e432af"
+    "ce74f20e047413c0fa68f2f28b204fa8c472b4c6cef22d38b21f4c91cc83ecc5"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
 )
 CATALOG_RECEIPT_SHA256 = (
     "c820e19bbf309f05427453f97f070162d394e3992e8583314df76309cf895c94"
+)
+ALL_ATOM_POLICY_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json"
+)
+ALL_ATOM_POLICY_SHA256 = (
+    "f792ea47639f19d0376088b2c2e2fd5e9a161f33e4871205664bc9972e1b35ae"
 )
 TOP_LEVEL_FIELDS = {
     "artifact_kind",
@@ -57,6 +63,10 @@ TOP_LEVEL_FIELDS = {
     "target_unread_scope",
 }
 SAFE_EVIDENCE = {
+    "all_atom_recount_policy": {
+        "path": str(ALL_ATOM_POLICY_RELATIVE),
+        "sha256": ALL_ATOM_POLICY_SHA256,
+    },
     "catalog_feasibility_receipt": {
         "path": str(CATALOG_RECEIPT_RELATIVE),
         "sha256": CATALOG_RECEIPT_SHA256,
@@ -113,6 +123,7 @@ EXPECTED_RECEIPT_EVIDENCE = {
     )
 }
 EVIDENCE_CHECK_ORDER = (
+    "all_atom_recount_policy",
     "catalog_feasibility_receipt",
     "catalog_checker",
     "catalog_producer",
@@ -125,9 +136,9 @@ EVIDENCE_CHECK_ORDER = (
     "jeon_thesis",
 )
 EXPECTED_LEVEL_STATUS = {
-    "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_UNCLAIMED",
-    "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
-    "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
+    "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
+    "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
+    "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_FROZEN_POLICY_PENDING_RECOUNT",
     "1536": "HEAVY_TOPOLOGY_COUNT_BLOCKED_BY_CURRENT_SOURCE_CAPACITY_ALL_ATOM_UNCLAIMED",
 }
 EXPECTED_ALL_ATOM_DIAGNOSTICS = {
@@ -194,7 +205,7 @@ EXPECTED_PROVENANCE = {
 }
 EXPECTED_BLOCKERS = [
     "K1536 exceeds the only currently evidenced BioEmu index namespace",
-    "K32, K128, and K768 are heavy-topology count-feasible only; all-atom usability is unclaimed pending a frozen support-specific hydrogen canonicalization policy, geometry-availability mask policy, and per-entity recount",
+    "K32, K128, and K768 are heavy-topology count-feasible only; the all-atom policy is frozen but its target-unread per-entity recount is not complete",
     "K32 original structural-source provenance replay is not established for this study",
     "support construction and diversity thresholds are not frozen",
     "primary and replicate ladder roots are not committed",
@@ -350,16 +361,46 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     )
     _require(
         feasibility.get("all_atom_count_status")
-        == "UNCLAIMED_PENDING_HYDROGEN_CANONICALIZATION_GEOMETRY_MASK_AND_RECOUNT"
+        == "UNCLAIMED_FROZEN_POLICY_PENDING_TARGET_UNREAD_RECOUNT"
         and feasibility.get("all_atom_count_recount_required") is True
         and feasibility.get("support_specific_hydrogen_canonicalization_policy_state")
-        == "UNFROZEN"
-        and feasibility.get("geometry_availability_mask_policy_state") == "UNFROZEN"
+        == "FROZEN_RECOUNT_PENDING"
+        and feasibility.get("geometry_availability_mask_policy_state")
+        == "FROZEN_RECOUNT_PENDING"
         and feasibility.get("all_atom_topology_count_diagnostics")
         == EXPECTED_ALL_ATOM_DIAGNOSTICS,
-        "all-atom usability was claimed without canonicalization, mask, and recount",
+        "all-atom policy or recount HOLD state changed",
         checks,
-        "all_atom_count_unclaimed_pending_policy_and_recount",
+        "all_atom_count_unclaimed_with_frozen_policy_pending_recount",
+    )
+    policy = json.loads((root / ALL_ATOM_POLICY_RELATIVE).read_text())
+    _require(
+        policy.get("contract") == "atypemu_nested_support_count_v1_all_atom_policy_v1"
+        and policy.get("study_id") == "atypemu_nested_support_count_v1"
+        and policy.get("state") == "FROZEN_POLICY_RECOUNT_NOT_RUN"
+        and policy.get("capabilities")
+        == {
+            "authorization_consumption": False,
+            "outer_or_formal_metrics": False,
+            "science_execution": False,
+            "source_scores": False,
+            "target_value_deserialization": False,
+        }
+        and policy.get("qualification", {}).get(
+            "future_support_rosters_may_use_target_availability_for_selection"
+        )
+        is False
+        and policy.get("geometry_availability_mask", {}).get(
+            "no_target_row_may_be_removed"
+        )
+        is True
+        and policy.get("hydrogen_canonicalization", {}).get(
+            "source_pdb_atoms_may_be_added_removed_or_renamed"
+        )
+        is False,
+        "frozen all-atom policy semantics changed",
+        checks,
+        "frozen_all_atom_policy_semantics",
     )
     _require(
         plan.get("fixed_protocol") == EXPECTED_FIXED_PROTOCOL,
