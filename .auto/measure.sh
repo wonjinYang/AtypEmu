@@ -262,7 +262,29 @@ with TemporaryDirectory() as temporary:
         pass
     else:
         raise AssertionError("consumed authorization was reusable")
-print("METRIC matched_adapter_checks=72")
+residue_ids = adapter.residue_inventory(surface)
+zero_delta = np.zeros((len(residue_ids), 4), np.float32)
+zero_state = adapter.emit_coordinate_state(
+    Path("."), entity_uid="bmrb:10109:entity:1", support_id="BioEmu_1",
+    residue_ids=residue_ids, residue_delta=zero_delta,
+)
+assert np.array_equal(zero_state.base, zero_state.conditioned)
+movable = next(
+    int(seq_id) for seq_id, residue in zip(zero_state.atom_seq_id, zero_state.residue_name)
+    if residue in adapter.SIDECHAIN_CHI_BONDS and int(seq_id) in residue_ids
+)
+delta = zero_delta.copy()
+delta[residue_ids.index(movable), 0] = 0.01
+moved_state = adapter.emit_coordinate_state(
+    Path("."), entity_uid="bmrb:10109:entity:1", support_id="BioEmu_1",
+    residue_ids=residue_ids, residue_delta=delta,
+)
+maximum_displacement, minimum_distance = adapter.audit_coordinate_state(
+    moved_state, require_motion=True,
+)
+assert 0 < maximum_displacement <= 1 and minimum_distance >= 0.5
+assert np.array_equal(moved_state.base, zero_state.base)
+print("METRIC matched_adapter_checks=79")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

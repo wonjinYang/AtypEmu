@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,25 @@ RESIDUES = (
     "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
     "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
 )
+SIDECHAIN_CHI_BONDS = {
+    "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
+    "ASN": (("CA", "CB"), ("CB", "CG")),
+    "ASP": (("CA", "CB"), ("CB", "CG")),
+    "CYS": (("CA", "CB"),),
+    "GLN": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "GLU": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "HIS": (("CA", "CB"), ("CB", "CG")),
+    "ILE": (("CA", "CB"), ("CB", "CG1")),
+    "LEU": (("CA", "CB"), ("CB", "CG")),
+    "LYS": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "CE")),
+    "MET": (("CA", "CB"), ("CB", "CG"), ("CG", "SD")),
+    "PHE": (("CA", "CB"), ("CB", "CG")),
+    "SER": (("CA", "CB"),),
+    "THR": (("CA", "CB"),),
+    "TRP": (("CA", "CB"), ("CB", "CG")),
+    "TYR": (("CA", "CB"), ("CB", "CG")),
+    "VAL": (("CA", "CB"),),
+}
 ARRAY_KEYS = {
     "entity_uid", "bmrb_id", "target_ids", "support_ids", "support_indices",
     "seq_ids", "comp_ids", "atom_ids", "element_order",
@@ -131,6 +151,16 @@ class CrossfitHalf:
 class ConsumedAuthorization:
     source_commitment_sha256: str
     authorization_sha256: str
+
+
+@dataclass(frozen=True)
+class CoordinateState:
+    base: np.ndarray
+    conditioned: np.ndarray
+    atom_name: np.ndarray
+    atom_element: np.ndarray
+    atom_seq_id: np.ndarray
+    residue_name: np.ndarray
 
 
 class DynamicDistanceObserver(nn.Module):
@@ -875,6 +905,156 @@ def macro_atom_id_ccc(
     if set(per_label) != set(eligible_atom_ids) or not per_label:
         raise ValueError("source scorer omitted a frozen Atom_ID")
     return float(np.mean(list(per_label.values()))), per_label
+
+
+def rotate_about_axis(
+    points: np.ndarray, origin: np.ndarray, axis: np.ndarray, angle: float
+) -> np.ndarray:
+    norm = float(np.linalg.norm(axis))
+    if norm <= 1.0e-12:
+        raise ValueError("torsion axis has zero length")
+    unit = axis / norm
+    shifted = points - origin
+    cosine, sine = math.cos(angle), math.sin(angle)
+    return (
+        shifted * cosine
+        + np.cross(unit, shifted) * sine
+        + np.outer(shifted @ unit, unit) * (1.0 - cosine)
+        + origin
+    )
+
+
+def emit_coordinate_state(
+    root: Path,
+    *,
+    entity_uid: str,
+    support_id: str,
+    residue_ids: tuple[int, ...],
+    residue_delta: np.ndarray,
+) -> CoordinateState:
+    """Apply the optimized chi1-chi4 state to its exact committed K32 PDB."""
+    expected_shape = (len(residue_ids), 4)
+    residue_delta = np.asarray(residue_delta, dtype=np.float64)
+    if residue_delta.shape != expected_shape or not np.isfinite(residue_delta).all():
+        raise ValueError("coordinate delta shape or finiteness mismatch")
+    if np.any(np.abs(residue_delta) > 0.05 + 1.0e-8):
+        raise ValueError("coordinate delta exceeds frozen chi bound")
+    if len(set(residue_ids)) != len(residue_ids) or support_id not in SUPPORT_IDS:
+        raise ValueError("coordinate residue or support inventory mismatch")
+    commitment_path = root / next(iter(HASHES))
+    if sha256(commitment_path) != HASHES[next(iter(HASHES))]:
+        raise ValueError("dynamic-distance source commitment mismatch")
+    commitment = json.loads(commitment_path.read_text())
+    matches = [
+        row
+        for row in commitment["pdb_files"]
+        if row["entity_uid"] == entity_uid and row["support_id"] == support_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("committed coordinate state is not unique")
+    row = matches[0]
+    path = root / row["relative_path"]
+    if sha256(path) != row["sha256"]:
+        raise ValueError("committed coordinate state hash mismatch")
+    records = []
+    for line in path.read_text().splitlines():
+        if not line.startswith(("ATOM  ", "HETATM")):
+            continue
+        name = line[12:16].strip()
+        element = line[76:78].strip().upper() or next(
+            (character.upper() for character in name if character.isalpha()), ""
+        )
+        records.append(
+            (
+                name,
+                element,
+                int(line[22:26]),
+                line[17:20].strip(),
+                line[21:22],
+                (float(line[30:38]), float(line[38:46]), float(line[46:54])),
+            )
+        )
+    if not records:
+        raise ValueError("committed coordinate state has no atoms")
+    base = np.asarray([record[5] for record in records], dtype=np.float64)
+    conditioned = base.copy()
+    delta_by_residue = dict(zip(residue_ids, residue_delta, strict=True))
+    for seq_id, angles in sorted(delta_by_residue.items()):
+        indices = [index for index, record in enumerate(records) if record[2] == seq_id]
+        if not indices:
+            continue
+        chain = records[indices[0]][4]
+        indices = [index for index in indices if records[index][4] == chain]
+        adjacency = {index: set() for index in indices}
+        for offset, first in enumerate(indices):
+            for second in indices[offset + 1 :]:
+                hydrogen = records[first][1] == "H" or records[second][1] == "H"
+                cutoff = 1.25 if hydrogen else 1.95
+                if np.linalg.norm(conditioned[first] - conditioned[second]) <= cutoff:
+                    adjacency[first].add(second)
+                    adjacency[second].add(first)
+        for angle, (proximal_name, distal_name) in zip(
+            angles, SIDECHAIN_CHI_BONDS.get(records[indices[0]][3], ()), strict=False
+        ):
+            if abs(float(angle)) <= 1.0e-12:
+                continue
+            proximal = next(
+                (index for index in indices if records[index][0] == proximal_name), None
+            )
+            distal_axis = next(
+                (index for index in indices if records[index][0] == distal_name), None
+            )
+            if proximal is None or distal_axis is None:
+                continue
+            distal, stack = {distal_axis}, [distal_axis]
+            while stack:
+                current = stack.pop()
+                for neighbor in adjacency[current]:
+                    if {current, neighbor} == {proximal, distal_axis}:
+                        continue
+                    if neighbor not in distal:
+                        distal.add(neighbor)
+                        stack.append(neighbor)
+            if any(records[index][0] in {"N", "CA", "C", "O", "OXT"} for index in distal):
+                continue
+            rotated = sorted(distal)
+            conditioned[rotated] = rotate_about_axis(
+                conditioned[rotated],
+                conditioned[proximal],
+                conditioned[distal_axis] - conditioned[proximal],
+                float(angle),
+            )
+    return CoordinateState(
+        base=base.astype(np.float32),
+        conditioned=conditioned.astype(np.float32),
+        atom_name=np.asarray([record[0] for record in records]),
+        atom_element=np.asarray([record[1] for record in records]),
+        atom_seq_id=np.asarray([record[2] for record in records], dtype=np.int32),
+        residue_name=np.asarray([record[3] for record in records]),
+    )
+
+
+def audit_coordinate_state(
+    state: CoordinateState, *, require_motion: bool
+) -> tuple[float, float]:
+    """Apply the frozen displacement and severe all-distinct-atom clash limits."""
+    if state.base.shape != state.conditioned.shape or state.base.ndim != 2:
+        raise ValueError("coordinate state shape mismatch")
+    if not np.isfinite(state.base).all() or not np.isfinite(state.conditioned).all():
+        raise ValueError("coordinate state is nonfinite")
+    displacement = np.linalg.norm(state.conditioned - state.base, axis=1)
+    maximum = float(displacement.max(initial=0.0))
+    if maximum > 1.0 + 1.0e-6 or (require_motion and maximum <= 1.0e-8):
+        raise ValueError("coordinate displacement audit failed")
+    minimum = math.inf
+    for row in range(len(state.conditioned) - 1):
+        distances = np.linalg.norm(
+            state.conditioned[row + 1 :] - state.conditioned[row], axis=1
+        )
+        minimum = min(minimum, float(distances.min(initial=math.inf)))
+    if minimum < 0.5 - 1.0e-6:
+        raise ValueError("coordinate severe-clash audit failed")
+    return maximum, minimum
 
 
 def actuate(
