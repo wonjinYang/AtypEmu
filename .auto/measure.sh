@@ -364,6 +364,7 @@ $PY - "$preflight" <<'PY'
 import ast
 import hashlib
 import json
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -486,9 +487,37 @@ with tempfile.TemporaryDirectory() as temporary:
         aggregate_source_scores,
         check_cell_output,
     )
-    checked = check_cell_output(output)
+    checked = check_cell_output(output, root=Path("."))
     assert checked["passed"] is True
     assert checked["coordinate_audit_rows"] == len(coordinate_audit)
+    assert checked["coordinate_replay_rows"] == len(coordinate_audit)
+    tampered = Path(temporary) / "tampered"
+    shutil.copytree(output, tampered)
+    with np.load(tampered / "coordinate_states.npz", allow_pickle=False) as stored:
+        arrays = {name: np.array(stored[name], copy=True) for name in stored.files}
+    most_moved = coordinate_audit.loc[
+        coordinate_audit["maximum_displacement_angstrom"].idxmax()
+    ]
+    state_number = next(
+        index for index, state in enumerate(result.coordinate_states)
+        if state.entity_uid == most_moved["entity_uid"] and state.mode == most_moved["mode"]
+    )
+    support_number = adapter.SUPPORT_IDS.index(most_moved["support_id"])
+    start = int(arrays["residue_offsets"][state_number])
+    stop = int(arrays["residue_offsets"][state_number + 1])
+    arrays["residue_delta"][start:stop, support_number] = 0
+    np.savez_compressed(tampered / "coordinate_states.npz", **arrays)
+    tampered_receipt = json.loads((tampered / "receipt.json").read_text())
+    tampered_receipt["files"]["coordinate_states.npz"] = hashlib.sha256(
+        (tampered / "coordinate_states.npz").read_bytes()
+    ).hexdigest()
+    (tampered / "receipt.json").write_text(json.dumps(tampered_receipt, indent=2, sort_keys=True) + "\n")
+    try:
+        check_cell_output(tampered, root=Path("."))
+    except ValueError as error:
+        assert "coordinate replay disagrees" in str(error)
+    else:
+        raise AssertionError("independent checker accepted tampered coordinate latents")
     try:
         adapter.write_source_cell_outputs_new(output, result, coordinate_audit)
     except FileExistsError:
@@ -532,7 +561,7 @@ for frame in negative_frames:
 assert aggregate_source_scores(negative_frames, inventory)["passed"] is False
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=137")
+print("METRIC matched_adapter_checks=146")
 PY
 rm -f "$preflight"
 rm -f "$draft"

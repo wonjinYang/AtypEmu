@@ -41,6 +41,27 @@ AUDIT_COLUMNS = (
     "entity_uid", "mode", "support_id", "maximum_displacement_angstrom",
     "minimum_distinct_atom_distance_angstrom", "coordinate_gradient_norm",
 )
+SOURCE_COMMITMENT = ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+SOURCE_COMMITMENT_SHA256 = "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8"
+SIDECHAIN_CHI_BONDS = {
+    "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
+    "ASN": (("CA", "CB"), ("CB", "CG")),
+    "ASP": (("CA", "CB"), ("CB", "CG")),
+    "CYS": (("CA", "CB"),),
+    "GLN": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "GLU": (("CA", "CB"), ("CB", "CG"), ("CG", "CD")),
+    "HIS": (("CA", "CB"), ("CB", "CG")),
+    "ILE": (("CA", "CB"), ("CB", "CG1")),
+    "LEU": (("CA", "CB"), ("CB", "CG")),
+    "LYS": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "CE")),
+    "MET": (("CA", "CB"), ("CB", "CG"), ("CG", "SD")),
+    "PHE": (("CA", "CB"), ("CB", "CG")),
+    "SER": (("CA", "CB"),),
+    "THR": (("CA", "CB"),),
+    "TRP": (("CA", "CB"), ("CB", "CG")),
+    "TYR": (("CA", "CB"), ("CB", "CG")),
+    "VAL": (("CA", "CB"),),
+}
 STATE_KEYS = {
     "entity_uids", "modes", "residue_offsets", "residue_ids", "residue_delta",
     "coordinate_gradient_norm",
@@ -78,7 +99,91 @@ def row_identity_sha256(frame: pd.DataFrame) -> str:
     return digest.hexdigest()
 
 
-def check_cell_output(path: Path) -> dict[str, Any]:
+def rotate(points: np.ndarray, origin: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    unit = axis / np.linalg.norm(axis)
+    shifted = points - origin
+    return (
+        shifted * math.cos(angle)
+        + np.cross(unit, shifted) * math.sin(angle)
+        + np.outer(shifted @ unit, unit) * (1 - math.cos(angle))
+        + origin
+    )
+
+
+def replay_pdb(
+    path: Path, residue_ids: np.ndarray, residue_delta: np.ndarray
+) -> tuple[float, float]:
+    records = []
+    for line in path.read_text().splitlines():
+        if not line.startswith(("ATOM  ", "HETATM")):
+            continue
+        name = line[12:16].strip()
+        element = line[76:78].strip().upper() or next(
+            (character.upper() for character in name if character.isalpha()), ""
+        )
+        records.append((
+            name, element, int(line[22:26]), line[17:20].strip(), line[21:22],
+            (float(line[30:38]), float(line[38:46]), float(line[46:54])),
+        ))
+    base = np.asarray([record[5] for record in records], dtype=np.float64)
+    if not records or not np.isfinite(base).all():
+        raise ValueError("coordinate replay PDB is empty or nonfinite")
+    moved = base.copy()
+    for seq_id, angles in zip(residue_ids, residue_delta, strict=True):
+        indices = [index for index, record in enumerate(records) if record[2] == seq_id]
+        if not indices:
+            continue
+        chain = records[indices[0]][4]
+        indices = [index for index in indices if records[index][4] == chain]
+        adjacency = {index: set() for index in indices}
+        for offset, first in enumerate(indices):
+            for second in indices[offset + 1 :]:
+                hydrogen = records[first][1] == "H" or records[second][1] == "H"
+                cutoff = 1.25 if hydrogen else 1.95
+                if np.linalg.norm(moved[first] - moved[second]) <= cutoff:
+                    adjacency[first].add(second)
+                    adjacency[second].add(first)
+        bonds = SIDECHAIN_CHI_BONDS.get(records[indices[0]][3], ())
+        for angle, (proximal_name, distal_name) in zip(angles, bonds, strict=False):
+            if abs(float(angle)) <= 1.0e-12:
+                continue
+            proximal = next(
+                (index for index in indices if records[index][0] == proximal_name), None
+            )
+            distal_axis = next(
+                (index for index in indices if records[index][0] == distal_name), None
+            )
+            if proximal is None or distal_axis is None:
+                continue
+            distal, stack = {distal_axis}, [distal_axis]
+            while stack:
+                current = stack.pop()
+                for neighbor in adjacency[current]:
+                    if {current, neighbor} == {proximal, distal_axis}:
+                        continue
+                    if neighbor not in distal:
+                        distal.add(neighbor)
+                        stack.append(neighbor)
+            if any(records[index][0] in {"N", "CA", "C", "O", "OXT"} for index in distal):
+                continue
+            selected = sorted(distal)
+            moved[selected] = rotate(
+                moved[selected], moved[proximal], moved[distal_axis] - moved[proximal],
+                float(angle),
+            )
+    base = base.astype(np.float32)
+    moved = moved.astype(np.float32)
+    maximum = float(np.linalg.norm(moved - base, axis=1).max(initial=0))
+    minimum = math.inf
+    for row in range(len(moved) - 1):
+        minimum = min(
+            minimum,
+            float(np.linalg.norm(moved[row + 1 :] - moved[row], axis=1).min(initial=math.inf)),
+        )
+    return maximum, minimum
+
+
+def check_cell_output(path: Path, *, root: Path) -> dict[str, Any]:
     receipt = json.loads((path / "receipt.json").read_text())
     required_receipt = {
         "contract", "coordinate_audit_rows", "files", "fold", "held_half",
@@ -183,12 +288,51 @@ def check_cell_output(path: Path) -> dict[str, Any]:
         or audit["minimum_distinct_atom_distance_angstrom"].min() < 0.5 - 1.0e-6
     ):
         raise ValueError("source-cell coordinate audit mismatch")
+    root = root.resolve()
+    commitment_path = root / SOURCE_COMMITMENT
+    if sha256(commitment_path) != SOURCE_COMMITMENT_SHA256:
+        raise ValueError("coordinate source commitment hash mismatch")
+    commitment = json.loads(commitment_path.read_text())
+    pdb_rows = {
+        (str(row["entity_uid"]), str(row["support_id"])): row
+        for row in commitment["pdb_files"]
+    }
+    audit_rows = audit.set_index(["entity_uid", "mode", "support_id"])
+    replay_rows = 0
+    for state_number, (entity_uid, mode) in enumerate(state_ids):
+        start, stop = int(offsets[state_number]), int(offsets[state_number + 1])
+        for support_number, support_id in enumerate(SUPPORTS):
+            pdb_row = pdb_rows.get((entity_uid, support_id))
+            if pdb_row is None:
+                raise ValueError("coordinate replay source is absent")
+            pdb_path = (root / str(pdb_row["relative_path"])).resolve()
+            if root not in pdb_path.parents or sha256(pdb_path) != pdb_row["sha256"]:
+                raise ValueError("coordinate replay source binding mismatch")
+            maximum, minimum = replay_pdb(
+                pdb_path,
+                residue_ids[start:stop],
+                residue_delta[start:stop, support_number],
+            )
+            reported = audit_rows.loc[(entity_uid, mode, support_id)]
+            if (
+                not math.isclose(maximum, float(reported["maximum_displacement_angstrom"]), abs_tol=1.0e-6)
+                or not math.isclose(minimum, float(reported["minimum_distinct_atom_distance_angstrom"]), abs_tol=1.0e-6)
+                or not math.isclose(float(gradients[state_number]), float(reported["coordinate_gradient_norm"]), abs_tol=1.0e-12)
+            ):
+                raise ValueError(
+                    "independent coordinate replay disagrees with audit: "
+                    f"{entity_uid}/{mode}/{support_id} "
+                    f"maximum={maximum}/{reported['maximum_displacement_angstrom']} "
+                    f"minimum={minimum}/{reported['minimum_distinct_atom_distance_angstrom']}"
+                )
+            replay_rows += 1
     return {
         "fold": fold,
         "held_half": held_half,
         "prediction_rows": len(prediction),
         "q_rows": len(q),
         "coordinate_audit_rows": len(audit),
+        "coordinate_replay_rows": replay_rows,
         "passed": True,
     }
 
