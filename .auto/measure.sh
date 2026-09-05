@@ -284,7 +284,47 @@ maximum_displacement, minimum_distance = adapter.audit_coordinate_state(
 )
 assert 0 < maximum_displacement <= 1 and minimum_distance >= 0.5
 assert np.array_equal(moved_state.base, zero_state.base)
-print("METRIC matched_adapter_checks=79")
+base_replay, _ = adapter.recompute_fixed_neighbor_distances(
+    surface, zero_state, support_number=0,
+)
+available = surface.arrays[5][:, 0]
+assert np.max(np.abs(base_replay[available] - surface.arrays[0][:, 0][available])) < 2e-5
+jacobian_magnitude = np.abs(surface.arrays[1][:, 0]) + np.abs(surface.arrays[2][:, 0])
+row, element, chi = np.unravel_index(
+    np.argmax(jacobian_magnitude), jacobian_magnitude.shape,
+)
+self_part = abs(surface.arrays[1][row, 0, element, chi])
+neighbor_part = abs(surface.arrays[2][row, 0, element, chi])
+actuated_residue = (
+    int(surface.row_context[0][row])
+    if self_part >= neighbor_part
+    else int(surface.arrays[3][row, 0, element])
+)
+linear_delta = np.zeros_like(zero_delta)
+linear_delta[residue_ids.index(actuated_residue), chi] = 1e-4
+linear_state = adapter.emit_coordinate_state(
+    Path("."), entity_uid="bmrb:10109:entity:1", support_id="BioEmu_1",
+    residue_ids=residue_ids, residue_delta=linear_delta,
+)
+linear_base, exact_moved = adapter.recompute_fixed_neighbor_distances(
+    surface, linear_state, support_number=0,
+)
+residue_lookup = {seq_id: index for index, seq_id in enumerate(residue_ids)}
+self_delta = linear_delta[[residue_lookup[int(value)] for value in surface.row_context[0]]]
+neighbor_delta = np.zeros((*surface.arrays[3][:, 0].shape, 4), np.float32)
+for target_row in range(len(surface.target_ids)):
+    for descriptor in range(5):
+        neighbor_seq_id = int(surface.arrays[3][target_row, 0, descriptor])
+        if neighbor_seq_id in residue_lookup:
+            neighbor_delta[target_row, descriptor] = linear_delta[residue_lookup[neighbor_seq_id]]
+linearized = (
+    linear_base
+    + np.einsum("nec,nc->ne", surface.arrays[1][:, 0], self_delta)
+    + np.einsum("nec,nec->ne", surface.arrays[2][:, 0], neighbor_delta)
+)
+assert np.max(np.abs(exact_moved[available] - linearized[available])) < 2e-5
+assert np.max(np.abs(exact_moved[available] - linear_base[available])) > 1e-7
+print("METRIC matched_adapter_checks=84")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

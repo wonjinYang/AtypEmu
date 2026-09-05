@@ -161,6 +161,7 @@ class CoordinateState:
     atom_element: np.ndarray
     atom_seq_id: np.ndarray
     residue_name: np.ndarray
+    atom_chain: np.ndarray
 
 
 class DynamicDistanceObserver(nn.Module):
@@ -1031,6 +1032,7 @@ def emit_coordinate_state(
         atom_element=np.asarray([record[1] for record in records]),
         atom_seq_id=np.asarray([record[2] for record in records], dtype=np.int32),
         residue_name=np.asarray([record[3] for record in records]),
+        atom_chain=np.asarray([record[4] for record in records]),
     )
 
 
@@ -1055,6 +1057,62 @@ def audit_coordinate_state(
     if minimum < 0.5 - 1.0e-6:
         raise ValueError("coordinate severe-clash audit failed")
     return maximum, minimum
+
+
+def recompute_fixed_neighbor_distances(
+    surface: Surface,
+    state: CoordinateState,
+    *,
+    support_number: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Recompute each cached nearest atom's base and emitted-coordinate distance."""
+    elements = ("H", "C", "N", "O", "S")
+    if surface.row_context is None or not 0 <= support_number < len(surface.support_ids):
+        raise ValueError("distance replay lacks row context or support identity")
+    distance_available = surface.arrays[5][:, support_number]
+    base_distance = np.full(distance_available.shape, 10.0, dtype=np.float32)
+    moved_distance = base_distance.copy()
+    seq_ids, comp_ids, atom_ids = surface.row_context
+    for row in range(len(surface.target_ids)):
+        atom_name = (
+            "H" if str(atom_ids[row]).upper() == "HN" else str(atom_ids[row]).upper()
+        )
+        target = np.flatnonzero(
+            (state.atom_seq_id == int(seq_ids[row]))
+            & (state.residue_name == str(comp_ids[row]).upper())
+            & (state.atom_name == atom_name)
+        )
+        if not distance_available[row].any():
+            continue
+        if len(target) != 1:
+            raise ValueError("target atom identity is unavailable or ambiguous")
+        target = int(target[0])
+        same_residue = (
+            (state.atom_chain == state.atom_chain[target])
+            & (state.atom_seq_id == state.atom_seq_id[target])
+            & (state.residue_name == state.residue_name[target])
+        )
+        for element in range(5):
+            if not distance_available[row, element]:
+                continue
+            candidates = np.flatnonzero(
+                (state.atom_element == elements[element]) & ~same_residue
+            )
+            if not len(candidates):
+                raise ValueError("cached interresidue neighbor cannot be replayed")
+            distances = np.linalg.norm(
+                state.base[candidates] - state.base[target], axis=1
+            )
+            neighbor = int(candidates[int(np.argmin(distances))])
+            base_distance[row, element] = float(
+                np.linalg.norm(state.base[neighbor] - state.base[target])
+            )
+            moved_distance[row, element] = float(
+                np.linalg.norm(
+                    state.conditioned[neighbor] - state.conditioned[target]
+                )
+            )
+    return base_distance, moved_distance
 
 
 def actuate(
