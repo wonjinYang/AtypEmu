@@ -7,12 +7,16 @@ PY=/home/yang07/anaconda3/envs/atypemu/bin/python
 
 $PY - <<'PY'
 import inspect
+import json
+import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import mock
 import numpy as np
 import pandas as pd
 import torch
 from gpuopt.candidates import k32_nested_k8_adapter as adapter
+from gpuopt import k32_source_gate_authorization as gate_authorization
 from gpuopt.source_gate_eligibility import build_eligibility_receipt
 
 assert tuple(adapter.SUPPORTS[i] for i in adapter.NESTED) == (1, 126, 251, 376, 501, 626, 751, 876)
@@ -205,9 +209,63 @@ with mock.patch.object(adapter.pd, "read_parquet", side_effect=forbidden_target_
 assert not target_read_called
 annotation = inspect.signature(adapter.load_source_entity_targets).parameters["access"].annotation
 assert "ConsumedAuthorization" in annotation
-print("METRIC matched_adapter_checks=65")
+with TemporaryDirectory() as temporary:
+    temporary = Path(temporary)
+    source_commitment = temporary / "source.json"
+    source_commitment.write_text("{}\n")
+    source_hash = adapter.sha256(source_commitment)
+    job = "135999"
+    ref = f"refs/atypemu-authorizations/k32-source/job-{job}"
+    authorization = {
+        "contract": gate_authorization.AUTHORIZATION_CONTRACT,
+        "source_commitment_sha256": source_hash,
+        "epochs": 3,
+        "steps": 5,
+        "authorized": True,
+        "container_image_sha256": "1" * 64,
+        "slurm_job_id": job,
+        "authorization_ref": ref,
+    }
+    authorization_path = temporary / "authorization.json"
+    authorization_path.write_text(json.dumps(authorization, indent=2, sort_keys=True) + "\n")
+    authorization_blob = gate_authorization._git_blob(authorization_path.read_bytes())
+    spec = gate_authorization.AuthorizationSpec(
+        source_hash, 3, 5, "1" * 64, job, ref, authorization_blob,
+    )
+    claim_blob = None
+    def fake_git(command, **kwargs):
+        global claim_blob
+        if "rev-parse" in command:
+            return subprocess.CompletedProcess(command, 0, authorization_blob + "\n", "")
+        if "hash-object" in command:
+            claim_blob = gate_authorization._git_blob(Path(command[-1]).read_bytes())
+            return subprocess.CompletedProcess(command, 0, claim_blob + "\n", "")
+        if "update-ref" in command:
+            assert command[-2] == claim_blob and command[-1] == authorization_blob
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+    consumed_path = temporary / "consumed.json"
+    claim_path = temporary / "claim.json"
+    with mock.patch.object(gate_authorization.subprocess, "run", side_effect=fake_git):
+        capability = gate_authorization.consume_authorization(
+            authorization_path, source_commitment, consumed_path, claim_path,
+            spec=spec, authorization_git_dir=temporary / "external.git",
+        )
+    assert capability.source_commitment_sha256 == source_hash
+    assert consumed_path.is_file() and claim_path.is_file()
+    try:
+        gate_authorization.consume_authorization(
+            authorization_path, source_commitment, consumed_path, claim_path,
+            spec=spec, authorization_git_dir=temporary / "external.git",
+        )
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("consumed authorization was reusable")
+print("METRIC matched_adapter_checks=72")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
 /home/yang07/anaconda3/bin/ruff check \
-  gpuopt/candidates/k32_nested_k8_adapter.py
+  gpuopt/candidates/k32_nested_k8_adapter.py \
+  gpuopt/k32_source_gate_authorization.py
