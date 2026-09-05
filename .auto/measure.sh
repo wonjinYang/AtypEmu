@@ -380,7 +380,70 @@ for node in tree.body:
     elif isinstance(node, ast.ImportFrom):
         top_imports.add(str(node.module).split(".")[0])
 assert top_imports <= {"__future__", "argparse", "hashlib", "json", "pathlib", "sys", "typing"}
-print("METRIC matched_adapter_checks=98")
+
+# Exercise post-consumption source-half assembly using synthetic targets only.
+import numpy as np
+import pandas as pd
+from unittest import mock
+from gpuopt.candidates import k32_nested_k8_adapter as adapter
+
+inventory = tuple(json.loads(Path(".auto/frozen/all_label_inventory.json").read_text())["eligible_atom_ids"])
+cell = adapter.source_crossfit_plan(Path("."))[0]
+entities = cell.train_entities[:2]
+access = adapter.ConsumedAuthorization("1" * 64, "2" * 64)
+target_hashes = {entity: "3" * 64 for entity in entities}
+opened = []
+
+def synthetic_targets(root, surface, *, entity_uid, fold, expected_sha256, access):
+    del root
+    assert fold == cell.fold and expected_sha256 == target_hashes[entity_uid]
+    assert isinstance(access, adapter.ConsumedAuthorization)
+    opened.append(entity_uid)
+    seq_ids, comp_ids, atom_ids = surface.row_context
+    atom_number = {name: index for index, name in enumerate(inventory)}
+    entity_number = entities.index(entity_uid)
+    return pd.DataFrame({
+        "entity_uid": entity_uid,
+        "target_id": surface.target_ids,
+        "seq_id": seq_ids,
+        "comp_id": comp_ids,
+        "atom_id": atom_ids,
+        "target_value": np.asarray([
+            0.13 * int(seq_id) + 0.7 * atom_number.get(str(atom_id), 0) + entity_number
+            for seq_id, atom_id in zip(seq_ids, atom_ids, strict=True)
+        ]),
+        "split": "train",
+        "observer_fold": cell.fold,
+    })
+
+with mock.patch.object(adapter, "load_source_entity_targets", side_effect=synthetic_targets):
+    train = adapter.assemble_source_half(
+        Path("."), entities, fold=cell.fold, held_half=cell.held_half, role="train",
+        frozen_atom_ids=inventory, target_sha256=target_hashes, access=access,
+    )
+    evaluation = adapter.assemble_source_half(
+        Path("."), entities, fold=cell.fold, held_half=cell.held_half, role="evaluation",
+        frozen_atom_ids=inventory, target_sha256=target_hashes, access=access,
+        normalization=train.targets.normalization,
+    )
+assert opened == list(entities) * 2
+assert train.frame["target_id"].astype(str).tolist() == train.surface.target_ids.tolist()
+assert np.array_equal(train.surface.target_ids, evaluation.surface.target_ids)
+assert np.array_equal(train.anchor, evaluation.anchor)
+assert all(np.array_equal(a, b) for a, b in zip(train.context, evaluation.context, strict=True))
+assert evaluation.targets.normalization == train.targets.normalization
+assert np.isfinite(train.targets.normalized).all() and np.isfinite(evaluation.targets.normalized).all()
+assert train.eligibility_receipt["role"] == "train"
+try:
+    adapter.assemble_source_half(
+        Path("."), entities, fold=cell.fold, held_half=cell.held_half, role="train",
+        frozen_atom_ids=inventory, target_sha256=target_hashes, access=None,
+    )
+except PermissionError:
+    pass
+else:
+    raise AssertionError("source-half assembly accepted an absent capability")
+print("METRIC matched_adapter_checks=106")
 PY
 rm -f "$preflight"
 rm -f "$draft"

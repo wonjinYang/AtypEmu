@@ -127,6 +127,16 @@ class SourceTargets:
 
 
 @dataclass(frozen=True)
+class SourceHalfInputs:
+    frame: pd.DataFrame
+    surface: Surface
+    anchor: np.ndarray
+    context: tuple[np.ndarray, np.ndarray, np.ndarray]
+    targets: SourceTargets
+    eligibility_receipt: dict[str, Any]
+
+
+@dataclass(frozen=True)
 class AssimilationResult:
     initial_data_loss: float
     final_data_loss: float
@@ -643,6 +653,72 @@ def source_targets(
         scale=scale,
         weight=weight.astype(np.float32),
         normalization=normalization,
+    )
+
+
+def assemble_source_half(
+    root: Path,
+    entities: tuple[str, ...],
+    *,
+    fold: str,
+    held_half: int,
+    role: str,
+    frozen_atom_ids: tuple[str, ...],
+    target_sha256: dict[str, str],
+    access: ConsumedAuthorization,
+    normalization: SourceNormalization | None = None,
+) -> SourceHalfInputs:
+    """Assemble one eligibility-first source half after authorization."""
+    if (
+        fold not in {"A", "B"}
+        or held_half not in {0, 1}
+        or role not in {"train", "evaluation"}
+        or not entities
+        or len(set(entities)) != len(entities)
+    ):
+        raise ValueError("invalid source-half identity")
+    if not isinstance(access, ConsumedAuthorization):
+        raise PermissionError("source-half assembly requires consumed authorization")
+    if set(target_sha256) != set(entities):
+        raise ValueError("source-half target hash roster mismatch")
+    surfaces = tuple(load(root, entity_uid) for entity_uid in entities)
+    frames = tuple(
+        load_source_entity_targets(
+            root,
+            surface,
+            entity_uid=entity_uid,
+            fold=fold,
+            expected_sha256=target_sha256[entity_uid],
+            access=access,
+        )
+        for entity_uid, surface in zip(entities, surfaces, strict=True)
+    )
+    surface = concatenate_surfaces(surfaces)
+    frame = pd.concat(frames, ignore_index=True)
+    if frame["target_id"].astype(str).tolist() != surface.target_ids.tolist():
+        raise ValueError("source-half frame and geometry order differ")
+    values, surface = eligible_source_subset(
+        frame,
+        surface,
+        frozen_atom_ids=frozen_atom_ids,
+        fold=fold,
+        held_half=held_half,
+        role=role,
+    )
+    anchor = sequence_anchor(root, fold, surface)
+    targets = source_targets(
+        values,
+        surface,
+        anchor,
+        normalization=normalization,
+    )
+    return SourceHalfInputs(
+        frame=values["frame"],
+        surface=surface,
+        anchor=anchor,
+        context=context_indices(surface, frozen_atom_ids),
+        targets=targets,
+        eligibility_receipt=values["source_eligibility_receipt"],
     )
 
 
