@@ -4,6 +4,7 @@
     "fresh_external_once_only_authorization_per_k_required": true,
     "request_allowed_by_this_plan": false
   },
+  "artifact_kind": "hold_feasibility_plan_not_authorization_or_execution_receipt",
   "capabilities": {
     "formal_metrics": false,
     "outer_metrics": false,

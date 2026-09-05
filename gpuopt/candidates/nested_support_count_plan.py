@@ -27,6 +27,102 @@ FALSE_CAPABILITIES = {
     "source_scores": False,
     "target_value_deserialization": False,
 }
+PLAN_CANONICAL_SHA256 = (
+    "e00bd9f36707b09df7528e9a1cd9a17cf2f2f99a05df1d7de1ce481a41f9776e"
+)
+TOP_LEVEL_FIELDS = {
+    "artifact_kind",
+    "authorization",
+    "candidate_ids",
+    "capabilities",
+    "contract",
+    "controls",
+    "directional_source_crossfit",
+    "diversity_audit",
+    "evidence",
+    "fixed_protocol",
+    "interpretation",
+    "ladder",
+    "provenance",
+    "readiness",
+    "replication",
+    "source_feasibility",
+    "state",
+    "study_id",
+    "target_unread_scope",
+}
+SAFE_EVIDENCE = {
+    "current_k32_plan": {
+        "path": "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",
+        "sha256": "9ce0b48e8c4246ef3faf052460a486a97d02c8728b76cb379c019e012a34f50b",
+    },
+    "current_selector": {
+        "path": "gpuopt/materialize_k32_complete_coordinate_supports.py",
+        "sha256": "1123f6a9c725c29e07f312e657481a309a9bdb759166811f1ab50ce1aa6233fe",
+    },
+    "jeon_thesis": {
+        "path": "references/thesis_jeon.pdf",
+        "sha256": "8a51ff19002dfc028ed43fe99b39c5d363024b91ce4c1398a0246d8952cd925e",
+    },
+}
+EXPECTED_LEVEL_STATUS = {
+    "32": "EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
+    "128": "UNQUALIFIED",
+    "768": "UNQUALIFIED",
+    "1536": "BLOCKED_BY_CURRENT_SOURCE_CAPACITY",
+}
+EXPECTED_FIXED_PROTOCOL = {
+    "assimilation_learning_rate": 0.08,
+    "assimilation_steps": 100,
+    "eligibility": "frozen inventory plus at least two finite rows and target variance above 1e-15, applied before normalization, fitting, and assimilation",
+    "entry_shared_q": "one softmax simplex per entry and arm across every eligible label",
+    "loss": "atom-balanced normalized SmoothL1 observer fit and normalized MSE assimilation; no CCC/concordance surrogate",
+    "observer_batch_size": 4096,
+    "observer_epochs": 1024,
+    "observer_learning_rate": 0.002,
+    "q_kl_weight": 0.003,
+    "reference_regularizer_weight": 0.003,
+    "torsion_regularizer_weight": 0.03,
+    "training_normalization_only": True,
+}
+EXPECTED_CONTROLS = {
+    "lower_k": "exact immediate-predecessor support projection with independently fitted observer and fresh assimilation state",
+    "no_coordinate": "same K roster with coordinate actuation disabled and independently optimized q/reference state",
+    "state_reuse_between_arms_allowed": False,
+}
+EXPECTED_CROSSFIT = {
+    "assignment": "sort descending whole-sequence-cluster size then lexical cluster ID; assign least-loaded half then half index",
+    "cluster_overlap_allowed": False,
+    "directions": {
+        "A_to_B": "source observer fold A only",
+        "B_to_A": "source observer fold B only",
+    },
+    "held_halves": [0, 1],
+    "independent_arithmetic_checker_required": True,
+}
+EXPECTED_PROVENANCE = {
+    "allowed_construction_inputs": [
+        "target-unread coordinate catalogs",
+        "coordinate PDB bytes",
+        "sequence-cluster metadata",
+    ],
+    "forbidden_construction_inputs": [
+        "chemical-shift target values",
+        "source scores",
+        "development scores",
+        "outer scores",
+        "formal scores",
+        "target-derived support selection",
+    ],
+    "k32_seed_must_replay_to_original_structural_sources": True,
+    "mere_hash_rebinding_is_sufficient": False,
+}
+EXPECTED_BLOCKERS = [
+    "K1536 exceeds the only currently evidenced BioEmu index namespace",
+    "K128 and K768 complete-coordinate inventories are not yet qualified",
+    "support construction and diversity thresholds are not frozen",
+    "primary and replicate ladder roots are not committed",
+]
 
 
 def _require(condition: bool, message: str, checks: list[str], name: str) -> None:
@@ -43,9 +139,28 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _canonical_sha256(value: dict[str, Any]) -> str:
+    encoded = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     """Return named checks; never opens targets, scores, or authorization state."""
     checks: list[str] = []
+    _require(
+        set(plan) == TOP_LEVEL_FIELDS
+        and _canonical_sha256(plan) == PLAN_CANONICAL_SHA256,
+        "plan schema or value differs from the exact HOLD contract",
+        checks,
+        "exact_plan_schema_and_values",
+    )
+    _require(
+        plan.get("artifact_kind")
+        == "hold_feasibility_plan_not_authorization_or_execution_receipt",
+        "plan could be mistaken for an authorization or execution receipt",
+        checks,
+        "not_an_authorization_or_execution_receipt",
+    )
     _require(
         plan.get("contract") == "atypemu_nested_support_count_feasibility_plan_v1"
         and plan.get("study_id") == "atypemu_nested_support_count_v1"
@@ -85,10 +200,11 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     _require(
         feasibility.get("currently_evidenced_coordinate_methods") == ["BioEmu"]
         and feasibility.get("currently_evidenced_index_min") == 1
-        and feasibility.get("currently_evidenced_index_max") == 1000,
+        and feasibility.get("currently_evidenced_index_max") == 1000
+        and feasibility.get("level_status") == EXPECTED_LEVEL_STATUS,
         "current target-unread coordinate-source evidence changed",
         checks,
-        "current_source_capacity",
+        "current_source_capacity_and_all_level_statuses",
     )
     _require(
         feasibility.get("level_status", {}).get("1536")
@@ -101,24 +217,14 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         checks,
         "k1536_capacity_block",
     )
-    fixed = plan.get("fixed_protocol", {})
     _require(
-        fixed.get("observer_epochs") == 1024
-        and fixed.get("observer_learning_rate") == 0.002
-        and fixed.get("observer_batch_size") == 4096
-        and fixed.get("assimilation_steps") == 100
-        and fixed.get("assimilation_learning_rate") == 0.08
-        and fixed.get("training_normalization_only") is True
-        and "no CCC" in fixed.get("loss", ""),
+        plan.get("fixed_protocol") == EXPECTED_FIXED_PROTOCOL,
         "fixed observer/loss/assimilation protocol drifted",
         checks,
         "fixed_protocol",
     )
-    controls = plan.get("controls", {})
     _require(
-        controls.get("state_reuse_between_arms_allowed") is False
-        and "independently" in controls.get("no_coordinate", "")
-        and "independently" in controls.get("lower_k", ""),
+        plan.get("controls") == EXPECTED_CONTROLS,
         "matched controls are not independently optimized",
         checks,
         "independent_matched_controls",
@@ -149,22 +255,14 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         checks,
         "diversity_metric_roster",
     )
-    provenance = plan.get("provenance", {})
     _require(
-        provenance.get("k32_seed_must_replay_to_original_structural_sources") is True
-        and provenance.get("mere_hash_rebinding_is_sufficient") is False
-        and "target-derived support selection"
-        in provenance.get("forbidden_construction_inputs", []),
+        plan.get("provenance") == EXPECTED_PROVENANCE,
         "K32 transitive provenance or target-selection exclusion weakened",
         checks,
         "transitive_target_unread_provenance",
     )
-    crossfit = plan.get("directional_source_crossfit", {})
     _require(
-        crossfit.get("cluster_overlap_allowed") is False
-        and crossfit.get("held_halves") == [0, 1]
-        and crossfit.get("independent_arithmetic_checker_required") is True
-        and set(crossfit.get("directions", {})) == {"A_to_B", "B_to_A"},
+        plan.get("directional_source_crossfit") == EXPECTED_CROSSFIT,
         "direction-specific cluster-disjoint crossfit changed",
         checks,
         "source_crossfit",
@@ -201,6 +299,12 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         checks,
         "authorization_and_execution_hold",
     )
+    _require(
+        readiness.get("blocking_conditions") == EXPECTED_BLOCKERS,
+        "feasibility blocking conditions changed",
+        checks,
+        "exact_feasibility_blockers",
+    )
     interpretation = plan.get("interpretation", {})
     _require(
         interpretation.get("k32_role")
@@ -219,9 +323,24 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         checks,
         "target_unread_boundary",
     )
+    serialized = json.dumps(plan, sort_keys=True).lower()
+    _require(
+        ".parquet" not in serialized
+        and "authorization_ref" not in serialized
+        and "authorized\": true" not in serialized,
+        "plan includes a forbidden data or authorization binding",
+        checks,
+        "forbidden_bindings_absent",
+    )
     evidence = plan.get("evidence", {})
+    _require(
+        evidence == SAFE_EVIDENCE,
+        "evidence path is outside the exact target-unread allowlist",
+        checks,
+        "safe_evidence_allowlist",
+    )
     evidence_ok = True
-    for binding in evidence.values():
+    for binding in SAFE_EVIDENCE.values():
         relative = Path(str(binding.get("path", "")))
         path = (root / relative).resolve()
         evidence_ok &= (
@@ -240,28 +359,23 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         checks,
         "evidence_hashes",
     )
-    serialized = json.dumps(plan, sort_keys=True).lower()
-    _require(
-        ".parquet" not in serialized
-        and "authorization_ref" not in serialized
-        and "authorized\": true" not in serialized,
-        "plan includes a forbidden data or authorization binding",
-        checks,
-        "forbidden_bindings_absent",
-    )
     return checks
 
 
 def self_test(plan: dict[str, Any], root: Path) -> int:
-    expected_messages = (
-        (("capabilities", "source_scores"), True, "capabilities changed"),
-        (("ladder", "levels"), [32, 128, 768], "ladder"),
-        (("source_feasibility", "currently_evidenced_index_max"), 1536, "evidence changed"),
-        (("diversity_audit", "near_duplicate_and_coverage_thresholds"), {}, "thresholds"),
-        (("authorization", "request_allowed_by_this_plan"), True, "HOLD"),
-        (("replication", "replicate_manifest_state"), "PRESENT", "replicate"),
+    tamper_cases = (
+        (("capabilities", "source_scores"), True),
+        (("ladder", "levels"), [32, 128, 768]),
+        (("source_feasibility", "currently_evidenced_index_max"), 1536),
+        (("source_feasibility", "level_status", "128"), "QUALIFIED"),
+        (("diversity_audit", "near_duplicate_and_coverage_thresholds"), {}),
+        (("authorization", "request_allowed_by_this_plan"), True),
+        (("replication", "replicate_manifest_state"), "PRESENT"),
+        (("fixed_protocol", "q_kl_weight"), 0.0),
+        (("directional_source_crossfit", "cluster_overlap_allowed"), True),
+        (("evidence", "current_selector", "path"), "data/targets/source.parquet"),
     )
-    for keys, value, message in expected_messages:
+    for keys, value in tamper_cases:
         tampered = copy.deepcopy(plan)
         cursor: dict[str, Any] = tampered
         for key in keys[:-1]:
@@ -270,11 +384,20 @@ def self_test(plan: dict[str, Any], root: Path) -> int:
         try:
             validate_plan(tampered, root)
         except ValueError as error:
-            if message.lower() not in str(error).lower():
-                raise AssertionError((message, str(error))) from error
+            if "schema or value" not in str(error):
+                raise AssertionError(str(error)) from error
         else:
             raise AssertionError(f"tampered plan accepted: {keys}")
-    return len(expected_messages)
+    extra = copy.deepcopy(plan)
+    extra["science_ready"] = True
+    try:
+        validate_plan(extra, root)
+    except ValueError as error:
+        if "schema or value" not in str(error):
+            raise AssertionError(str(error)) from error
+    else:
+        raise AssertionError("unknown top-level field accepted")
+    return len(tamper_cases) + 1
 
 
 def main() -> int:
@@ -282,12 +405,17 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--plan", type=Path, default=PLAN_RELATIVE)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--acknowledge-hold-only", action="store_true")
     args = parser.parse_args()
     root = args.root.resolve()
     path = args.plan if args.plan.is_absolute() else root / args.plan
     plan = json.loads(path.read_text())
     checks = validate_plan(plan, root)
     negative_checks = self_test(plan, root) if args.self_test else 0
+    if not args.acknowledge_hold_only:
+        print("STATUS HOLD_FEASIBILITY_BLOCKED")
+        print("REFUSAL this artifact is not science or authorization clearance")
+        return 3
     print(f"METRIC support_count_plan_checks={len(checks) + negative_checks}")
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
