@@ -538,31 +538,54 @@ def fit_source_observer(
     context: tuple[np.ndarray, np.ndarray, np.ndarray],
     *,
     epochs: int,
+    batch_size: int = 4096,
+    seed: int = 20260905,
+    device: torch.device | None = None,
 ) -> tuple[float, float]:
     """Fit one shared K32 observer; held-fold targets are not an input."""
-    distance = torch.from_numpy(surface.arrays[0])
-    available = torch.from_numpy(surface.arrays[5])
-    atom, residue, position = (torch.from_numpy(value) for value in context)
-    target = torch.from_numpy(targets.normalized)
-    weight = torch.from_numpy(targets.weight)
+    if batch_size <= 0 or epochs <= 0:
+        raise ValueError("observer fit requires positive epochs and batch size")
+    device = device or torch.device("cpu")
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cuda.matmul.allow_tf32 = False
+    model.to(device)
+    distance = torch.as_tensor(surface.arrays[0], device=device)
+    available = torch.as_tensor(surface.arrays[5], device=device)
+    atom, residue, position = (
+        torch.as_tensor(value, device=device) for value in context
+    )
+    target = torch.as_tensor(targets.normalized, device=device)
+    weight = torch.as_tensor(targets.weight, device=device)
 
-    def objective() -> torch.Tensor:
-        prediction = model(distance, available, atom, residue, position).mean(dim=1)
+    def objective(row: torch.Tensor) -> torch.Tensor:
+        prediction = model(
+            distance[row], available[row], atom[row], residue[row], position[row]
+        ).mean(dim=1)
         row_loss = torch.nn.functional.smooth_l1_loss(
-            prediction, target, reduction="none"
+            prediction, target[row], reduction="none"
         )
-        return torch.mean(weight * row_loss)
+        return torch.mean(weight[row] * row_loss)
 
-    initial = float(objective().detach())
+    all_rows = torch.arange(len(target), device=device)
+    initial = float(objective(all_rows).detach())
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=2.0e-3, weight_decay=1.0e-4, foreach=False
     )
+    generator = torch.Generator(device=device).manual_seed(seed)
     for _ in range(epochs):
-        loss = objective()
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
-    final = float(objective().detach())
+        order = torch.randperm(len(target), generator=generator, device=device)
+        model.train()
+        for start in range(0, len(target), batch_size):
+            loss = objective(order[start : start + batch_size])
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+    final = float(objective(all_rows).detach())
     model.eval()
     for parameter in model.parameters():
         parameter.requires_grad_(False)
@@ -578,46 +601,54 @@ def optimize_assimilation(
     *,
     mode: str,
     steps: int,
+    device: torch.device | None = None,
 ) -> AssimilationResult:
     """Freshly optimize one entity with one q shared across every label."""
     modes = {"full", "no_coordinate", "uniform_q", "anchor_only"}
     if mode not in modes:
         raise ValueError(f"unknown assimilation mode: {mode}")
+    device = device or next(model.parameters()).device
+    if next(model.parameters()).device != device:
+        raise ValueError("observer and assimilation device differ")
     coordinate_active = mode in {"full", "uniform_q"}
     q_active = mode in {"full", "no_coordinate"}
     residue_ids = residue_inventory(surface)
     delta_raw = nn.Parameter(
-        torch.zeros((len(residue_ids), len(surface.support_ids), 4))
+        torch.zeros((len(residue_ids), len(surface.support_ids), 4), device=device)
     )
-    q_logits = nn.Parameter(torch.zeros(len(surface.support_ids)))
-    reference_raw = nn.Parameter(torch.zeros(3))
+    q_logits = nn.Parameter(torch.zeros(len(surface.support_ids), device=device))
+    reference_raw = nn.Parameter(torch.zeros(3, device=device))
     parameters: list[nn.Parameter] = [reference_raw]
     if coordinate_active:
         parameters.append(delta_raw)
     if q_active:
         parameters.append(q_logits)
     optimizer = torch.optim.Adam(parameters, lr=0.08, foreach=False)
-    base_distance = torch.from_numpy(surface.arrays[0])
-    available = torch.from_numpy(surface.arrays[5])
-    atom, residue, position = (torch.from_numpy(value) for value in context)
-    target = torch.from_numpy(targets.normalized)
-    weight = torch.from_numpy(targets.weight)
-    scale = torch.from_numpy(targets.scale)
-    anchor_deviation = torch.from_numpy(
+    base_distance = torch.as_tensor(surface.arrays[0], device=device)
+    available = torch.as_tensor(surface.arrays[5], device=device)
+    atom, residue, position = (
+        torch.as_tensor(value, device=device) for value in context
+    )
+    target = torch.as_tensor(targets.normalized, device=device)
+    weight = torch.as_tensor(targets.weight, device=device)
+    scale = torch.as_tensor(targets.scale, device=device)
+    anchor_deviation = torch.as_tensor(
         ((anchor - targets.center[:, None]) / targets.scale[:, None]).astype(
             np.float32
-        )
+        ),
+        device=device,
     )
     if surface.row_context is None:
         raise ValueError("surface has no receipted atom identities")
     element_lookup = {"H": 0, "C": 1, "N": 2}
     try:
         element = torch.as_tensor(
-            [element_lookup[value[0]] for value in surface.row_context[2]]
+            [element_lookup[value[0]] for value in surface.row_context[2]],
+            device=device,
         )
     except KeyError as error:
         raise ValueError("unsupported reference element") from error
-    bounds = torch.tensor((0.1, 0.5, 1.0))
+    bounds = torch.tensor((0.1, 0.5, 1.0), device=device)
     with torch.no_grad():
         base = model(base_distance, available, atom, residue, position)
         base_mean = base.mean(dim=1, keepdim=True)
@@ -676,12 +707,12 @@ def optimize_assimilation(
     return AssimilationResult(
         initial_data_loss=initial,
         final_data_loss=float(final_data.detach()),
-        q=q.detach().numpy(),
-        residue_delta=delta.detach().numpy(),
-        reference_offset=reference.numpy(),
+        q=q.detach().cpu().numpy(),
+        residue_delta=delta.detach().cpu().numpy(),
+        reference_offset=reference.cpu().numpy(),
         coordinate_gradient_norm=gradient_norm,
         prediction=(
-            targets.center + targets.scale * aggregate.detach().numpy()
+            targets.center + targets.scale * aggregate.detach().cpu().numpy()
         ).astype(np.float32),
     )
 
@@ -695,17 +726,32 @@ def matched_assimilation(
     *,
     mode: str,
     steps: int,
+    device: torch.device | None = None,
 ) -> tuple[AssimilationResult, AssimilationResult]:
     """Run independent K32 and exact nested-K8 optimizers from fresh zeros."""
     if not np.all(anchor == anchor[:, :1]):
         raise ValueError("matched support-capacity gate requires invariant anchors")
     k32 = optimize_assimilation(
-        model, surface, targets, anchor, context, mode=mode, steps=steps
+        model,
+        surface,
+        targets,
+        anchor,
+        context,
+        mode=mode,
+        steps=steps,
+        device=device,
     )
     k8_surface = nested8(surface)
     k8_anchor = np.take(anchor, NESTED, axis=1)
     k8 = optimize_assimilation(
-        model, k8_surface, targets, k8_anchor, context, mode=mode, steps=steps
+        model,
+        k8_surface,
+        targets,
+        k8_anchor,
+        context,
+        mode=mode,
+        steps=steps,
+        device=device,
     )
     return k32, k8
 

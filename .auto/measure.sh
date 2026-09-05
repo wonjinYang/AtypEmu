@@ -172,7 +172,12 @@ k8_score, k8_labels = adapter.macro_atom_id_ccc(
 )
 assert np.isfinite([k32_score, k8_score]).all()
 assert set(k32_labels) == set(k8_labels) == {"CA", "CB"}
-print("METRIC matched_adapter_checks=55")
+assert next(fit_model.parameters()).device.type == "cpu"
+assert all(not parameter.requires_grad for parameter in fit_model.parameters())
+assert "device" in inspect.signature(adapter.fit_source_observer).parameters
+assert "batch_size" in inspect.signature(adapter.fit_source_observer).parameters
+assert "device" in inspect.signature(adapter.matched_assimilation).parameters
+print("METRIC matched_adapter_checks=60")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
