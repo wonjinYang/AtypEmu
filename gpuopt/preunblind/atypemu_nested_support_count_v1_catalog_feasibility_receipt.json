@@ -53,7 +53,7 @@
   "evidence": {
     "catalog_checker": {
       "path": "gpuopt/candidates/check_nested_support_catalog.py",
-      "raw_sha256": "e11744cebe8c7e78e08ed65747ff67a7b8db4f818dfffb83381868d04889660f"
+      "raw_sha256": "467a4a53edcac82015e3cdc9e4e0f40ad814b96c5ff9926688e62723cb19fe6b"
     },
     "catalog_producer": {
       "path": "gpuopt/candidates/nested_support_catalog.py",
@@ -83,8 +83,8 @@
       "failed_python_compatibility_job": 136170,
       "node": "iREMB-C-08",
       "partition": "l40sq",
-      "scope": "raw evidence binding, identity replay, catalog integrity, and count arithmetic only; not a scientific gate checker",
-      "status": "PASS",
+      "scope": "historical pre-path-binding raw evidence, identity, catalog-integrity, and count-arithmetic replay; not current evidence and not a scientific gate checker",
+      "status": "PASS_HISTORICAL_PRE_PATH_BINDING",
       "successful_replay_job": 136171
     },
     "iremb_slurm": {
@@ -113,6 +113,14 @@
       "checker_sha256": "6d6078f5729b959e6c5cc9e24d8d56b97ccc516dcef3f1e375560988e9b32ab4",
       "scope": "sealed catalog integrity and count arithmetic only, not a scientific gate checker",
       "status": "PASS"
+    },
+    "netbird_gateway_path_bound_checker": {
+      "checker_checks": 2079812,
+      "checker_sha256": "467a4a53edcac82015e3cdc9e4e0f40ad814b96c5ff9926688e62723cb19fe6b",
+      "host": "cylee-X10DAi",
+      "scope": "exact committed-relative-path, raw evidence, identity, catalog-integrity, and count-arithmetic replay only; not a scientific gate checker",
+      "status": "PASS",
+      "temporary_root_removed_after_execution": true
     },
     "yulab_mac_studio": {
       "aggregate_summary_sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41",

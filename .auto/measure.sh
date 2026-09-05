@@ -9,43 +9,51 @@ $PY gpuopt/candidates/nested_support_count_plan.py \
   --root . --self-test --acknowledge-hold-only
 $PY gpuopt/candidates/nested_support_catalog.py self-test
 $PY gpuopt/candidates/check_nested_support_catalog.py \
+  --check-bound-evidence --self-test
+
+if $PY gpuopt/candidates/check_nested_support_catalog.py \
   --summary .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json \
-  --shard-archive .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz \
-  --entity-roster .auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json \
-  --source-commitment .auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json \
-  --producer gpuopt/candidates/nested_support_catalog.py \
-  --self-test
+  --self-test >/dev/null 2>&1; then
+  echo "legacy arbitrary evidence-path interface was accepted" >&2
+  exit 1
+fi
 
 TMP=$(mktemp -d "$ROOT/.auto/catalog-binding-negative.XXXXXX")
 trap 'rm -rf "$TMP"' EXIT
-printf '{}\n' > "$TMP/roster.json"
-if $PY gpuopt/candidates/check_nested_support_catalog.py \
-  --summary .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json \
-  --shard-archive .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz \
-  --entity-roster "$TMP/roster.json" \
-  --source-commitment .auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json \
-  --producer gpuopt/candidates/nested_support_catalog.py >/dev/null 2>&1; then
+mkdir -p \
+  "$TMP/gpuopt/candidates" \
+  "$TMP/.auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3"
+ln "$ROOT/gpuopt/candidates/check_nested_support_catalog.py" \
+  "$TMP/gpuopt/candidates/check_nested_support_catalog.py"
+ln "$ROOT/gpuopt/candidates/nested_support_catalog.py" \
+  "$TMP/gpuopt/candidates/nested_support_catalog.py"
+ln "$ROOT/.auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json" \
+  "$TMP/.auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json"
+ln "$ROOT/.auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz" \
+  "$TMP/.auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz"
+ln "$ROOT/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json" \
+  "$TMP/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+printf '{}\n' > "$TMP/.auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json"
+if $PY "$TMP/gpuopt/candidates/check_nested_support_catalog.py" \
+  --check-bound-evidence >/dev/null 2>&1; then
   echo "empty roster was accepted" >&2
   exit 1
 fi
-cp .auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json "$TMP/source.json"
-printf '\n' >> "$TMP/source.json"
-if $PY gpuopt/candidates/check_nested_support_catalog.py \
-  --summary .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json \
-  --shard-archive .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz \
-  --entity-roster .auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json \
-  --source-commitment "$TMP/source.json" \
-  --producer gpuopt/candidates/nested_support_catalog.py >/dev/null 2>&1; then
+rm "$TMP/.auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json"
+ln "$ROOT/.auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json" \
+  "$TMP/.auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json"
+rm "$TMP/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+cp "$ROOT/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json" \
+  "$TMP/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+printf '\n' >> "$TMP/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+if $PY "$TMP/gpuopt/candidates/check_nested_support_catalog.py" \
+  --check-bound-evidence >/dev/null 2>&1; then
   echo "appended source commitment was accepted" >&2
   exit 1
 fi
-printf '{}\n' > "$TMP/source.json"
-if $PY gpuopt/candidates/check_nested_support_catalog.py \
-  --summary .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json \
-  --shard-archive .auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz \
-  --entity-roster .auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json \
-  --source-commitment "$TMP/source.json" \
-  --producer gpuopt/candidates/nested_support_catalog.py >/dev/null 2>&1; then
+printf '{}\n' > "$TMP/.auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
+if $PY "$TMP/gpuopt/candidates/check_nested_support_catalog.py" \
+  --check-bound-evidence >/dev/null 2>&1; then
   echo "empty source commitment was accepted" >&2
   exit 1
 fi

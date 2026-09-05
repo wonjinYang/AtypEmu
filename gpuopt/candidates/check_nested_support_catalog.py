@@ -15,6 +15,19 @@ from pathlib import Path
 from typing import Any
 
 STUDY_ID = "atypemu_nested_support_count_v1"
+CHECKER_RELATIVE_PATH = "gpuopt/candidates/check_nested_support_catalog.py"
+PRODUCER_RELATIVE_PATH = "gpuopt/candidates/nested_support_catalog.py"
+SUMMARY_RELATIVE_PATH = (
+    ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/"
+    "catalog_summary.json"
+)
+SHARD_ARCHIVE_RELATIVE_PATH = (
+    ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/"
+    "catalog_v3_shards.tar.gz"
+)
+ROSTER_RELATIVE_PATH = (
+    ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json"
+)
 SHARD_CONTRACT = "atypemu_nested_support_count_v1_catalog_shard_v2"
 RECEIPT_CONTRACT = "atypemu_nested_support_count_v1_catalog_receipt_v2"
 SHARD_ARTIFACT_KIND = "target_unread_coordinate_catalog_shard_not_authorization"
@@ -1428,15 +1441,34 @@ def _validate_summary(
     )
 
 
-def check_catalog(
-    summary_path: Path,
-    shard_archive_path: Path,
-    roster_path: Path,
-    source_commitment_path: Path,
-    producer_path: Path,
-) -> int:
+def check_catalog() -> int:
     """Validate only bound, target-unread catalog evidence artifacts."""
     checks = Checks()
+    checker_path = Path(__file__).absolute()
+    root = checker_path.parents[2]
+    checks.require(
+        checker_path == root / CHECKER_RELATIVE_PATH,
+        "checker is not executing from its committed relative path",
+    )
+    bound_paths = {
+        "checker": checker_path,
+        "summary": root / SUMMARY_RELATIVE_PATH,
+        "shard archive": root / SHARD_ARCHIVE_RELATIVE_PATH,
+        "entity roster": root / ROSTER_RELATIVE_PATH,
+        "source commitment": root / SOURCE_COMMITMENT_RELATIVE_PATH,
+        "producer": root / PRODUCER_RELATIVE_PATH,
+    }
+    for label, path in bound_paths.items():
+        checks.require(path.is_file(), f"bound {label} is not a regular file")
+        checks.require(
+            not path.is_symlink() and path.resolve(strict=True) == path,
+            f"bound {label} path is indirect or noncanonical",
+        )
+    summary_path = bound_paths["summary"]
+    shard_archive_path = bound_paths["shard archive"]
+    roster_path = bound_paths["entity roster"]
+    source_commitment_path = bound_paths["source commitment"]
+    producer_path = bound_paths["producer"]
     summary_raw = summary_path.read_bytes()
     summary_sha256 = hashlib.sha256(summary_raw).hexdigest()
     checks.require(
@@ -1747,43 +1779,19 @@ def self_test() -> int:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--summary", type=Path)
-    result.add_argument("--shard-archive", type=Path)
-    result.add_argument("--entity-roster", type=Path)
-    result.add_argument("--source-commitment", type=Path)
-    result.add_argument("--producer", type=Path)
+    result.add_argument("--check-bound-evidence", action="store_true")
     result.add_argument("--self-test", action="store_true")
     return result
 
 
 def main() -> int:
     args = parser().parse_args()
-    evidence_paths = (
-        args.summary,
-        args.shard_archive,
-        args.entity_roster,
-        args.source_commitment,
-        args.producer,
-    )
-    if any(path is None for path in evidence_paths) and not all(
-        path is None for path in evidence_paths
-    ):
-        parser().error(
-            "summary, shard archive, roster, source commitment, and producer are "
-            "required together"
-        )
-    if not args.self_test and any(path is None for path in evidence_paths):
-        parser().error("evidence paths are required unless --self-test is used alone")
+    if not args.check_bound_evidence and not args.self_test:
+        parser().error("request --check-bound-evidence, --self-test, or both")
     try:
         check_count = 0
-        if all(path is not None for path in evidence_paths):
-            check_count = check_catalog(
-                args.summary,
-                args.shard_archive,
-                args.entity_roster,
-                args.source_commitment,
-                args.producer,
-            )
+        if args.check_bound_evidence:
+            check_count = check_catalog()
         if args.self_test:
             check_count += self_test()
     except Exception as error:  # noqa: BLE001 - checker failures must not emit success.

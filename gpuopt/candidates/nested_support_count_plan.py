@@ -26,13 +26,13 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "bef24e628cd14d8bf52ac3619afa2f2a89c2cfe1f594be2e1bb26b278de4debf"
+    "f870001a296a9232038aab9e536421a4ea71deef8aadf2d8ce9c739250e432af"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
 )
 CATALOG_RECEIPT_SHA256 = (
-    "a74385b1df850d894275bf027545d3166620addf9ddbbd623a1a6003d7e4c849"
+    "c820e19bbf309f05427453f97f070162d394e3992e8583314df76309cf895c94"
 )
 TOP_LEVEL_FIELDS = {
     "artifact_kind",
@@ -62,7 +62,7 @@ SAFE_EVIDENCE = {
     },
     "catalog_checker": {
         "path": "gpuopt/candidates/check_nested_support_catalog.py",
-        "sha256": "e11744cebe8c7e78e08ed65747ff67a7b8db4f818dfffb83381868d04889660f",
+        "sha256": "467a4a53edcac82015e3cdc9e4e0f40ad814b96c5ff9926688e62723cb19fe6b",
     },
     "catalog_producer": {
         "path": "gpuopt/candidates/nested_support_catalog.py",
@@ -222,12 +222,12 @@ EXPECTED_RECEIPT_TOP_LEVEL_FIELDS = {
 }
 EXPECTED_IREMB_BOUND_CHECKER_EXECUTION = {
     "checker_checks": 2079799,
-    "checker_sha256": SAFE_EVIDENCE["catalog_checker"]["sha256"],
+    "checker_sha256": "e11744cebe8c7e78e08ed65747ff67a7b8db4f818dfffb83381868d04889660f",
     "failed_python_compatibility_job": 136170,
     "node": "iREMB-C-08",
     "partition": "l40sq",
-    "scope": "raw evidence binding, identity replay, catalog integrity, and count arithmetic only; not a scientific gate checker",
-    "status": "PASS",
+    "scope": "historical pre-path-binding raw evidence, identity, catalog-integrity, and count-arithmetic replay; not current evidence and not a scientific gate checker",
+    "status": "PASS_HISTORICAL_PRE_PATH_BINDING",
     "successful_replay_job": 136171,
 }
 EXPECTED_NETBIRD_GATEWAY_EXECUTION = {
@@ -236,10 +236,19 @@ EXPECTED_NETBIRD_GATEWAY_EXECUTION = {
     "scope": "sealed catalog integrity and count arithmetic only, not a scientific gate checker",
     "status": "PASS",
 }
+EXPECTED_NETBIRD_PATH_BOUND_EXECUTION = {
+    "checker_checks": 2079812,
+    "checker_sha256": SAFE_EVIDENCE["catalog_checker"]["sha256"],
+    "host": "cylee-X10DAi",
+    "scope": "exact committed-relative-path, raw evidence, identity, catalog-integrity, and count-arithmetic replay only; not a scientific gate checker",
+    "status": "PASS",
+    "temporary_root_removed_after_execution": True,
+}
 EXPECTED_CATALOG_EXECUTION_NAMES = {
     "iremb_slurm",
     "iremb_slurm_bound_checker",
     "netbird_gateway_checker",
+    "netbird_gateway_path_bound_checker",
     "yulab_mac_studio",
 }
 
@@ -643,11 +652,17 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         "iremb_bound_checker_exact_execution_receipt",
     )
     _require(
-        executions.get("netbird_gateway_checker")
-        == EXPECTED_NETBIRD_GATEWAY_EXECUTION,
+        executions.get("netbird_gateway_checker") == EXPECTED_NETBIRD_GATEWAY_EXECUTION,
         "historical NetBird checker execution receipt changed",
         checks,
         "netbird_checker_exact_historical_execution_receipt",
+    )
+    _require(
+        executions.get("netbird_gateway_path_bound_checker")
+        == EXPECTED_NETBIRD_PATH_BOUND_EXECUTION,
+        "current NetBird path-bound checker execution receipt changed",
+        checks,
+        "netbird_path_bound_checker_exact_execution_receipt",
     )
     summary_sha256 = "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41"
     _require(
@@ -662,7 +677,8 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
     _require(
         executions.get("yulab_mac_studio", {}).get("completed_shard_tasks") == 27
         and executions.get("iremb_slurm", {}).get("completed_shard_tasks") == 27
-        and executions.get("iremb_slurm_bound_checker", {}).get("status") == "PASS"
+        and executions.get("iremb_slurm_bound_checker", {}).get("status")
+        == "PASS_HISTORICAL_PRE_PATH_BINDING"
         and executions.get("iremb_slurm_bound_checker", {}).get("node") == "iREMB-C-08"
         and executions.get("iremb_slurm_bound_checker", {}).get("partition") == "l40sq"
         and executions.get("iremb_slurm_bound_checker", {}).get(
@@ -674,14 +690,24 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         and executions.get("iremb_slurm_bound_checker", {}).get("checker_checks")
         == 2079799
         and executions.get("iremb_slurm_bound_checker", {}).get("checker_sha256")
-        == SAFE_EVIDENCE["catalog_checker"]["sha256"]
+        == "e11744cebe8c7e78e08ed65747ff67a7b8db4f818dfffb83381868d04889660f"
         and executions.get("netbird_gateway_checker", {}).get("status") == "PASS"
         and executions.get("netbird_gateway_checker", {}).get("scope")
         == "sealed catalog integrity and count arithmetic only, not a scientific gate checker"
         and executions.get("netbird_gateway_checker", {}).get("checker_checks")
         == 2029620
         and executions.get("netbird_gateway_checker", {}).get("checker_sha256")
-        == "6d6078f5729b959e6c5cc9e24d8d56b97ccc516dcef3f1e375560988e9b32ab4",
+        == "6d6078f5729b959e6c5cc9e24d8d56b97ccc516dcef3f1e375560988e9b32ab4"
+        and executions.get("netbird_gateway_path_bound_checker", {}).get("status")
+        == "PASS"
+        and executions.get("netbird_gateway_path_bound_checker", {}).get(
+            "checker_checks"
+        )
+        == 2079812
+        and executions.get("netbird_gateway_path_bound_checker", {}).get(
+            "checker_sha256"
+        )
+        == SAFE_EVIDENCE["catalog_checker"]["sha256"],
         "distributed execution or independent checker evidence incomplete",
         checks,
         "distributed_execution_and_checker_complete",
