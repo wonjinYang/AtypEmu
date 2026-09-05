@@ -328,6 +328,36 @@ print("METRIC matched_adapter_checks=84")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
+draft="$(mktemp)"
+rm -f "$draft"
+$PY gpuopt/freeze_k32_nested_k8_source_gate_draft.py --root . --output "$draft"
+$PY - "$draft" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+receipt = json.loads(Path(sys.argv[1]).read_text())
+assert receipt["draft_only"] is True and receipt["authorization_allowed"] is False
+assert receipt["runner_and_checker_pending"] is True
+assert receipt["source_entity_count"] == receipt["target_file_count"] == receipt["cache_file_count"] == 135
+from gpuopt.freeze_k32_nested_k8_source_gate_draft import STATIC_FILES
+assert len(receipt["files"]) == len(STATIC_FILES) + 270
+for relative, expected in receipt["files"].items():
+    assert hashlib.sha256(Path(relative).read_bytes()).hexdigest() == expected
+try:
+    from unittest import mock
+    from gpuopt.freeze_k32_nested_k8_source_gate_draft import main
+    with mock.patch("sys.argv", ["freeze", "--root", ".", "--output", sys.argv[1]]):
+        main()
+except FileExistsError:
+    pass
+else:
+    raise AssertionError("draft source commitment was clobbered")
+print("METRIC matched_adapter_checks=91")
+PY
+rm -f "$draft"
 /home/yang07/anaconda3/bin/ruff check \
   gpuopt/candidates/k32_nested_k8_adapter.py \
-  gpuopt/k32_source_gate_authorization.py
+  gpuopt/k32_source_gate_authorization.py \
+  gpuopt/freeze_k32_nested_k8_source_gate_draft.py

@@ -1,0 +1,16 @@
+{
+  "authorization_allowed_by_this_plan": false,
+  "contract": "k32_nested_k8_source_gate_plan_v1",
+  "eligibility": "Apply frozen inventory plus n>=2 finite rows and nonzero target variance independently to every train and held subset before normalization, fitting, and assimilation; reuse only training-half normalization on held rows.",
+  "formal_or_outer_access": false,
+  "frozen_hyperparameters": {"assimilation_learning_rate": 0.08, "assimilation_steps": 100, "chi1_chi4_bound_radians": 0.05, "observer_batch_size": 4096, "observer_epochs": 1024, "observer_learning_rate": 0.002, "q_kl_weight": 0.003, "reference_regularizer_weight": 0.003, "torsion_regularizer_weight": 0.03},
+  "goal": "honest all-label macro one-shared-q CCC >= 0.95 for unseen-entry NMR evidence assimilation",
+  "hypothesis": "The target-unread physically qualified K32 supports provide useful coordinate-conditioned response diversity beyond their exact nested K8 subset under one shared observer and independent entry-wide q, chi, and reference states.",
+  "loss": "Atom-balanced normalized SmoothL1 observer fitting and normalized MSE assimilation with fixed physical/q/reference priors; no CCC or concordance surrogate is optimized.",
+  "matched_controls": "Exact nested K8 under the same observer, K32 no-coordinate, K32 uniform-q, and anchor-only each optimize an independent fresh allowed state.",
+  "physicality": "Emit every optimized K32 state from its exact hash-bound PDB and require finite coordinates, <=1.0 Angstrom displacement, and >=0.5 Angstrom all-distinct-atom distance.",
+  "source_crossfit": "Within A and B independently, deterministically split whole sequence clusters into two balanced halves, train on one and score the other, then reverse.",
+  "source_gate": "K32-minus-nested-K8 and K32-minus-no-coordinate all-label macro Atom_ID CCC must each exceed 0.0005 in source A, source B, and combined OOF, which must define every frozen eligible Atom_ID. Family CCC is diagnostic only.",
+  "support_rosters": {"k32": [1, 32, 63, 94, 126, 157, 188, 221, 251, 281, 312, 344, 376, 407, 438, 469, 501, 533, 565, 595, 626, 656, 687, 719, 751, 781, 811, 843, 876, 906, 937, 968], "nested_k8": [1, 126, 251, 376, 501, 626, 751, 876]},
+  "target_values_opened_during_planning": false
+}
