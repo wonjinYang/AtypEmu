@@ -1,0 +1,74 @@
+{
+  "contract": "atypemu-k32-dynamic-distance-source-cache-plan-v1",
+  "hypothesis": "A target-unread cache of exact K32 emitted-coordinate inter-residue distances and analytic chi1-chi4 Jacobians can cover the full source A/B assignment inventory without opening chemical-shift values, enabling a later matched all-32-J versus nested-K8-J source-only gate.",
+  "scope": {
+    "entity_filter": {"observer_fold": ["A", "B"], "split": "train"},
+    "entity_count": 135,
+    "support_count": 32,
+    "target_identity_count": 127285,
+    "target_support_count": 4073120,
+    "support_roster_source": "gpuopt/check_k32_complete_coordinate_supports.py::EXPECTED_SUPPORTS"
+  },
+  "inputs_allowed": [
+    "data/all_atom_observer_v1/commitment.json",
+    "data/all_atom_observer_v1/features/<source_bmrb_id>.parquet",
+    "data/k32_complete_coordinate_supports_v4/<source_bmrb_id>/*.pdb",
+    ".auto/staging/k32_source_commitment_v4.json",
+    ".auto/runs/k32_complete_coordinate_supports_v4_receipt.json",
+    ".auto/consolidation/corrected_k8_job135711_evidence_20260905/decision.json",
+    ".auto/consolidation/corrected_k8_job135711_evidence_20260905/backpressure_recovery_receipt.json",
+    ".auto/consolidation/corrected_k8_job135711_evidence_20260905/corrected_k8_source_commitment.json",
+    ".auto/consolidation/corrected_k8_job135711_evidence_20260905/consumed_authorization.json",
+    ".auto/consolidation/corrected_k8_job135711_evidence_20260905/external_claim.json"
+  ],
+  "inputs_forbidden": [
+    "data/all_atom_observer_v1/targets/*.parquet",
+    "target_value",
+    "development_or_outer_targets",
+    "development_or_outer_predictions",
+    "development_or_outer_metrics",
+    "ucbshift_target_or_anchor_assets"
+  ],
+  "features": {
+    "distances": [
+      "nearest_interresidue_H_distance_angstrom",
+      "nearest_interresidue_C_distance_angstrom",
+      "nearest_interresidue_N_distance_angstrom",
+      "nearest_interresidue_O_distance_angstrom",
+      "nearest_interresidue_S_distance_angstrom"
+    ],
+    "missing_distance_fill_angstrom": 10.0,
+    "jacobian_units": "angstrom_per_radian",
+    "jacobian_torsions": ["chi1", "chi2", "chi3", "chi4"],
+    "availability_policy": "Preserve every target identity; record target-atom and per-element-distance availability per support, use filled distances and zero Jacobians, and never remove such rows from later loss or coverage.",
+    "omitted_support_features": "Do not reuse stale K8 torsion or SASA values. This minimal cache emits only exact K32 distance/Jacobian channels; a later matched gate either omits torsion/SASA from both arms or computes them from the same K32 coordinates."
+  },
+  "provenance": {
+    "freeze_before_materialization": true,
+    "source_commitment_create_mode": "O_EXCL",
+    "output_receipt_create_mode": "O_EXCL",
+    "parent_k32_receipt_sha256": "56da004b9f9236923867c79767870e50a892da9b6e45e632094ef6192d762029",
+    "corrected_k8_decision_sha256": "5e111f11a59fd1b8be78182d60ce6336726b103607f486d0496bb8a05cb1c6f6",
+    "corrected_k8_backpressure_recovery_receipt_sha256": "4113acb58e7bbaca06862fe098105ac60784d6989f8e9b4a8a4c5cac27be827c",
+    "parent_job134710_evidence_allowed": false
+  },
+  "acceptance": {
+    "exact_source_entities": 135,
+    "exact_supports_per_entity": 32,
+    "exact_target_support_rows": 4073120,
+    "target_unread_identity_smoke": {
+      "available_target_support_rows": 4072968,
+      "missing_HD1_rows": 25,
+      "missing_HE2_rows": 127,
+      "missing_other_rows": 0,
+      "target_atom_coverage": 0.9999626821699336
+    },
+    "all_numeric_arrays_finite": true,
+    "support_specific_target_availability_emitted": true,
+    "independent_identity_and_numeric_replay_required": true,
+    "target_values_read": false,
+    "source_gate_authorized": false,
+    "formal_evaluation_authorized": false
+  },
+  "interpretation": "A passing cache check is infrastructure evidence only. It neither passes the K32 dynamic-coordinate source gate nor authorizes any source-target, outer, or formal evaluation."
+}
