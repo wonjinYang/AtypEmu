@@ -6,8 +6,11 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+
+from gpuopt.source_gate_eligibility import validate_eligibility_receipt
 
 SUPPORTS = (1, 32, 63, 94, 126, 157, 188, 221, 251, 281, 312, 344, 376, 407, 438, 469, 501, 533, 565, 595, 626, 656, 687, 719, 751, 781, 811, 843, 876, 906, 937, 968)
 SUPPORT_IDS = tuple(f"BioEmu_{value}" for value in SUPPORTS)
@@ -47,6 +50,13 @@ class Surface:
     target_ids: np.ndarray
     support_ids: tuple[str, ...]
     arrays: tuple[np.ndarray, ...]
+
+
+@dataclass(frozen=True)
+class Arm:
+    surface: Surface
+    observer_state: np.ndarray
+    assimilation_state: tuple[np.ndarray, ...]
 
 
 def load(root: Path, entity_uid: str) -> Surface:
@@ -142,5 +152,41 @@ def nested8(surface: Surface) -> Surface:
     )
 
 
-def fresh_state(rows: int, supports: int) -> tuple[np.ndarray, np.ndarray]:
-    return np.zeros((rows, supports, 4), np.float32), np.zeros((1, supports), np.float32)
+def actuate(
+    surface: Surface,
+    self_delta: np.ndarray,
+    neighbor_delta: np.ndarray,
+) -> np.ndarray:
+    """Apply cached self/neighbor chi Jacobians to coordinate distances."""
+    distance, self_j, neighbor_j, _, _, available = surface.arrays
+    expected = (*distance.shape[:2], 4)
+    if self_delta.shape != expected or neighbor_delta.shape != expected:
+        raise ValueError("torsion delta shape mismatch")
+    change = np.einsum("tkec,tkc->tke", self_j, self_delta)
+    change += np.einsum("tkec,tkc->tke", neighbor_j, neighbor_delta)
+    return distance + np.where(available, change, 0.0)
+
+
+def require_eligible(values: dict[str, Any]) -> None:
+    receipt = values.get("source_eligibility_receipt")
+    if not isinstance(receipt, dict) or "frame" not in values:
+        raise ValueError("eligibility must precede normalization and fitting")
+    validate_eligibility_receipt(values["frame"], receipt)
+
+
+def fresh_state(rows: int, supports: int) -> tuple[np.ndarray, ...]:
+    return (
+        np.zeros((rows, supports, 4), np.float32),
+        np.zeros((1, supports), np.float32),
+        np.zeros((1, 3), np.float32),
+    )
+
+
+def matched_arms(surface: Surface, observer_state: np.ndarray) -> tuple[Arm, Arm]:
+    if len(observer_state) != len(surface.target_ids):
+        raise ValueError("observer state and target order differ")
+    small = nested8(surface)
+    return (
+        Arm(surface, observer_state, fresh_state(len(surface.target_ids), 32)),
+        Arm(small, observer_state, fresh_state(len(surface.target_ids), 8)),
+    )
