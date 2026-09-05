@@ -114,6 +114,7 @@ class AssimilationResult:
     residue_delta: np.ndarray
     reference_offset: np.ndarray
     coordinate_gradient_norm: float
+    prediction: np.ndarray
 
 
 @dataclass(frozen=True)
@@ -621,7 +622,9 @@ def optimize_assimilation(
         base = model(base_distance, available, atom, residue, position)
         base_mean = base.mean(dim=1, keepdim=True)
 
-    def objective() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def objective() -> tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor
+    ]:
         if coordinate_active:
             delta = 0.05 * torch.tanh(delta_raw)
             self_delta, neighbor_delta = gather_residue_deltas(
@@ -654,15 +657,15 @@ def optimize_assimilation(
             regularizer = regularizer + 3.0e-3 * torch.sum(
                 q * torch.log((q * len(q)).clamp_min(1.0e-12))
             )
-        return data_loss + regularizer, data_loss, q, delta
+        return data_loss + regularizer, data_loss, q, delta, aggregate
 
     initial = float(objective()[1].detach())
     for _ in range(steps):
-        total, _, _, _ = objective()
+        total, _, _, _, _ = objective()
         optimizer.zero_grad(set_to_none=True)
         total.backward()
         optimizer.step()
-    _, final_data, q, delta = objective()
+    _, final_data, q, delta, aggregate = objective()
     gradient_norm = 0.0
     if coordinate_active:
         gradient = torch.autograd.grad(final_data, delta_raw, retain_graph=False)[0]
@@ -677,7 +680,71 @@ def optimize_assimilation(
         residue_delta=delta.detach().numpy(),
         reference_offset=reference.numpy(),
         coordinate_gradient_norm=gradient_norm,
+        prediction=(
+            targets.center + targets.scale * aggregate.detach().numpy()
+        ).astype(np.float32),
     )
+
+
+def matched_assimilation(
+    model: DynamicDistanceObserver,
+    surface: Surface,
+    targets: SourceTargets,
+    anchor: np.ndarray,
+    context: tuple[np.ndarray, np.ndarray, np.ndarray],
+    *,
+    mode: str,
+    steps: int,
+) -> tuple[AssimilationResult, AssimilationResult]:
+    """Run independent K32 and exact nested-K8 optimizers from fresh zeros."""
+    if not np.all(anchor == anchor[:, :1]):
+        raise ValueError("matched support-capacity gate requires invariant anchors")
+    k32 = optimize_assimilation(
+        model, surface, targets, anchor, context, mode=mode, steps=steps
+    )
+    k8_surface = nested8(surface)
+    k8_anchor = np.take(anchor, NESTED, axis=1)
+    k8 = optimize_assimilation(
+        model, k8_surface, targets, k8_anchor, context, mode=mode, steps=steps
+    )
+    return k32, k8
+
+
+def concordance(target: np.ndarray, prediction: np.ndarray) -> float:
+    target = np.asarray(target, dtype=np.float64)
+    prediction = np.asarray(prediction, dtype=np.float64)
+    target_centered = target - target.mean()
+    prediction_centered = prediction - prediction.mean()
+    denominator = (
+        np.mean(target_centered**2)
+        + np.mean(prediction_centered**2)
+        + float(target.mean() - prediction.mean()) ** 2
+    )
+    if len(target) < 2 or denominator <= 1.0e-15:
+        raise ValueError("undefined CCC input")
+    return float(2.0 * np.mean(target_centered * prediction_centered) / denominator)
+
+
+def macro_atom_id_ccc(
+    frame: pd.DataFrame,
+    prediction: np.ndarray,
+    eligible_atom_ids: tuple[str, ...],
+) -> tuple[float, dict[str, float]]:
+    """Score raw-ppm CCC per frozen Atom_ID, then take its unweighted macro."""
+    prediction = np.asarray(prediction, dtype=np.float64)
+    if prediction.shape != (len(frame),) or not np.isfinite(prediction).all():
+        raise ValueError("prediction surface is incomplete or nonfinite")
+    atom = frame["atom_id"].astype(str).to_numpy()
+    target = frame["target_value"].to_numpy(dtype=np.float64)
+    per_label = {}
+    for atom_id in eligible_atom_ids:
+        rows = atom == atom_id
+        if rows.sum() < 2 or float(np.var(target[rows])) <= 1.0e-15:
+            raise ValueError(f"frozen source label has undefined target CCC: {atom_id}")
+        per_label[atom_id] = concordance(target[rows], prediction[rows])
+    if set(per_label) != set(eligible_atom_ids) or not per_label:
+        raise ValueError("source scorer omitted a frozen Atom_ID")
+    return float(np.mean(list(per_label.values()))), per_label
 
 
 def actuate(

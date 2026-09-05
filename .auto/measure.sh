@@ -157,7 +157,22 @@ eligible_values, eligible_surface = adapter.eligible_source_subset(
 )
 assert len(eligible_values["frame"]) == 15 and len(eligible_surface.target_ids) == 15
 assert "ZZ" not in set(eligible_values["frame"]["atom_id"])
-print("METRIC matched_adapter_checks=50")
+k32_result, k8_result = adapter.matched_assimilation(
+    fit_model, training_surface, targets, synthetic_anchor, fit_context,
+    mode="full", steps=12,
+)
+assert k32_result.prediction.shape == k8_result.prediction.shape == (16,)
+assert np.isfinite(k32_result.prediction).all() and np.isfinite(k8_result.prediction).all()
+assert not np.shares_memory(k32_result.q, k8_result.q)
+k32_score, k32_labels = adapter.macro_atom_id_ccc(
+    training_frame, k32_result.prediction, ("CA", "CB"),
+)
+k8_score, k8_labels = adapter.macro_atom_id_ccc(
+    training_frame, k8_result.prediction, ("CA", "CB"),
+)
+assert np.isfinite([k32_score, k8_score]).all()
+assert set(k32_labels) == set(k8_labels) == {"CA", "CB"}
+print("METRIC matched_adapter_checks=55")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
