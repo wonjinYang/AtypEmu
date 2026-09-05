@@ -271,7 +271,7 @@ def _target_masks(
             bool(available and (element_residues[element] - {residue}))
             for element in ELEMENTS
         )
-        for element, channel in zip(ELEMENTS, channels, strict=True):
+        for element, channel in zip(ELEMENTS, channels):
             distance_counts[element] += channel
         identity = json.dumps(
             [entity_uid, target_id, seq_id, comp_id, source_atom_id],
@@ -774,6 +774,13 @@ def self_test() -> int:
     assert result["histidine_tautomer_change_count"] == 1
     assert result["target_available_count"] == 2
     assert result["target_missing_by_atom"] == {"HIS:HE2": 1}
+    assert dict(zip(ELEMENTS, (True, True, True, True, False))) == {
+        "H": True,
+        "C": True,
+        "N": True,
+        "O": True,
+        "S": False,
+    }
     renamed_targets = [dict(row) for row in targets]
     renamed_targets[0]["target_id"] = "renamed"
     assert (
@@ -847,7 +854,7 @@ def self_test() -> int:
         pass
     else:
         raise AssertionError("self-test accepted ambiguous target identity")
-    return 8
+    return 9
 
 
 def main() -> int:
