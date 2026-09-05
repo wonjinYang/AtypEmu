@@ -29,7 +29,19 @@ assert np.array_equal(adapter.actuate(surface, zeros32, zeros32), surface.arrays
 synthetic = pd.DataFrame({"entity_uid": ["e", "e"], "target_id": ["a", "b"], "atom_id": ["CA", "CA"], "target_value": [1.0, 2.0]})
 receipt = build_eligibility_receipt(synthetic, synthetic, frozen_atom_ids=["CA"], fold="A", held_half=0, role="smoke")
 adapter.require_eligible({"frame": synthetic, "source_eligibility_receipt": receipt})
-print("METRIC matched_adapter_checks=14")
+rows = len(surface.target_ids)
+observer = np.zeros((rows, 2), np.float32)
+inputs = adapter.bind_model_inputs(surface, support_ids=adapter.SUPPORT_IDS, observer_state=observer, torsion=np.zeros((rows, 32, 1), np.float32), geometry=np.zeros((rows, 32, 1), np.float32), dynamic_distance=surface.arrays[0], support_anchor=np.zeros((rows, 32), np.float32))
+small_inputs = adapter.nested_model_inputs(inputs)
+assert small_inputs.observer_state is inputs.observer_state
+assert np.array_equal(small_inputs.support_anchor, inputs.support_anchor[:, adapter.NESTED])
+try:
+    adapter.bind_model_inputs(surface, support_ids=small_inputs.surface.support_ids, observer_state=observer, torsion=inputs.torsion, geometry=inputs.geometry, dynamic_distance=surface.arrays[0], support_anchor=inputs.support_anchor)
+except ValueError as error:
+    assert "support roster" in str(error)
+else:
+    raise AssertionError("incomplete K8 base surface was accepted as K32")
+print("METRIC matched_adapter_checks=18")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

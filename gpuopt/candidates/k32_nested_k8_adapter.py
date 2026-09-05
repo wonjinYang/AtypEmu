@@ -59,6 +59,15 @@ class Arm:
     assimilation_state: tuple[np.ndarray, ...]
 
 
+@dataclass(frozen=True)
+class ModelInputs:
+    surface: Surface
+    observer_state: np.ndarray
+    torsion: np.ndarray
+    geometry: np.ndarray
+    support_anchor: np.ndarray
+
+
 def load(root: Path, entity_uid: str) -> Surface:
     """Load frozen identities/geometry only, never chemical-shift targets."""
     root = root.resolve()
@@ -189,4 +198,49 @@ def matched_arms(surface: Surface, observer_state: np.ndarray) -> tuple[Arm, Arm
     return (
         Arm(surface, observer_state, fresh_state(len(surface.target_ids), 32)),
         Arm(small, observer_state, fresh_state(len(surface.target_ids), 8)),
+    )
+
+
+def bind_model_inputs(
+    surface: Surface,
+    *,
+    support_ids: tuple[str, ...],
+    observer_state: np.ndarray,
+    torsion: np.ndarray,
+    geometry: np.ndarray,
+    dynamic_distance: np.ndarray,
+    support_anchor: np.ndarray,
+) -> ModelInputs:
+    """Reject an arm unless every support-dependent model input is complete."""
+    rows, supports = len(surface.target_ids), len(surface.support_ids)
+    if support_ids != surface.support_ids:
+        raise ValueError("base-model support roster differs from coordinate cache")
+    if len(observer_state) != rows:
+        raise ValueError("observer state and target order differ")
+    expected_prefix = (rows, supports)
+    if (
+        torsion.shape[:2] != expected_prefix
+        or geometry.shape[:2] != expected_prefix
+        or dynamic_distance.shape != surface.arrays[0].shape
+        or support_anchor.shape != expected_prefix
+    ):
+        raise ValueError("base-model support surface is incomplete")
+    if not np.array_equal(dynamic_distance, surface.arrays[0]):
+        raise ValueError("base geometry is not aligned to emitted-coordinate distances")
+    if not all(
+        np.isfinite(value).all()
+        for value in (observer_state, torsion, geometry, support_anchor)
+    ):
+        raise ValueError("base-model support surface is nonfinite")
+    return ModelInputs(surface, observer_state, torsion, geometry, support_anchor)
+
+
+def nested_model_inputs(values: ModelInputs) -> ModelInputs:
+    small = nested8(values.surface)
+    return ModelInputs(
+        small,
+        values.observer_state,
+        np.take(values.torsion, NESTED, axis=1),
+        np.take(values.geometry, NESTED, axis=1),
+        np.take(values.support_anchor, NESTED, axis=1),
     )
