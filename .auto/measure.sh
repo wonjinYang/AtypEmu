@@ -335,6 +335,7 @@ $PY - "$draft" <<'PY'
 import hashlib
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 receipt = json.loads(Path(sys.argv[1]).read_text())
@@ -361,8 +362,10 @@ $PY gpuopt/run_k32_nested_k8_source_gate.py \
   --root . --draft-commitment "$draft" --preflight-output "$preflight" --preflight-only
 $PY - "$preflight" <<'PY'
 import ast
+import hashlib
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 receipt = json.loads(Path(sys.argv[1]).read_text())
@@ -467,7 +470,25 @@ assert np.isfinite(result.predictions[[
 assert len(result.coordinate_states) == 2 * len(evaluation_entities)
 assert all(state.residue_delta.shape[1:] == (32, 4) for state in result.coordinate_states)
 assert result.predictions["observer_state_sha256"].nunique() == 1
-print("METRIC matched_adapter_checks=116")
+coordinate_audit = adapter.audit_source_cell_coordinates(Path("."), result)
+assert len(coordinate_audit) == len(result.coordinate_states) * 32
+assert coordinate_audit["maximum_displacement_angstrom"].max() <= 1
+assert coordinate_audit["maximum_displacement_angstrom"].max() > 0
+assert coordinate_audit["minimum_distinct_atom_distance_angstrom"].min() >= 0.5
+with tempfile.TemporaryDirectory() as temporary:
+    output = Path(temporary) / "cell"
+    receipt = adapter.write_source_cell_outputs_new(output, result, coordinate_audit)
+    assert receipt["prediction_rows"] == len(result.predictions)
+    assert receipt["q_rows"] == len(result.q)
+    for name, expected in receipt["files"].items():
+        assert hashlib.sha256((output / f"{name}.parquet").read_bytes()).hexdigest() == expected
+    try:
+        adapter.write_source_cell_outputs_new(output, result, coordinate_audit)
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("source-cell outputs were overwritten")
+print("METRIC matched_adapter_checks=125")
 PY
 rm -f "$preflight"
 rm -f "$draft"

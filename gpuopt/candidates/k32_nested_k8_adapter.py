@@ -16,6 +16,7 @@ from torch import nn
 
 from gpuopt.source_gate_eligibility import (
     build_eligibility_receipt,
+    row_identity_sha256,
     source_eligible_row_mask,
     validate_eligibility_receipt,
 )
@@ -142,6 +143,7 @@ class CoordinateAuditInput:
     mode: str
     residue_ids: tuple[int, ...]
     residue_delta: np.ndarray
+    coordinate_gradient_norm: float
 
 
 @dataclass(frozen=True)
@@ -936,7 +938,11 @@ def run_source_crossfit_cell(
         residue_ids = residue_inventory(surface)
         coordinate_states.extend(
             CoordinateAuditInput(
-                entity_uid, mode, residue_ids, result.residue_delta
+                entity_uid,
+                mode,
+                residue_ids,
+                result.residue_delta,
+                result.coordinate_gradient_norm,
             )
             for mode, result in (
                 ("full_k32", full_k32),
@@ -963,6 +969,102 @@ def run_source_crossfit_cell(
         observer_final_loss=final_loss,
         observer_state_sha256=state_sha256,
     )
+
+
+def audit_source_cell_coordinates(
+    root: Path, result: SourceCellResult
+) -> pd.DataFrame:
+    """Replay and physically audit every emitted coordinate-bearing support."""
+    expected_modes = {"full_k32", "uniform_q"}
+    records: list[dict[str, Any]] = []
+    for state in result.coordinate_states:
+        if (
+            state.mode not in expected_modes
+            or state.residue_delta.shape
+            != (len(state.residue_ids), len(SUPPORT_IDS), 4)
+            or not np.isfinite(state.coordinate_gradient_norm)
+            or state.coordinate_gradient_norm <= 0
+        ):
+            raise ValueError("source-cell coordinate state is invalid")
+        state_motion = 0.0
+        for support_number, support_id in enumerate(SUPPORT_IDS):
+            coordinate = emit_coordinate_state(
+                root,
+                entity_uid=state.entity_uid,
+                support_id=support_id,
+                residue_ids=state.residue_ids,
+                residue_delta=state.residue_delta[:, support_number, :],
+            )
+            maximum, minimum = audit_coordinate_state(
+                coordinate, require_motion=False
+            )
+            state_motion = max(state_motion, maximum)
+            records.append(
+                {
+                    "entity_uid": state.entity_uid,
+                    "mode": state.mode,
+                    "support_id": support_id,
+                    "maximum_displacement_angstrom": maximum,
+                    "minimum_distinct_atom_distance_angstrom": minimum,
+                    "coordinate_gradient_norm": state.coordinate_gradient_norm,
+                }
+            )
+        if state_motion <= 1.0e-8:
+            raise ValueError("coordinate-bearing source state produced no motion")
+    frame = pd.DataFrame(records)
+    expected_rows = len(result.coordinate_states) * len(SUPPORT_IDS)
+    if (
+        len(frame) != expected_rows
+        or frame.duplicated(["entity_uid", "mode", "support_id"]).any()
+    ):
+        raise ValueError("source-cell coordinate audit inventory mismatch")
+    return frame
+
+
+def write_source_cell_outputs_new(
+    output_dir: Path,
+    result: SourceCellResult,
+    coordinate_audit: pd.DataFrame,
+) -> dict[str, Any]:
+    """Seal one source cell without allowing partial-output reuse or overwrite."""
+    expected_audit = {
+        (state.entity_uid, state.mode, support_id)
+        for state in result.coordinate_states
+        for support_id in SUPPORT_IDS
+    }
+    observed_audit = set(
+        coordinate_audit[["entity_uid", "mode", "support_id"]].itertuples(
+            index=False, name=None
+        )
+    )
+    if observed_audit != expected_audit:
+        raise ValueError("coordinate audit does not cover every retained state")
+    output_dir.mkdir(parents=True, exist_ok=False)
+    paths = {
+        "predictions": output_dir / "predictions.parquet",
+        "q": output_dir / "q.parquet",
+        "coordinate_audit": output_dir / "coordinate_audit.parquet",
+    }
+    result.predictions.to_parquet(paths["predictions"], index=False)
+    result.q.to_parquet(paths["q"], index=False)
+    coordinate_audit.to_parquet(paths["coordinate_audit"], index=False)
+    receipt = {
+        "contract": "k32_nested_k8_source_gate_cell_output_v1",
+        "coordinate_audit_rows": len(coordinate_audit),
+        "files": {name: sha256(path) for name, path in paths.items()},
+        "fold": str(result.predictions["fold"].iloc[0]),
+        "held_half": int(result.predictions["held_half"].iloc[0]),
+        "observer_final_loss": result.observer_final_loss,
+        "observer_initial_loss": result.observer_initial_loss,
+        "observer_state_sha256": result.observer_state_sha256,
+        "prediction_row_identity_sha256": row_identity_sha256(result.predictions),
+        "prediction_rows": len(result.predictions),
+        "q_rows": len(result.q),
+    }
+    with (output_dir / "receipt.json").open("x") as handle:
+        json.dump(receipt, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    return receipt
 
 
 def optimize_assimilation(
