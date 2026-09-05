@@ -283,7 +283,6 @@ def verify(root: Path) -> int:
     archive = root / ARCHIVE_RELATIVE
     files = _open_archive(archive)
     assert _sha256(files[RAW_CHECKER_RELATIVE.as_posix()]) == RAW_CHECKER_SHA256
-    assert _sha256((root / RAW_CHECKER_RELATIVE).read_bytes()) == RAW_CHECKER_SHA256
     assert _sha256(files[
         "gpuopt/candidates/check_nested_support_all_atom_recount_raw."
         f"v1_failed_{RAW_CHECKER_V1_SHA256}.py"

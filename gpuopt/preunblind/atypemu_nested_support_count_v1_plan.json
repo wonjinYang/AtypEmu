@@ -70,9 +70,9 @@
       "path": "gpuopt/candidates/check_nested_support_all_atom_recount.py",
       "sha256": "a2bcfe2e204dbfd248062d44dd6475aa313a55c906923385b364ef6fe3bdbe4e"
     },
-    "all_atom_raw_replay_checker": {
-      "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
-      "sha256": "2df2bacf45bdf6fa64e5d521575f531006dbd1f65db573207274622a7e2ccd8c"
+    "all_atom_raw_replay_v3_candidate": {
+      "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py",
+      "sha256": "3dfbbb01642212fa6726fd7ed674d7a6511f16fc4fcca5c69d0d445711fc6aa2"
     },
     "all_atom_raw_evidence_archive": {
       "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
@@ -80,7 +80,7 @@
     },
     "all_atom_raw_evidence_checker": {
       "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
-      "sha256": "23781871b9f9cd8abe3884c8c2217f43727bc69eefe75e131399244582af945b"
+      "sha256": "21672070fe2ad47bfce9b8eb2716ed737bf318445e903ecb154c5365838b286c"
     },
     "all_atom_raw_replay_correction_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -150,7 +150,7 @@
     "all_atom_recount_completed": true,
     "bioemu_only_redundant_expansion": "count scaling only",
     "general_sampling_sufficiency_established": false,
-    "independent_raw_pdb_replay_status": "PASS_134850_PARTITIONS_EXACT_HOLD_PRESERVED",
+    "independent_raw_pdb_replay_status": "MASK_REPLAY_PASS_TOPOLOGY_INDEPENDENCE_PENDING_V3",
     "jeon_transfer_claim_allowed": false,
     "k32_role": "low-K coordinate/Jacobian causal-infrastructure smoke only",
     "one_ladder_establishes_general_sufficiency": false

@@ -101,5 +101,5 @@ PY
   gpuopt/candidates/check_nested_support_catalog.py \
   gpuopt/candidates/nested_support_all_atom_recount.py \
   gpuopt/candidates/check_nested_support_all_atom_recount.py \
-  gpuopt/candidates/check_nested_support_all_atom_recount_raw.py \
+  gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py \
   gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py

@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "7cfef523ce39cb4e31e24c4e0ececda2ebdc480a64655babb623345bea22f147"
+    "92111af8bb6f26c3be7c3427987db1597365301c15392b977e96256ff74f4c56"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -75,9 +75,9 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/check_nested_support_all_atom_recount.py",
         "sha256": "a2bcfe2e204dbfd248062d44dd6475aa313a55c906923385b364ef6fe3bdbe4e",
     },
-    "all_atom_raw_replay_checker": {
-        "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
-        "sha256": "2df2bacf45bdf6fa64e5d521575f531006dbd1f65db573207274622a7e2ccd8c",
+    "all_atom_raw_replay_v3_candidate": {
+        "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py",
+        "sha256": "3dfbbb01642212fa6726fd7ed674d7a6511f16fc4fcca5c69d0d445711fc6aa2",
     },
     "all_atom_raw_evidence_archive": {
         "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
@@ -85,7 +85,7 @@ SAFE_EVIDENCE = {
     },
     "all_atom_raw_evidence_checker": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
-        "sha256": "23781871b9f9cd8abe3884c8c2217f43727bc69eefe75e131399244582af945b",
+        "sha256": "21672070fe2ad47bfce9b8eb2716ed737bf318445e903ecb154c5365838b286c",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -154,7 +154,7 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_policy",
     "all_atom_recount_producer",
     "all_atom_recount_checker",
-    "all_atom_raw_replay_checker",
+    "all_atom_raw_replay_v3_candidate",
     "all_atom_raw_evidence_archive",
     "all_atom_raw_evidence_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -588,7 +588,7 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         and interpretation.get("all_atom_count_feasibility_established") is False
         and interpretation.get("all_atom_recount_completed") is True
         and interpretation.get("independent_raw_pdb_replay_status")
-        == "PASS_134850_PARTITIONS_EXACT_HOLD_PRESERVED",
+        == "MASK_REPLAY_PASS_TOPOLOGY_INDEPENDENCE_PENDING_V3",
         "K32, Jeon, or sampling-sufficiency interpretation drifted",
         checks,
         "interpretation_limits",
@@ -945,7 +945,7 @@ def main() -> int:
     )
     raw_evidence_checks = verify_raw_evidence(root)
     if args.self_test:
-        from check_nested_support_all_atom_recount_raw import (
+        from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
         )
         from nested_support_all_atom_recount import self_test as recount_self_test

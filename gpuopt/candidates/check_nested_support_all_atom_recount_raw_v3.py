@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently raw-replay the sealed all-atom recount, with O_EXCL receipts.
+"""Independently raw-replay all-atom masks/topology, with O_EXCL receipts.
 This checker intentionally does not import the recount producer.  It reads only
 six identity columns from each source feature Parquet and reimplements the PDB,
 HIS-tautomer, and target-mask rules before comparing every sealed entity.
@@ -17,12 +17,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 STUDY_ID = "atypemu_nested_support_count_v1"
-CHECKER_RELATIVE = "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py"
+CHECKER_RELATIVE = "gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py"
 POLICY_RELATIVE = "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json"
 CATALOG_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz"
 SOURCE_RELATIVE = ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
 SEALED_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_v1_yulab/recount_results.tar.gz"
-OUTPUT_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v2"
+OUTPUT_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v3"
 PDB_ROOT_RELATIVE = "data/BioEmu"
 # Per-PDB and per-Parquet hashes are bound through these committed inputs.
 FIXED_SHA256 = {
@@ -295,6 +295,7 @@ Atom = tuple[str, str, str, int, str, int, str, str]
 Residue = tuple[int, str, int, str, str]
 def _parse_pdb(raw: bytes) -> dict[str, Any]:
     atoms: set[Atom] = set()
+    topology = hashlib.sha256()
     lookup: dict[tuple[int, str, str], list[Residue]] = {}
     element_residues: dict[str, set[Residue]] = {element: set() for element in ELEMENTS}
     segment = 0
@@ -332,13 +333,20 @@ def _parse_pdb(raw: bytes) -> dict[str, Any]:
         if atom in atoms:
             raise ValueError("duplicate PDB atom identity: %r" % (atom,))
         atoms.add(atom)
+        topology.update(json.dumps(atom, separators=(",", ":")).encode("utf-8"))
+        topology.update(b"\n")
         residue = (segment, chain, seq_id, atom[6], resname)
         lookup.setdefault((seq_id, resname, name), []).append(residue)
         if element in element_residues:
             element_residues[element].add(residue)
     if not atoms:
         raise ValueError("PDB contains no atoms")
-    return {"atoms": atoms, "lookup": lookup, "element_residues": element_residues}
+    return {
+        "all_atom_topology_sha256": topology.hexdigest(),
+        "atoms": atoms,
+        "lookup": lookup,
+        "element_residues": element_residues,
+    }
 def _his_changes(reference: dict[str, Any], support: dict[str, Any]) -> int:
     reference_atoms: set[Atom] = reference["atoms"]
     atoms: set[Atom] = support["atoms"]
@@ -468,10 +476,12 @@ def _replay_entity(root: Path, entity: dict[str, Any], targets: list[dict[str, A
         raw = path.read_bytes()
         try:
             parsed = _parse_pdb(raw)
+            if parsed["all_atom_topology_sha256"] != record["all_atom_topology_sha256"]:
+                raise ValueError("raw PDB topology hash differs from catalog")
             support = {
                 "support_index": support_index,
                 "pdb_sha256": _sha256_bytes(raw),
-                "all_atom_topology_sha256": record["all_atom_topology_sha256"],
+                "all_atom_topology_sha256": parsed["all_atom_topology_sha256"],
                 "histidine_tautomer_change_count": _his_changes(reference, parsed),
                 "status": "POLICY_COMPLIANT_MASK_EMITTED",
             }
@@ -745,7 +755,7 @@ def _shard_receipt(root: Path, index: int, raw_rows: list[dict[str, Any]], seale
         raise ValueError("receipt requires exact raw/sealed entity comparison")
     return {
         "artifact_kind": "hold_only_raw_replay_shard_execution_evidence_not_authorization",
-        "contract": "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v2",
+        "contract": "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v3",
         "study_id": STUDY_ID,
         "bindings": _bindings(),
         "checker_relative_path": CHECKER_RELATIVE,
@@ -766,7 +776,7 @@ def _validate_receipt(receipt: dict[str, Any], index: int, root: Path) -> None:
         receipt.get("artifact_kind")
         != "hold_only_raw_replay_shard_execution_evidence_not_authorization"
         or receipt.get("contract")
-        != "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v2"
+        != "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v3"
         or receipt.get("study_id") != STUDY_ID
         or receipt.get("bindings") != _bindings()
         or receipt.get("checker_relative_path") != CHECKER_RELATIVE
@@ -836,7 +846,7 @@ def aggregate() -> dict[str, Any]:
         raise ValueError("aggregate entity coverage/content mismatch")
     receipt = {
         "artifact_kind": "hold_only_raw_replay_aggregate_execution_evidence_not_authorization",
-        "contract": "atypemu_nested_support_count_v1_raw_replay_aggregate_receipt_v2",
+        "contract": "atypemu_nested_support_count_v1_raw_replay_aggregate_receipt_v3",
         "study_id": STUDY_ID,
         "statement": "This receipt is execution evidence, not a cryptographic attestation.",
         "bindings": _bindings(),
@@ -864,6 +874,7 @@ def self_test() -> int:
     before, after = _parse_pdb(reference), _parse_pdb(support)
     masks = _masks(after, targets)
     assert _his_changes(before, after) == 1 and masks["target_available_count"] == 2
+    assert before["all_atom_topology_sha256"] != after["all_atom_topology_sha256"]
     assert masks["target_missing_by_atom"] == {"HIS:HE2": 1}
     assert masks["distance_available_count_by_element"] == {"H": 2, "C": 2, "N": 2, "O": 0, "S": 0}
     renamed = [dict(row) for row in targets]
@@ -881,7 +892,7 @@ def self_test() -> int:
     assert SHARD_RECEIPT_FIELDS >= {"raw_replay_entity_count", "raw_replay_entities_sha256", "sealed_result_entity_count", "sealed_result_entities_sha256"}
     assert "statement" in AGGREGATE_RECEIPT_FIELDS
     assert _pdb_relative("bmr50238", 1) == "data/BioEmu/bmr50238/bmr50238_BioEmu_1.pdb"
-    return 9
+    return 10
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
