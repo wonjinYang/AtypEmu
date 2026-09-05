@@ -26,7 +26,8 @@ all32, nested8 = adapter.matched_arms(surface, np.zeros((len(surface.target_ids)
 assert all32.observer_state is nested8.observer_state
 assert all(not np.shares_memory(a, b) for a in all32.assimilation_state for b in nested8.assimilation_state)
 zeros32 = np.zeros((len(surface.target_ids), 32, 4), np.float32)
-assert np.array_equal(adapter.actuate(surface, zeros32, zeros32), surface.arrays[0])
+neighbor_zeros32 = np.zeros((*surface.arrays[0].shape, 4), np.float32)
+assert np.array_equal(adapter.actuate(surface, zeros32, neighbor_zeros32), surface.arrays[0])
 synthetic = pd.DataFrame({"entity_uid": ["e", "e"], "target_id": ["a", "b"], "atom_id": ["CA", "CA"], "target_value": [1.0, 2.0]})
 receipt = build_eligibility_receipt(synthetic, synthetic, frozen_atom_ids=["CA"], fold="A", held_half=0, role="smoke")
 adapter.require_eligible({"frame": synthetic, "source_eligibility_receipt": receipt})
@@ -42,9 +43,13 @@ except ValueError as error:
     assert "support roster" in str(error)
 else:
     raise AssertionError("incomplete K8 base surface was accepted as K32")
-probe = adapter.Surface(surface.target_ids[:16], surface.support_ids, tuple(value[:16] for value in surface.arrays))
+probe = adapter.Surface(
+    surface.target_ids[:16], surface.support_ids,
+    tuple(value[:16] for value in surface.arrays),
+    tuple(value[:16] for value in surface.row_context),
+)
 self_delta = torch.zeros((16, 32, 4), requires_grad=True)
-neighbor_delta = torch.zeros((16, 32, 4), requires_grad=True)
+neighbor_delta = torch.zeros((16, 32, 5, 4), requires_grad=True)
 active_distance, available = adapter.differentiable_actuate(probe, self_delta, neighbor_delta)
 assert np.array_equal(active_distance.detach().numpy(), probe.arrays[0])
 torch.manual_seed(20260905)
@@ -90,7 +95,17 @@ fit_context = adapter.context_indices(training_surface, inventory)
 initial_loss, final_loss = adapter.fit_source_observer(fit_model, training_surface, targets, fit_context, epochs=96)
 assert final_loss < initial_loss * 0.5
 assert "evaluation" not in inspect.signature(adapter.fit_source_observer).parameters
-print("METRIC matched_adapter_checks=29")
+residue_ids = adapter.residue_inventory(probe)
+residue_delta = torch.zeros((len(residue_ids), 32, 4), requires_grad=True)
+row_delta, neighbor_row_delta = adapter.gather_residue_deltas(probe, residue_ids, residue_delta)
+assert row_delta.shape == (16, 32, 4) and neighbor_row_delta.shape == (16, 32, 5, 4)
+for seq_id in set(probe.row_context[0]):
+    rows_for_residue = np.flatnonzero(probe.row_context[0] == seq_id)
+    assert torch.equal(row_delta[rows_for_residue], row_delta[rows_for_residue[:1]].expand(len(rows_for_residue), -1, -1))
+mapped_distance, mapped_available = adapter.differentiable_actuate(probe, row_delta, neighbor_row_delta)
+fit_model(mapped_distance, mapped_available, torch.from_numpy(atom[:16]), torch.from_numpy(residue[:16]), torch.from_numpy(position[:16])).sum().backward()
+assert residue_delta.grad is not None and torch.isfinite(residue_delta.grad).all() and residue_delta.grad.norm() > 0
+print("METRIC matched_adapter_checks=33")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY

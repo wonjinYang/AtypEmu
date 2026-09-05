@@ -368,11 +368,12 @@ def actuate(
 ) -> np.ndarray:
     """Apply cached self/neighbor chi Jacobians to coordinate distances."""
     distance, self_j, neighbor_j, _, _, available = surface.arrays
-    expected = (*distance.shape[:2], 4)
-    if self_delta.shape != expected or neighbor_delta.shape != expected:
+    self_shape = (*distance.shape[:2], 4)
+    neighbor_shape = (*distance.shape, 4)
+    if self_delta.shape != self_shape or neighbor_delta.shape != neighbor_shape:
         raise ValueError("torsion delta shape mismatch")
     change = np.einsum("tkec,tkc->tke", self_j, self_delta)
-    change += np.einsum("tkec,tkc->tke", neighbor_j, neighbor_delta)
+    change += np.einsum("tkec,tkec->tke", neighbor_j, neighbor_delta)
     return distance + np.where(available, change, 0.0)
 
 
@@ -383,8 +384,12 @@ def differentiable_actuate(
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Torch actuation preserving CS-loss gradients to coordinate deltas."""
     distance, self_j, neighbor_j, _, _, available = surface.arrays
-    expected = (*distance.shape[:2], 4)
-    if tuple(self_delta.shape) != expected or tuple(neighbor_delta.shape) != expected:
+    self_shape = (*distance.shape[:2], 4)
+    neighbor_shape = (*distance.shape, 4)
+    if (
+        tuple(self_delta.shape) != self_shape
+        or tuple(neighbor_delta.shape) != neighbor_shape
+    ):
         raise ValueError("torsion delta shape mismatch")
     device = self_delta.device
     base = torch.as_tensor(distance, device=device)
@@ -393,9 +398,66 @@ def differentiable_actuate(
     neighbor_tensor = torch.as_tensor(neighbor_j, device=device)
     change = torch.einsum("tkec,tkc->tke", self_tensor, self_delta)
     change = change + torch.einsum(
-        "tkec,tkc->tke", neighbor_tensor, neighbor_delta
+        "tkec,tkec->tke", neighbor_tensor, neighbor_delta
     )
     return base + torch.where(mask, change, torch.zeros_like(change)), mask
+
+
+def residue_inventory(surface: Surface) -> tuple[int, ...]:
+    """Return every self or nearest-neighbor residue touched by the cache."""
+    if surface.row_context is None:
+        raise ValueError("surface has no receipted residue identities")
+    seq_ids = surface.row_context[0]
+    neighbor_seq_ids = surface.arrays[3]
+    return tuple(
+        sorted(
+            set(int(value) for value in seq_ids)
+            | set(int(value) for value in neighbor_seq_ids.ravel() if value >= 0)
+        )
+    )
+
+
+def gather_residue_deltas(
+    surface: Surface,
+    residue_ids: tuple[int, ...],
+    delta: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Map one residue-shared delta to self and element-specific neighbors."""
+    expected = (len(residue_ids), len(surface.support_ids), 4)
+    if tuple(delta.shape) != expected or len(set(residue_ids)) != len(residue_ids):
+        raise ValueError("residue delta inventory mismatch")
+    if surface.row_context is None:
+        raise ValueError("surface has no receipted residue identities")
+    lookup = {seq_id: index for index, seq_id in enumerate(residue_ids)}
+    self_ids = surface.row_context[0]
+    neighbor_ids = surface.arrays[3]
+    if any(int(value) not in lookup for value in self_ids):
+        raise ValueError("self residue is absent from delta inventory")
+    missing = sorted(
+        {
+            int(value)
+            for value in neighbor_ids.ravel()
+            if value >= 0 and int(value) not in lookup
+        }
+    )
+    if missing:
+        raise ValueError(f"neighbor residues absent from delta inventory: {missing}")
+    self_index = torch.as_tensor(
+        [lookup[int(value)] for value in self_ids], device=delta.device
+    )
+    sentinel = len(residue_ids)
+    neighbor_index = torch.as_tensor(
+        [
+            lookup[int(value)] if value >= 0 else sentinel
+            for value in neighbor_ids.ravel()
+        ],
+        device=delta.device,
+    ).reshape(neighbor_ids.shape)
+    support_index = torch.arange(
+        len(surface.support_ids), device=delta.device
+    )[None, :, None]
+    padded = torch.cat((delta, torch.zeros_like(delta[:1])), dim=0)
+    return delta[self_index], padded[neighbor_index, support_index]
 
 
 def require_eligible(values: dict[str, Any]) -> None:
@@ -405,9 +467,9 @@ def require_eligible(values: dict[str, Any]) -> None:
     validate_eligibility_receipt(values["frame"], receipt)
 
 
-def fresh_state(rows: int, supports: int) -> tuple[np.ndarray, ...]:
+def fresh_state(residues: int, supports: int) -> tuple[np.ndarray, ...]:
     return (
-        np.zeros((rows, supports, 4), np.float32),
+        np.zeros((residues, supports, 4), np.float32),
         np.zeros((1, supports), np.float32),
         np.zeros((1, 3), np.float32),
     )
@@ -417,9 +479,10 @@ def matched_arms(surface: Surface, observer_state: np.ndarray) -> tuple[Arm, Arm
     if len(observer_state) != len(surface.target_ids):
         raise ValueError("observer state and target order differ")
     small = nested8(surface)
+    residue_count = len(residue_inventory(surface))
     return (
-        Arm(surface, observer_state, fresh_state(len(surface.target_ids), 32)),
-        Arm(small, observer_state, fresh_state(len(surface.target_ids), 8)),
+        Arm(surface, observer_state, fresh_state(residue_count, 32)),
+        Arm(small, observer_state, fresh_state(residue_count, 8)),
     )
 
 
