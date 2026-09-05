@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "ce74f20e047413c0fa68f2f28b204fa8c472b4c6cef22d38b21f4c91cc83ecc5"
+    "6261c6ef5a0f3bf7c0a50d9f5d90a1e3ea7c64f87919968cf555c8aa3a6c4352"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -66,6 +66,10 @@ SAFE_EVIDENCE = {
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
+    },
+    "all_atom_recount_producer": {
+        "path": "gpuopt/candidates/nested_support_all_atom_recount.py",
+        "sha256": "395e8d1001263e87d36e1ca5ff3dba4bf6d84098208f3d3dbbf49a7f6d65da3c",
     },
     "catalog_feasibility_receipt": {
         "path": str(CATALOG_RECEIPT_RELATIVE),
@@ -124,6 +128,7 @@ EXPECTED_RECEIPT_EVIDENCE = {
 }
 EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_policy",
+    "all_atom_recount_producer",
     "catalog_feasibility_receipt",
     "catalog_checker",
     "catalog_producer",
@@ -859,6 +864,10 @@ def main() -> int:
     checks = validate_plan(plan, root)
     checks.append("validator_and_plan_exact_paths")
     negative_checks = self_test(plan, root) if args.self_test else 0
+    if args.self_test:
+        from nested_support_all_atom_recount import self_test as recount_self_test
+
+        negative_checks += recount_self_test()
     if not args.acknowledge_hold_only:
         print("STATUS HOLD_FEASIBILITY_BLOCKED")
         print("REFUSAL this artifact is not science or authorization clearance")
