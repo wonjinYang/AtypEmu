@@ -356,6 +356,45 @@ except FileExistsError:
 else:
     raise AssertionError("draft source commitment was clobbered")
 PY
+final_commitment="$(mktemp)"
+rm -f "$final_commitment"
+$PY -m gpuopt.freeze_k32_nested_k8_source_gate --root . --output "$final_commitment"
+$PY - "$final_commitment" <<'PY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+from unittest import mock
+
+from gpuopt.freeze_k32_nested_k8_source_gate import STATIC_FILES, main
+from gpuopt.run_k32_nested_k8_source_gate import verify_source_commitment
+
+path = Path(sys.argv[1])
+commitment = json.loads(path.read_text())
+assert commitment["contract"] == "k32_nested_k8_source_gate_source_commitment_v1"
+assert commitment["authorization_allowed"] is True and commitment["draft_only"] is False
+assert commitment["target_values_opened"] is False
+assert commitment["formal_or_outer_access"] is False
+assert commitment["observer_epochs"] == 1024 and commitment["assimilation_steps"] == 100
+assert commitment["required_node"] == "iREMB-C-08"
+assert commitment["required_partition"] == "l40sq"
+assert commitment["source_entity_count"] == 135
+assert commitment["target_file_count"] == commitment["cache_file_count"] == 135
+assert len(commitment["files"]) == len(STATIC_FILES) + 270
+for relative, expected in commitment["files"].items():
+    assert hashlib.sha256(Path(relative).read_bytes()).hexdigest() == expected
+assert verify_source_commitment(Path("."), path) == commitment
+try:
+    with mock.patch("sys.argv", ["freeze", "--root", ".", "--output", str(path)]):
+        main()
+except FileExistsError:
+    pass
+else:
+    raise AssertionError("final source commitment was clobbered")
+PY
+bash -n gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
+grep -qx '#SBATCH --partition=l40sq' gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
+grep -qx '#SBATCH --nodelist=iREMB-C-08' gpuopt/slurm/run_k32_nested_k8_source_gate_l40s.sbatch
 preflight="$(mktemp)"
 rm -f "$preflight"
 $PY gpuopt/run_k32_nested_k8_source_gate.py \
@@ -692,7 +731,7 @@ with tempfile.TemporaryDirectory() as temporary:
             raise AssertionError("independent source decision was overwritten")
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=164")
+print("METRIC matched_adapter_checks=176")
 PY
 rm -f "$preflight"
 rm -f "$draft"

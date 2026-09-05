@@ -58,10 +58,13 @@ def verify_source_commitment(root: Path, path: Path) -> dict[str, Any]:
     commitment = json.loads(path.read_text())
     required = {
         "authorization_allowed": True,
+        "container_image_sha256": "67418b92c18eb82988f41b4dd902b36a4ee5e6d6dae4c1a263df382eb73f7531",
         "contract": FINAL_CONTRACT,
         "draft_only": False,
         "formal_or_outer_access": False,
         "observer_epochs": 1024,
+        "required_node": "iREMB-C-08",
+        "required_partition": "l40sq",
         "assimilation_steps": 100,
         "source_entity_count": 135,
         "target_file_count": 135,
