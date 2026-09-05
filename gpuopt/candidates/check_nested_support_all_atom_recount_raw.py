@@ -22,7 +22,7 @@ POLICY_RELATIVE = "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_po
 CATALOG_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz"
 SOURCE_RELATIVE = ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json"
 SEALED_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_v1_yulab/recount_results.tar.gz"
-OUTPUT_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v1"
+OUTPUT_RELATIVE = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v2"
 PDB_ROOT_RELATIVE = "data/BioEmu"
 # Per-PDB and per-Parquet hashes are bound through these committed inputs.
 FIXED_SHA256 = {
@@ -432,6 +432,15 @@ def _masks(support: dict[str, Any], targets: list[dict[str, Any]]) -> dict[str, 
         "distance_available_count_by_element": dict(distance_counts),
         "distance_mask_sha256": distance_digest.hexdigest(),
     }
+def _pdb_relative(bmrb_id: str, support_index: int) -> str:
+    if BMRB_RE.fullmatch(bmrb_id) is None or type(support_index) is not int or support_index < 1:
+        raise ValueError("invalid PDB path identity")
+    return "%s/%s/%s_BioEmu_%d.pdb" % (
+        PDB_ROOT_RELATIVE,
+        bmrb_id,
+        bmrb_id,
+        support_index,
+    )
 def _replay_entity(root: Path, entity: dict[str, Any], targets: list[dict[str, Any]]) -> dict[str, Any]:
     directory = root / PDB_ROOT_RELATIVE / entity["bmrb_id"]
     if directory.is_symlink() or directory.resolve(strict=True) != directory:
@@ -442,10 +451,9 @@ def _replay_entity(root: Path, entity: dict[str, Any], targets: list[dict[str, A
     )
     if reference_record is None:
         raise ValueError("catalog reference support 1 is absent: %s" % entity["entity_uid"])
-    reference_path = directory / "%s_BioEmu_1.pdb" % entity["bmrb_id"]
     reference_path = _bound_path(
         root,
-        str(reference_path.relative_to(root)),
+        _pdb_relative(entity["bmrb_id"], 1),
         reference_record["pdb_sha256"],
         "reference PDB",
     )
@@ -455,12 +463,7 @@ def _replay_entity(root: Path, entity: dict[str, Any], targets: list[dict[str, A
     reasons = Counter()
     for record in records:
         support_index = record["support_index"]
-        relative = "%s/%s/%s_BioEmu_%d.pdb" % (
-            PDB_ROOT_RELATIVE,
-            entity["bmrb_id"],
-            entity["bmrb_id"],
-            support_index,
-        )
+        relative = _pdb_relative(entity["bmrb_id"], support_index)
         path = _bound_path(root, relative, record["pdb_sha256"], "support PDB")
         raw = path.read_bytes()
         try:
@@ -742,7 +745,7 @@ def _shard_receipt(root: Path, index: int, raw_rows: list[dict[str, Any]], seale
         raise ValueError("receipt requires exact raw/sealed entity comparison")
     return {
         "artifact_kind": "hold_only_raw_replay_shard_execution_evidence_not_authorization",
-        "contract": "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v1",
+        "contract": "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v2",
         "study_id": STUDY_ID,
         "bindings": _bindings(),
         "checker_relative_path": CHECKER_RELATIVE,
@@ -763,7 +766,7 @@ def _validate_receipt(receipt: dict[str, Any], index: int, root: Path) -> None:
         receipt.get("artifact_kind")
         != "hold_only_raw_replay_shard_execution_evidence_not_authorization"
         or receipt.get("contract")
-        != "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v1"
+        != "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v2"
         or receipt.get("study_id") != STUDY_ID
         or receipt.get("bindings") != _bindings()
         or receipt.get("checker_relative_path") != CHECKER_RELATIVE
@@ -833,7 +836,7 @@ def aggregate() -> dict[str, Any]:
         raise ValueError("aggregate entity coverage/content mismatch")
     receipt = {
         "artifact_kind": "hold_only_raw_replay_aggregate_execution_evidence_not_authorization",
-        "contract": "atypemu_nested_support_count_v1_raw_replay_aggregate_receipt_v1",
+        "contract": "atypemu_nested_support_count_v1_raw_replay_aggregate_receipt_v2",
         "study_id": STUDY_ID,
         "statement": "This receipt is execution evidence, not a cryptographic attestation.",
         "bindings": _bindings(),
@@ -877,7 +880,8 @@ def self_test() -> int:
         raise AssertionError("self-test accepted forbidden PDB change")
     assert SHARD_RECEIPT_FIELDS >= {"raw_replay_entity_count", "raw_replay_entities_sha256", "sealed_result_entity_count", "sealed_result_entities_sha256"}
     assert "statement" in AGGREGATE_RECEIPT_FIELDS
-    return 8
+    assert _pdb_relative("bmr50238", 1) == "data/BioEmu/bmr50238/bmr50238_BioEmu_1.pdb"
+    return 9
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
