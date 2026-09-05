@@ -299,7 +299,7 @@ def _parse_pdb(raw: bytes) -> dict[str, Any]:
     lookup: dict[tuple[int, str, str], list[Residue]] = {}
     element_residues: dict[str, set[Residue]] = {element: set() for element in ELEMENTS}
     segment = 0
-    for line in raw.decode("ascii", errors="strict").splitlines():
+    for line in raw.decode("ascii", errors="replace").splitlines():
         if line.startswith("ENDMDL"):
             break
         if line.startswith("TER"):
@@ -891,8 +891,14 @@ def self_test() -> int:
         raise AssertionError("self-test accepted forbidden PDB change")
     assert SHARD_RECEIPT_FIELDS >= {"raw_replay_entity_count", "raw_replay_entities_sha256", "sealed_result_entity_count", "sealed_result_entities_sha256"}
     assert "statement" in AGGREGATE_RECEIPT_FIELDS
-    assert _pdb_relative("bmr50238", 1) == "data/BioEmu/bmr50238/bmr50238_BioEmu_1.pdb"
-    return 10
+    assert _pdb_relative("bmr1", 1) == "data/BioEmu/bmr1/bmr1_BioEmu_1.pdb"
+    try:
+        _pdb_relative("bmr0", 1)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("self-test accepted invalid generic PDB identity")
+    return 11
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)

@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "92111af8bb6f26c3be7c3427987db1597365301c15392b977e96256ff74f4c56"
+    "a35d74348431e49cedad21add0e0557e94544a1a4c13a3b0952141cc64d9b62f"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -77,7 +77,7 @@ SAFE_EVIDENCE = {
     },
     "all_atom_raw_replay_v3_candidate": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py",
-        "sha256": "3dfbbb01642212fa6726fd7ed674d7a6511f16fc4fcca5c69d0d445711fc6aa2",
+        "sha256": "080258250c1d15950b7f9a4dad3e00391b1d644bae005882f56f4f7b3feda19d",
     },
     "all_atom_raw_evidence_archive": {
         "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
