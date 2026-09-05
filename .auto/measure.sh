@@ -6,7 +6,12 @@ cd "$ROOT"
 PY=/home/yang07/anaconda3/envs/atypemu/bin/python
 
 $PY gpuopt/candidates/nested_support_count_plan.py \
-  --root . --self-test --acknowledge-hold-only
+  --self-test --acknowledge-hold-only
+if $PY gpuopt/candidates/nested_support_count_plan.py \
+  --root . --self-test --acknowledge-hold-only >/dev/null 2>&1; then
+  echo "legacy arbitrary plan-root interface was accepted" >&2
+  exit 1
+fi
 $PY gpuopt/candidates/nested_support_catalog.py self-test
 $PY gpuopt/candidates/check_nested_support_catalog.py \
   --check-bound-evidence --self-test

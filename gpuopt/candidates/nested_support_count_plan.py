@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 PLAN_RELATIVE = Path("gpuopt/preunblind/atypemu_nested_support_count_v1_plan.json")
+VALIDATOR_RELATIVE = Path("gpuopt/candidates/nested_support_count_plan.py")
 LEVELS = [32, 128, 768, 1536]
 CANDIDATES = {
     "32": "atypemu_nested_support_count_v1_k32_seed",
@@ -502,14 +503,17 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         "safe_evidence_allowlist",
     )
     evidence_ok = True
+    canonical_root = root.absolute()
     for name in EVIDENCE_CHECK_ORDER:
         binding = SAFE_EVIDENCE[name]
         relative = Path(str(binding.get("path", "")))
-        path = (root / relative).resolve()
+        path = canonical_root / relative
         evidence_ok &= (
             not relative.is_absolute()
-            and root.resolve() in path.parents
+            and canonical_root in path.parents
             and path.is_file()
+            and not path.is_symlink()
+            and path.resolve(strict=True) == path
             and _sha256(path) == binding.get("sha256")
         )
     _require(
@@ -751,9 +755,10 @@ def self_test(plan: dict[str, Any], root: Path) -> int:
     else:
         raise AssertionError("unknown top-level field accepted")
 
-    for evidence_name, replacement in (
-        ("source_commitment", None),
-        ("entity_roster", b"{}\n"),
+    for evidence_name, mode in (
+        ("source_commitment", "append"),
+        ("entity_roster", "empty"),
+        ("entity_roster", "symlink"),
     ):
         with tempfile.TemporaryDirectory(
             prefix="nested-support-plan-negative-", dir=root / ".auto"
@@ -764,13 +769,12 @@ def self_test(plan: dict[str, Any], root: Path) -> int:
                 source = root / relative
                 destination = temporary_root / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
-                if name == evidence_name:
-                    data = (
-                        source.read_bytes() + b"\n"
-                        if replacement is None
-                        else replacement
-                    )
-                    destination.write_bytes(data)
+                if name == evidence_name and mode == "append":
+                    destination.write_bytes(source.read_bytes() + b"\n")
+                elif name == evidence_name and mode == "empty":
+                    destination.write_bytes(b"{}\n")
+                elif name == evidence_name and mode == "symlink":
+                    destination.symlink_to(source)
                 else:
                     destination.hardlink_to(source)
             try:
@@ -779,21 +783,40 @@ def self_test(plan: dict[str, Any], root: Path) -> int:
                 if "bound target-unread planning evidence mismatch" not in str(error):
                     raise AssertionError(str(error)) from error
             else:
-                raise AssertionError(f"tampered evidence accepted: {evidence_name}")
-    return len(tamper_cases) + 3
+                raise AssertionError(
+                    f"tampered evidence accepted: {evidence_name}/{mode}"
+                )
+    return len(tamper_cases) + 4
+
+
+def _bound_root_and_plan() -> tuple[Path, Path]:
+    validator_path = Path(__file__).absolute()
+    root = validator_path.parents[2]
+    plan_path = root / PLAN_RELATIVE
+    if not (
+        validator_path == root / VALIDATOR_RELATIVE
+        and validator_path.is_file()
+        and not validator_path.is_symlink()
+        and validator_path.resolve(strict=True) == validator_path
+        and plan_path.is_file()
+        and not plan_path.is_symlink()
+        and plan_path.resolve(strict=True) == plan_path
+    ):
+        raise ValueError(
+            "validator or plan path is indirect, noncanonical, or misplaced"
+        )
+    return root, plan_path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path("."))
-    parser.add_argument("--plan", type=Path, default=PLAN_RELATIVE)
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--acknowledge-hold-only", action="store_true")
     args = parser.parse_args()
-    root = args.root.resolve()
-    path = args.plan if args.plan.is_absolute() else root / args.plan
+    root, path = _bound_root_and_plan()
     plan = json.loads(path.read_text())
     checks = validate_plan(plan, root)
+    checks.append("validator_and_plan_exact_paths")
     negative_checks = self_test(plan, root) if args.self_test else 0
     if not args.acknowledge_hold_only:
         print("STATUS HOLD_FEASIBILITY_BLOCKED")
