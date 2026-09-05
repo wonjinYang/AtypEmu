@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
+from torch import nn
 
 from gpuopt.source_gate_eligibility import validate_eligibility_receipt
 
@@ -66,6 +68,24 @@ class ModelInputs:
     torsion: np.ndarray
     geometry: np.ndarray
     support_anchor: np.ndarray
+
+
+class DynamicDistanceObserver(nn.Module):
+    """Small shared observer for target-free dynamic distance channels only."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(10, 32),
+            nn.SiLU(),
+            nn.Linear(32, 1),
+        )
+
+    def forward(
+        self, distance: torch.Tensor, available: torch.Tensor
+    ) -> torch.Tensor:
+        features = torch.cat((distance / 10.0, available.to(distance.dtype)), dim=-1)
+        return self.network(features).squeeze(-1)
 
 
 def load(root: Path, entity_uid: str) -> Surface:
@@ -174,6 +194,28 @@ def actuate(
     change = np.einsum("tkec,tkc->tke", self_j, self_delta)
     change += np.einsum("tkec,tkc->tke", neighbor_j, neighbor_delta)
     return distance + np.where(available, change, 0.0)
+
+
+def differentiable_actuate(
+    surface: Surface,
+    self_delta: torch.Tensor,
+    neighbor_delta: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Torch actuation preserving CS-loss gradients to coordinate deltas."""
+    distance, self_j, neighbor_j, _, _, available = surface.arrays
+    expected = (*distance.shape[:2], 4)
+    if tuple(self_delta.shape) != expected or tuple(neighbor_delta.shape) != expected:
+        raise ValueError("torsion delta shape mismatch")
+    device = self_delta.device
+    base = torch.as_tensor(distance, device=device)
+    mask = torch.as_tensor(available, device=device)
+    self_tensor = torch.as_tensor(self_j, device=device)
+    neighbor_tensor = torch.as_tensor(neighbor_j, device=device)
+    change = torch.einsum("tkec,tkc->tke", self_tensor, self_delta)
+    change = change + torch.einsum(
+        "tkec,tkc->tke", neighbor_tensor, neighbor_delta
+    )
+    return base + torch.where(mask, change, torch.zeros_like(change)), mask
 
 
 def require_eligible(values: dict[str, Any]) -> None:

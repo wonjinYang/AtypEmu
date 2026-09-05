@@ -10,6 +10,7 @@ import inspect
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import torch
 from gpuopt.candidates import k32_nested_k8_adapter as adapter
 from gpuopt.source_gate_eligibility import build_eligibility_receipt
 
@@ -41,7 +42,19 @@ except ValueError as error:
     assert "support roster" in str(error)
 else:
     raise AssertionError("incomplete K8 base surface was accepted as K32")
-print("METRIC matched_adapter_checks=18")
+probe = adapter.Surface(surface.target_ids[:16], surface.support_ids, tuple(value[:16] for value in surface.arrays))
+self_delta = torch.zeros((16, 32, 4), requires_grad=True)
+neighbor_delta = torch.zeros((16, 32, 4), requires_grad=True)
+active_distance, available = adapter.differentiable_actuate(probe, self_delta, neighbor_delta)
+assert np.array_equal(active_distance.detach().numpy(), probe.arrays[0])
+torch.manual_seed(20260905)
+observer_model = adapter.DynamicDistanceObserver()
+observer_model(active_distance, available).sum().backward()
+assert self_delta.grad is not None and torch.isfinite(self_delta.grad).all() and self_delta.grad.norm() > 0
+small_distance = active_distance[:, adapter.NESTED]
+small_available = available[:, adapter.NESTED]
+assert observer_model(small_distance, small_available).shape == (16, 8)
+print("METRIC matched_adapter_checks=21")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
