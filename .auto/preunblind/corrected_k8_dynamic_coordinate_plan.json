@@ -1,0 +1,102 @@
+{
+  "contract": "atypemu_corrected_k8_dynamic_coordinate_preunblind_plan_v1",
+  "schema_version": 1,
+  "date": "2026-09-05",
+  "correction_lineage": {
+    "invalidated_job": "134710",
+    "invalidated_parent_plan_sha256": "4f2051536171d6d6d47e22d2790b0d451a4c947379325834c1a27a74e184e19e",
+    "canonical_post_handoff_audit_sha256": "5a84b9ea624694976e3ff31548437fae8e0f8856d19698fd77b2997d3d96152d",
+    "canonical_invalidation_commit": "ad099b8",
+    "invalidated_metrics_used_for_design_or_tuning": false,
+    "invalidated_result_visibility_disclosure": "The quarantined result JSON was inspected after this hypothesis, hyperparameters, eligibility rule, threshold, and controls were predeclared; its invalidated numeric fields were not used to modify or tune this correction.",
+    "only_contract_change": "apply source-subset Atom_ID eligibility before every target-dependent phase"
+  },
+  "goal": "honest all-label macro one-shared-q CCC >= 0.95 for unseen-entry evidence assimilation",
+  "success_and_retention": "CCC >= 0.95 is the project stop criterion. This K=8 source gate can select the mechanism only for K=32 follow-up and cannot itself retain or rank a primary candidate. After K=32 qualification, a checks-passing formal iteration may be retained when it strictly improves the named baseline even if it does not yet stop the project.",
+  "primary_metric": "For A_to_B, train on source fold A and score fold B; for B_to_A, train on source fold B and score fold A. For each canonical Atom_ID in .auto/frozen/all_label_inventory.json, concatenate every finite assigned row from both scored directions and compute population-moment CCC using sum_k q_e[k]*support_prediction[e,row,k], with one softmax-simplex q_e shared by every row in entry e; take the unweighted mean over the frozen eligible inventory. Inventory eligibility depends only on finite targets with at least two observations and nonzero target variance before predictions exist. Constant predictions remain scored; any missing or nonfinite prediction invalidates the candidate.",
+  "hypothesis": "Routing chemical-shift data-loss gradients through the analytic chi1-chi4 Jacobian of emitted complete coordinates into continuously updated values of five input-nearest interresidue H/C/N/O/S distances will improve shared-q assimilation over the identical path with the coordinate Jacobian zeroed; nearest-atom identities and Jacobians stay frozen during assimilation.",
+  "implementation_isolation": "The retained Run 98 candidate gpuopt/candidates/torsion_assimilator.py remains byte-unchanged; this source-only mechanism lives in gpuopt/candidates/corrected_k8_dynamic_coordinate.py and is not a formal candidate.",
+  "loss": {
+    "observer": "AdamW for 1024 fixed-final epochs on the source fold minimizes sum_i w_i SmoothL1(mean_k prediction_ik - normalized_target_i), where w_i is inverse source-fold Atom_ID count and is normalized to mean one.",
+    "assimilation": "Adam for 100 fixed steps minimizes mean_i w_i*(sum_k q_e(i)k*prediction_ik + bounded_family_reference_e(i)/source_cell_scale_i - normalized_target_i)^2 + 0.03*mean(tanh(delta_raw)^2) + 0.003*mean(KL(q_e||uniform)) + 0.003*mean(tanh(reference_raw)^2).",
+    "normalization": "center and scale are fit only on the opposite source training fold for each Comp_ID x Atom_ID cell; reference bounds are also calibrated only from that training fold",
+    "ccc_in_any_loss": false,
+    "ccc_role": "source-OOF gate and frozen primary evaluation only"
+  },
+  "gradient_path": [
+    "all source chemical-shift rows admitted by frozen source-subset Atom_ID eligibility",
+    "weighted normalized MSE",
+    "frozen coordinate observer",
+    "five dynamic interresidue-distance channels",
+    "analytic complete-coordinate chi Jacobian",
+    "bounded residue-support chi1-chi4 variables",
+    "exact emitted complete-coordinate rotations"
+  ],
+  "gradient_attribution": "The reported coordinate-generator gradient norm is computed from chemical-shift data loss alone before torsion, q, or reference regularizers are added.",
+  "parameter_scopes": "Observer training updates only observer weights. Evidence assimilation freezes the observer and independently optimizes q, reference, and delta from zero: q is one 8-support softmax vector per evidence-assimilated entry; reference is one bounded H/C/N vector per entry; delta is one bounded chi1-chi4 vector per residue and support.",
+  "frozen_hyperparameters_for_this_gate": {
+    "support_count": 8,
+    "supports": [1, 126, 251, 376, 501, 626, 751, 876],
+    "support_ids": ["BioEmu_1", "BioEmu_126", "BioEmu_251", "BioEmu_376", "BioEmu_501", "BioEmu_626", "BioEmu_751", "BioEmu_876"],
+    "support_enforcement": "freezer, runner, and checker fail closed unless every entity uses exactly support_ids in this order",
+    "observer_epochs": 1024,
+    "observer_learning_rate": 0.002,
+    "assimilation_steps": 100,
+    "assimilation_learning_rate": 0.08,
+    "phi_psi_bound_radians": 0.0,
+    "phi_psi_policy": "disabled because the dynamic coordinate descriptor path has no backbone Jacobian; retaining movable backbone variables would create an unscored emitted-coordinate path",
+    "chi1_chi4_bound_radians": 0.05,
+    "torsion_regularizer_weight": 0.03,
+    "q_kl_weight": 0.003,
+    "reference_regularizer_weight": 0.003,
+    "response_residual_gain": 0.1
+  },
+  "controls": {
+    "no_coordinate": "reuse the identical frozen observer, independently optimize shared q and reference offsets from zero, and fix the complete-coordinate geometry Jacobian to exactly zero",
+    "uniform_q": "independently optimize coordinate and reference variables from zero while fixing q exactly uniform",
+    "no_new_readout_scale": true
+  },
+  "source_gate": {
+    "data": "Use only commitment entities with split=train and observer_fold A or B. Within A and separately within B, group whole sequence_cluster_id values; assign clusters in descending entity count and lexical-cluster tie order to the least-loaded of two halves; train on the other half, predict the held half, and concatenate both held halves without entity or sequence-cluster overlap.",
+    "selection": "candidate-minus-jacobian-zero macro Atom_ID CCC must be strictly greater than 0.0005 independently in source fold A, source fold B, and their combined source-OOF rows; the combined score must define every Atom_ID in the frozen all-label inventory. Constant predictions score normally; missing or nonfinite predictions fail.",
+    "eligibility": {
+      "scope": "independently within each fold x held-half observer-training subset and evidence-assimilation subset",
+      "rule": "frozen all-label inventory AND at least two finite target rows AND population target variance greater than 1e-15",
+      "ordering": "before crossfit anchor selection, normalization, observer fitting, reference-bound calibration, evidence assimilation, prediction, and coordinate audit",
+      "separation": "held-assimilation targets define only held-assimilation eligibility and never observer-training eligibility; observer-training targets define only observer-training eligibility",
+      "identity_proof": "runner receipts bind input, selected, and excluded entity_uid x target_id rows including exact source target values; the independent checker reconstructs all receipts from committed source targets and verifies fail-closed guards at every model phase"
+    },
+    "ccc_in_loss": false,
+    "independent_checker": "reload entity-qualified identities, Atom_ID labels, target values, sequence clusters, and the exact frozen K=8 support roster independently from hash-committed source files; independently reconstruct the train and held-assimilation eligibility rows for each fold x held half and reject any receipt or runner-emitted OOF mismatch; recompute A, B, and combined source-OOF macro scores plus unweighted C/H/N Atom_ID-macro diagnostics for candidate, independently optimized no-coordinate, and independently optimized uniform-q surfaces; require candidate gain > 0.0005 over no-coordinate in all three and complete frozen-label coverage in the combined score, without using uniform-q or family diagnostics for gating; independently reload each committed input PDB and require byte-derived base coordinates and atom identities to equal the emitted no-evidence state, require complete valid atom-state indices, and audit every exact emitted K=8 source state for finite values, motion, <=1 Angstrom displacement, and >=0.5 Angstrom minimum distinct-atom distance; verify SHA-256 output hashes, the hard-coded external authorization repository ref and concrete Git-blob OID, authorization-bound Slurm job ID, and container-image hash; inspect every target-dependent model phase for a fail-closed eligibility guard and inspect train_observer and optimize_assimilation ASTs for absence of CCC; and apply the checker-owned threshold",
+    "technical_preflight_is_model_evidence": false
+  },
+  "provenance": {
+    "source_commitment": "O_EXCL JSON generated before execution binds the corrected plan, runner, independent checker, eligibility helper, candidate, unit tests, Slurm entry point, canonical Job 134710 invalidation audit, frozen inventory, data receipts, and every consumed source parquet by SHA-256.",
+    "authorization": "The standalone target-unread freezer may stream source bytes only to compute SHA-256 values and may not deserialize or record target semantics. The source-bound .auto/measure_body.sh contains the complete one-shot orchestration: it submits the reviewed stage in Slurm hold state, creates the exact authorization, establishes external and local Git refs, releases exactly that held job, preserves failure outputs, and emits only source-gate metrics. After the final source freeze, the harness entry point .auto/measure.sh is generated as a minimal identity-pin wrapper containing the literal final source-commitment SHA-256 and Git blob and executing only measure_body.sh; excluding this post-freeze pin wrapper from the source manifest breaks the otherwise impossible self-hash cycle without leaving scientific orchestration mutable. The finalized commitment bytes are independently pinned before authorization by a create-only external and local Git ref refs/atypemu-source-commitments/corrected-k8/final-v7; measure_body.sh requires its local commitment, remote staged commitment, wrapper-supplied literal pins, and both ref blobs to be byte-identical before job submission, preventing a mutable commitment from authorizing itself. Then bind the resulting source-commitment SHA-256, epochs=1024, steps=100, exact Singularity-image SHA-256, authorized=true, the concrete held Slurm job ID, and its deterministic refs/atypemu-authorizations/corrected-k8/job-<job_id> ref in an exact-schema O_EXCL JSON. Store that JSON as the ref's blob in the hard-coded external bare Git repository /scratch/wkyu514/yang07/atypemu_external_authorizations.git using create-only ref update, mirror the same ref/blob into the local repository, and only then release the held job. The source-bound Slurm entry point, on the assigned iREMB-C-08 compute node where the image is visible, verifies the exact Singularity-image SHA-256 before either test execution or authorization materialization; login-node image visibility is not assumed. It then derives the authorization ref from SLURM_JOB_ID, create-only materializes the authorization from the external repository, and does not accept an overrideable authorization repository or blob. Before authorization consumption the runner imports no project-local science module and may read only path/source-commitment/authorization metadata. Consumption create-only writes an exact external-claim JSON and atomically compare-and-swaps the external ref from the authorization blob to that claim blob before writing the stage-local consumed marker or opening source targets; a requeue, restage, concurrent claimant, or direct rerun cannot repeat that transition. The checker requires the ref to resolve to the exact claim blob and separately verifies the preserved authorization blob bytes, while local backpressure mirrors both blobs and the consumed ref tip for replay. Both authorization and claim bind the Slurm job ID/ref/source commitment/container. Job 134710 authorization remains consumed and cannot be reused; this separately named correction requires a fresh commitment and external authorization. A consumed or post-consumption failed corrected run cannot be retried without a separately named recovery authorization bound to its failure receipt. Preauthorization commitments 15ea6a6a460a4c2f9e6547e76650679f33294561f6b63b849270ae0af81ed006 (before replacing the harness wrapper), d5a178acb138373cc4112bcfaad8dc28402fd3988e8d2d5359c8c99cc26dd6c4 (before adding that wrapper to the freezer manifest), c827215215571fc271cbea9bdfcbecb8f73ac5355034386764b3f4b872732ef3 (before adding the wrapper-specific static test), 6afe905cc22122db58f17b2a28011b239740e61a7468e34f53506d10b62d421d (before adding the independent external source-commitment pin), e674d29e348863eb35be37334e45c37a224a47ad4c9d607c79769d43cfc6cab6 (before adding command-level identity pins and transfer-failure preservation), 825c9ee5d54cbefa04a7ae96dc2daa4de6928759f02280c6b85c68cde296f9a4 (before separating the post-freeze identity-pin wrapper from its source-bound orchestration body), 78751b6628a00e89b089efad9b867f83001d24fa086c0611f889a05e18df9cc2 (whose harness invocation failed before submission because the image path is intentionally compute-node-only), f665843f752fbe3cc86b8715e027737f9376a7107aa15d80de664c83b46dbce1 (whose trainerless compute preflight exposed a stale image digest before authorization), 1717eed1dcc0c1e4ffe505517700856cf29cadec7298484ad08de2769deae799 (before aligning the Slurm output basenames with the source-bound harness and local replay checker), and 0b47b529560f067890cda64bc18e8cea56ffcf2079f32c31492e057f93c2dcb8 (before aligning the local backpressure replay names and check-mode marker with the collected source-gate artifacts) were superseded before any authorization, scientific job submission, source-target deserialization, or metric and are preserved only as setup evidence."
+  },
+  "physicality": {
+    "scope": "source gate: all 8 exact emitted support states for every held source entity; any later qualified formal evaluation: all 32 emitted support states for every evaluated entity in both directions",
+    "maximum_atom_displacement_angstrom": "reject if any emitted atom moves more than 1.0 from that atom's input support coordinate",
+    "minimum_distinct_atom_distance_angstrom": "within every individual support state, include all upper-triangle pairs of distinct coordinate records, including bonded, same-residue, and adjacent-residue pairs; reject if any pair is closer than 0.5. Exact bond-axis rotations preserve internal bond lengths, and this is the predeclared severe-clash gate rather than a complete force-field test",
+    "nonfinite_coordinates_allowed": false
+  },
+  "coordinate_linearization": "For each target atom, support, and element H/C/N/O/S, freeze the nearest atom in a different residue at the input support, differentiate that distance with the exact residue-template chi1-chi4 axis and downstream-atom convention, and linearly update only those five descriptor channels during optimization; ties inherit deterministic PDB/KD-tree order and missing atoms produce a masked zero Jacobian.",
+  "formal_evaluation": {
+    "allowed_only_if_source_gate_selected": false,
+    "reason_formal_is_currently_blocked": "This patch uses the retained K=8 asset and is therefore a source-development architecture gate only. Goal-defined native generator attribution requires a separately qualified target-unread K=32 support asset before any formal claim.",
+    "fresh_external_once_only_authorization_required": true,
+    "ranking_metric": "all-label macro one-shared-q CCC",
+    "retained_baseline": 0.698275402526,
+    "retained_baseline_identity": "Run 98 K=8 all-label macro one-shared-q development score at source state f68379d; it is a comparison baseline, not K=32 attribution evidence",
+    "keep_rule_after_k32_qualification": "primary metric strictly exceeds the retained Run 98 development baseline and every independent validity, severe-clash, provenance, authorization, target-perturbation, causal-gradient, and output-hash check passes"
+  },
+  "known_approximation": "The nearest-neighbor atom identity and coordinate-distance response are first-order linearizations around each frozen complete support; exact emitted coordinates are independently audited after assimilation.",
+  "forbidden": [
+    "CCC or any concordance surrogate in observer, assimilation, packing, or regularization loss",
+    "sealed-fold checkpoint or hyperparameter selection",
+    "label-, family-, residue-, or modality-specific q",
+    "response amplitude inflation",
+    "readout-only promotion",
+    "post-result threshold or actuator retuning"
+  ]
+}

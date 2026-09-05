@@ -21,7 +21,10 @@ ACCIDENTAL_LOG_COMMIT = "badb416c5e0b151022d313354a1b7aa4cbeb0e45"
 LOG_SUPERSESSION_BLOB = "d2c54145e4e868fa945532b2e8d6cee467d916cd"
 EXPECTED_PYTHON = Path("/home/yang07/anaconda3/envs/atypemu/bin/python")
 REQUIRED_MODULES = ("numpy", "pandas", "pyarrow", "scipy", "torch")
-CANDIDATE_PATHS = ("gpuopt/run_all_label_candidate.py", "gpuopt/candidates")
+CANDIDATE_PATHS = (
+    "gpuopt/run_all_label_candidate.py",
+    "gpuopt/candidates/torsion_assimilator.py",
+)
 REPORT_ROOT = "reports/experiments/job134710_k8_dynamic_coordinate_source_gate"
 ARCHIVE_RECORDS = {
     "authorization.json": "recovery_authorization.json",
@@ -55,8 +58,10 @@ def git_show(root: Path, commit: str, relative: str) -> bytes:
 def eligibility_precedes_fit(source: str) -> bool:
     """Conservative structural smoke only; this is not a dataflow proof."""
     required = {
-        "eligible_source_atom_ids",
+        "restrict_source_subset_eligibility",
+        "crossfit_anchor_selection",
         "normalization",
+        "calibrate_reference_bounds",
         "train_observer",
         "optimize_assimilation",
     }
@@ -81,8 +86,8 @@ def eligibility_precedes_fit(source: str) -> bool:
                 calls.append((node.lineno, node.col_offset, name))
         first = {name: min(call[:2] for call in calls if call[2] == name) for name in required if any(call[2] == name for call in calls)}
         if set(first) == required and all(
-            first["eligible_source_atom_ids"] < first[name]
-            for name in required - {"eligible_source_atom_ids"}
+            first["restrict_source_subset_eligibility"] < first[name]
+            for name in required - {"restrict_source_subset_eligibility"}
         ):
             return True
     return False
