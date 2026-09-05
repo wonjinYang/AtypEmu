@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
@@ -352,7 +353,10 @@ def concordance(target: np.ndarray, prediction: np.ndarray) -> float:
 
 
 def aggregate_source_scores(
-    frames: tuple[pd.DataFrame, ...], atom_inventory: tuple[str, ...]
+    frames: tuple[pd.DataFrame, ...],
+    atom_inventory: tuple[str, ...],
+    *,
+    expected_assignments: dict[tuple[str, int], set[str]] | None = None,
 ) -> dict[str, Any]:
     frame = pd.concat(frames, ignore_index=True)
     if frame["target_id"].astype(str).duplicated().any():
@@ -362,6 +366,20 @@ def aggregate_source_scores(
     for fold in ("A", "B"):
         if set(frame.loc[frame["fold"].eq(fold), "held_half"].astype(int)) != {0, 1}:
             raise ValueError("source OOF predictions omit a held half")
+    if expected_assignments is not None:
+        observed = {
+            (fold, half): set(
+                frame.loc[
+                    frame["fold"].astype(str).eq(fold)
+                    & frame["held_half"].astype(int).eq(half),
+                    "entity_uid",
+                ].astype(str)
+            )
+            for fold in ("A", "B")
+            for half in (0, 1)
+        }
+        if observed != expected_assignments:
+            raise ValueError("source OOF entity/half assignment mismatch")
     scores: dict[str, dict[str, float]] = {}
     for scope in ("A", "B", "OOF"):
         selected = frame if scope == "OOF" else frame.loc[frame["fold"].eq(scope)]
@@ -387,3 +405,107 @@ def aggregate_source_scores(
     }
     passed = all(gain > 0.0005 for values in gains.values() for gain in values.values())
     return {"scores": scores, "gains": gains, "threshold": 0.0005, "passed": passed}
+
+
+def expected_source_assignments(root: Path) -> dict[tuple[str, int], set[str]]:
+    """Independently reconstruct the fixed sequence-cluster source split."""
+    root = root.resolve()
+    commitment_path = root / SOURCE_COMMITMENT
+    if sha256(commitment_path) != SOURCE_COMMITMENT_SHA256:
+        raise ValueError("source assignment commitment hash mismatch")
+    source = json.loads(commitment_path.read_text())
+    parent_path = (root / str(source["parent_commitment_relative_path"])).resolve()
+    if root not in parent_path.parents or sha256(parent_path) != source["parent_commitment_sha256"]:
+        raise ValueError("source assignment parent binding mismatch")
+    parent = json.loads(parent_path.read_text())
+    assignments: dict[tuple[str, int], set[str]] = {}
+    for fold in ("A", "B"):
+        entities = [
+            row for row in parent["entities"]
+            if row.get("split") == "train" and row.get("observer_fold") == fold
+        ]
+        clusters: dict[str, list[str]] = {}
+        for row in entities:
+            clusters.setdefault(str(row["sequence_cluster_id"]), []).append(
+                str(row["entity_uid"])
+            )
+        loads = [0, 0]
+        cluster_half = {}
+        for cluster, members in sorted(clusters.items(), key=lambda item: (-len(item[1]), item[0])):
+            half = min(range(2), key=lambda index: (loads[index], index))
+            cluster_half[cluster] = half
+            loads[half] += len(members)
+        for half in (0, 1):
+            assignments[(fold, half)] = {
+                str(row["entity_uid"])
+                for row in entities
+                if cluster_half[str(row["sequence_cluster_id"])] == half
+            }
+    if len(set().union(*assignments.values())) != 135:
+        raise ValueError("source assignment does not cover 135 unique entities")
+    return assignments
+
+
+def write_json_new(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def check_source_gate(root: Path, run_dir: Path, output: Path) -> dict[str, Any]:
+    """Check exactly four sealed cells and emit one immutable source decision."""
+    if output.exists():
+        raise FileExistsError("source-gate decision already exists")
+    root, run_dir = root.resolve(), run_dir.resolve()
+    cells_root = run_dir / "cells"
+    names = {f"cell_{fold}_{half}" for fold in ("A", "B") for half in (0, 1)}
+    if not cells_root.is_dir() or {path.name for path in cells_root.iterdir()} != names:
+        raise ValueError("source-gate cell inventory mismatch")
+    cell_receipts = {}
+    frames = []
+    for fold in ("A", "B"):
+        for half in (0, 1):
+            cell = cells_root / f"cell_{fold}_{half}"
+            checked = check_cell_output(cell, root=root)
+            if checked["fold"] != fold or checked["held_half"] != half:
+                raise ValueError("source-gate cell identity mismatch")
+            cell_receipts[f"{fold}_{half}"] = sha256(cell / "receipt.json")
+            frames.append(pd.read_parquet(cell / "predictions.parquet"))
+    inventory_path = root / ".auto/frozen/all_label_inventory.json"
+    inventory_receipt = json.loads(inventory_path.read_text())
+    atom_inventory = tuple(str(value) for value in inventory_receipt["eligible_atom_ids"])
+    if len(atom_inventory) != 62 or len(set(atom_inventory)) != 62:
+        raise ValueError("source-gate frozen Atom_ID inventory mismatch")
+    decision = aggregate_source_scores(
+        tuple(frames),
+        atom_inventory,
+        expected_assignments=expected_source_assignments(root),
+    )
+    payload = {
+        "cell_receipt_sha256": cell_receipts,
+        "contract": "k32_nested_k8_source_gate_independent_decision_v1",
+        "formal_or_outer_metrics_opened": False,
+        "frozen_inventory_sha256": sha256(inventory_path),
+        "source_commitment_sha256": SOURCE_COMMITMENT_SHA256,
+        "source_entity_count": 135,
+        "source_target_values_opened": True,
+        **decision,
+    }
+    write_json_new(output, payload)
+    return payload
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument("--run-dir", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    decision = check_source_gate(args.root, args.run_dir, args.output)
+    print(f"source gate: {'GO' if decision['passed'] else 'NO_GO'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

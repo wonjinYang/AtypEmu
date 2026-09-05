@@ -559,9 +559,56 @@ negative_frames = tuple(frame.copy() for frame in score_frames)
 for frame in negative_frames:
     frame["full_nested_k8"] = frame["full_k32"]
 assert aggregate_source_scores(negative_frames, inventory)["passed"] is False
+import gpuopt.check_k32_nested_k8_source_gate as independent_checker
+with tempfile.TemporaryDirectory() as temporary:
+    run_dir = Path(temporary) / "run"
+    cells = run_dir / "cells"
+    cells.mkdir(parents=True)
+    frame_by_cell = {}
+    expected_assignments = {}
+    for frame in score_frames:
+        fold = str(frame["fold"].iloc[0])
+        half = int(frame["held_half"].iloc[0])
+        cell = cells / f"cell_{fold}_{half}"
+        cell.mkdir()
+        (cell / "receipt.json").write_text(json.dumps({"fold": fold, "half": half}) + "\n")
+        frame_by_cell[cell] = frame
+        expected_assignments[(fold, half)] = set(frame["entity_uid"].astype(str))
+
+    def fake_cell_check(path, *, root):
+        del root
+        _, fold, half = path.name.split("_")
+        return {"fold": fold, "held_half": int(half), "passed": True}
+
+    def fake_read(path, *args, **kwargs):
+        del args, kwargs
+        return frame_by_cell[path.parent].copy()
+
+    decision_path = run_dir / "decision.json"
+    with (
+        mock.patch.object(independent_checker, "check_cell_output", side_effect=fake_cell_check),
+        mock.patch.object(independent_checker.pd, "read_parquet", side_effect=fake_read),
+        mock.patch.object(
+            independent_checker,
+            "expected_source_assignments",
+            return_value=expected_assignments,
+        ),
+    ):
+        sealed_decision = independent_checker.check_source_gate(
+            Path("."), run_dir, decision_path
+        )
+        assert sealed_decision["passed"] is True
+        assert set(sealed_decision["cell_receipt_sha256"]) == {"A_0", "A_1", "B_0", "B_1"}
+        assert sealed_decision["formal_or_outer_metrics_opened"] is False
+        try:
+            independent_checker.check_source_gate(Path("."), run_dir, decision_path)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("independent source decision was overwritten")
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=146")
+print("METRIC matched_adapter_checks=154")
 PY
 rm -f "$preflight"
 rm -f "$draft"
