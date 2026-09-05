@@ -137,6 +137,24 @@ class SourceHalfInputs:
 
 
 @dataclass(frozen=True)
+class CoordinateAuditInput:
+    entity_uid: str
+    mode: str
+    residue_ids: tuple[int, ...]
+    residue_delta: np.ndarray
+
+
+@dataclass(frozen=True)
+class SourceCellResult:
+    predictions: pd.DataFrame
+    q: pd.DataFrame
+    coordinate_states: tuple[CoordinateAuditInput, ...]
+    observer_initial_loss: float
+    observer_final_loss: float
+    observer_state_sha256: str
+
+
+@dataclass(frozen=True)
 class AssimilationResult:
     initial_data_loss: float
     final_data_loss: float
@@ -781,6 +799,170 @@ def fit_source_observer(
     for parameter in model.parameters():
         parameter.requires_grad_(False)
     return initial, final
+
+
+def observer_state_sha256(model: nn.Module) -> str:
+    """Hash the exact named observer tensors independent of compute device."""
+    digest = hashlib.sha256()
+    for name, tensor in sorted(model.state_dict().items()):
+        array = tensor.detach().cpu().numpy()
+        digest.update(name.encode() + b"\0")
+        digest.update(str(array.dtype).encode() + b"\0")
+        digest.update(np.asarray(array.shape, dtype=np.int64).tobytes())
+        digest.update(np.ascontiguousarray(array).tobytes())
+    return digest.hexdigest()
+
+
+def run_source_crossfit_cell(
+    train: SourceHalfInputs,
+    evaluation: SourceHalfInputs,
+    *,
+    atom_inventory: tuple[str, ...],
+    epochs: int,
+    steps: int,
+    seed: int,
+    device: torch.device | None = None,
+) -> SourceCellResult:
+    """Fit one source cell and independently assimilate every held entity."""
+    for half in (train, evaluation):
+        validate_eligibility_receipt(half.frame, half.eligibility_receipt)
+        if (
+            half.frame["target_id"].astype(str).tolist()
+            != half.surface.target_ids.tolist()
+        ):
+            raise ValueError("source-cell target and surface order differ")
+    train_entities = set(source_entity_slices(train.surface))
+    evaluation_slices = source_entity_slices(evaluation.surface)
+    if train_entities & set(evaluation_slices):
+        raise ValueError("source-cell train and evaluation entities overlap")
+    if evaluation.targets.normalization != train.targets.normalization:
+        raise ValueError("held source cell did not reuse training normalization")
+    train_receipt = train.eligibility_receipt
+    evaluation_receipt = evaluation.eligibility_receipt
+    if (
+        train_receipt.get("role") != "train"
+        or evaluation_receipt.get("role") != "evaluation"
+        or train_receipt.get("fold") != evaluation_receipt.get("fold")
+        or train_receipt.get("held_half") != evaluation_receipt.get("held_half")
+    ):
+        raise ValueError("source-cell eligibility receipt pairing mismatch")
+
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    model = DynamicDistanceObserver(len(atom_inventory) + 1)
+    initial_loss, final_loss = fit_source_observer(
+        model,
+        train.surface,
+        train.targets,
+        train.context,
+        epochs=epochs,
+        seed=seed,
+        device=device,
+    )
+    state_sha256 = observer_state_sha256(model)
+    prediction = {
+        name: np.full(len(evaluation.frame), np.nan, dtype=np.float32)
+        for name in (
+            "full_k32",
+            "full_nested_k8",
+            "no_coordinate",
+            "uniform_q",
+            "anchor_only",
+        )
+    }
+    q_rows: list[dict[str, Any]] = []
+    coordinate_states: list[CoordinateAuditInput] = []
+    fold = str(evaluation_receipt["fold"])
+    held_half = int(evaluation_receipt["held_half"])
+    for entity_uid, rows in evaluation_slices.items():
+        surface = subset_surface(
+            evaluation.surface,
+            tuple(evaluation.surface.target_ids[rows].astype(str)),
+        )
+        targets = subset_source_targets(evaluation.targets, rows)
+        anchor = evaluation.anchor[rows].copy()
+        context = tuple(value[rows].copy() for value in evaluation.context)
+        full_k32, full_k8 = matched_assimilation(
+            model,
+            surface,
+            targets,
+            anchor,
+            context,
+            mode="full",
+            steps=steps,
+            device=device,
+        )
+        controls = {
+            "no_coordinate": optimize_assimilation(
+                model, surface, targets, anchor, context,
+                mode="no_coordinate", steps=steps, device=device,
+            ),
+            "uniform_q": optimize_assimilation(
+                model, surface, targets, anchor, context,
+                mode="uniform_q", steps=steps, device=device,
+            ),
+            "anchor_only": optimize_assimilation(
+                model, surface, targets, anchor, context,
+                mode="anchor_only", steps=steps, device=device,
+            ),
+        }
+        results = {
+            "full_k32": full_k32,
+            "full_nested_k8": full_k8,
+            **controls,
+        }
+        for mode, result in results.items():
+            prediction[mode][rows] = result.prediction
+            support_ids = (
+                nested8(surface).support_ids
+                if mode == "full_nested_k8"
+                else surface.support_ids
+            )
+            if len(result.q) != len(support_ids):
+                raise ValueError("source-cell q and support roster differ")
+            q_rows.extend(
+                {
+                    "fold": fold,
+                    "held_half": held_half,
+                    "entity_uid": entity_uid,
+                    "mode": mode,
+                    "support_id": support_id,
+                    "q": float(q_value),
+                    "observer_state_sha256": state_sha256,
+                }
+                for support_id, q_value in zip(support_ids, result.q, strict=True)
+            )
+        residue_ids = residue_inventory(surface)
+        coordinate_states.extend(
+            CoordinateAuditInput(
+                entity_uid, mode, residue_ids, result.residue_delta
+            )
+            for mode, result in (
+                ("full_k32", full_k32),
+                ("uniform_q", controls["uniform_q"]),
+            )
+        )
+    if any(not np.isfinite(values).all() for values in prediction.values()):
+        raise ValueError("source-cell prediction surface is incomplete")
+    frame = evaluation.frame.copy()
+    frame.insert(0, "held_half", held_half)
+    frame.insert(0, "fold", fold)
+    frame["observer_state_sha256"] = state_sha256
+    for name, values in prediction.items():
+        frame[name] = values
+    q = pd.DataFrame(q_rows)
+    sums = q.groupby(["entity_uid", "mode"], sort=True)["q"].sum().to_numpy()
+    if not np.allclose(sums, 1.0, atol=1.0e-6, rtol=0.0):
+        raise ValueError("source-cell q is not normalized per entity and mode")
+    return SourceCellResult(
+        predictions=frame,
+        q=q,
+        coordinate_states=tuple(coordinate_states),
+        observer_initial_loss=initial_loss,
+        observer_final_loss=final_loss,
+        observer_state_sha256=state_sha256,
+    )
 
 
 def optimize_assimilation(

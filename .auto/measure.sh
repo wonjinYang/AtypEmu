@@ -390,18 +390,20 @@ from gpuopt.candidates import k32_nested_k8_adapter as adapter
 inventory = tuple(json.loads(Path(".auto/frozen/all_label_inventory.json").read_text())["eligible_atom_ids"])
 cell = adapter.source_crossfit_plan(Path("."))[0]
 entities = cell.train_entities[:2]
+evaluation_entities = cell.evaluation_entities[:2]
+all_entities = tuple(sorted(entities + evaluation_entities))
 access = adapter.ConsumedAuthorization("1" * 64, "2" * 64)
 target_hashes = {entity: "3" * 64 for entity in entities}
 opened = []
 
 def synthetic_targets(root, surface, *, entity_uid, fold, expected_sha256, access):
     del root
-    assert fold == cell.fold and expected_sha256 == target_hashes[entity_uid]
+    assert fold == cell.fold and expected_sha256 == "3" * 64
     assert isinstance(access, adapter.ConsumedAuthorization)
     opened.append(entity_uid)
     seq_ids, comp_ids, atom_ids = surface.row_context
     atom_number = {name: index for index, name in enumerate(inventory)}
-    entity_number = entities.index(entity_uid)
+    entity_number = all_entities.index(entity_uid)
     return pd.DataFrame({
         "entity_uid": entity_uid,
         "target_id": surface.target_ids,
@@ -422,15 +424,15 @@ with mock.patch.object(adapter, "load_source_entity_targets", side_effect=synthe
         frozen_atom_ids=inventory, target_sha256=target_hashes, access=access,
     )
     evaluation = adapter.assemble_source_half(
-        Path("."), entities, fold=cell.fold, held_half=cell.held_half, role="evaluation",
-        frozen_atom_ids=inventory, target_sha256=target_hashes, access=access,
+        Path("."), evaluation_entities, fold=cell.fold,
+        held_half=cell.held_half, role="evaluation",
+        frozen_atom_ids=inventory,
+        target_sha256={entity: "3" * 64 for entity in evaluation_entities},
+        access=access,
         normalization=train.targets.normalization,
     )
-assert opened == list(entities) * 2
+assert opened == list(entities) + list(evaluation_entities)
 assert train.frame["target_id"].astype(str).tolist() == train.surface.target_ids.tolist()
-assert np.array_equal(train.surface.target_ids, evaluation.surface.target_ids)
-assert np.array_equal(train.anchor, evaluation.anchor)
-assert all(np.array_equal(a, b) for a, b in zip(train.context, evaluation.context, strict=True))
 assert evaluation.targets.normalization == train.targets.normalization
 assert np.isfinite(train.targets.normalized).all() and np.isfinite(evaluation.targets.normalized).all()
 assert train.eligibility_receipt["role"] == "train"
@@ -443,7 +445,29 @@ except PermissionError:
     pass
 else:
     raise AssertionError("source-half assembly accepted an absent capability")
-print("METRIC matched_adapter_checks=106")
+result = adapter.run_source_crossfit_cell(
+    train, evaluation, atom_inventory=inventory, epochs=2, steps=2, seed=20260905,
+)
+expected_rows = len(evaluation.frame)
+assert len(result.predictions) == expected_rows
+assert result.observer_final_loss < result.observer_initial_loss
+assert len(result.observer_state_sha256) == 64
+assert set(result.q["mode"]) == {
+    "full_k32", "full_nested_k8", "no_coordinate", "uniform_q", "anchor_only",
+}
+q_counts = result.q.groupby(["entity_uid", "mode"])["support_id"].nunique()
+assert set(q_counts[q_counts == 8].index.get_level_values("mode")) == {"full_nested_k8"}
+assert set(q_counts[q_counts == 32].index.get_level_values("mode")) == {
+    "full_k32", "no_coordinate", "uniform_q", "anchor_only",
+}
+assert np.allclose(result.q.groupby(["entity_uid", "mode"])["q"].sum(), 1)
+assert np.isfinite(result.predictions[[
+    "full_k32", "full_nested_k8", "no_coordinate", "uniform_q", "anchor_only",
+]].to_numpy()).all()
+assert len(result.coordinate_states) == 2 * len(evaluation_entities)
+assert all(state.residue_delta.shape[1:] == (32, 4) for state in result.coordinate_states)
+assert result.predictions["observer_state_sha256"].nunique() == 1
+print("METRIC matched_adapter_checks=116")
 PY
 rm -f "$preflight"
 rm -f "$draft"
