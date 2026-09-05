@@ -40,6 +40,7 @@
   },
   "diversity_audit": {
     "audit_scope": "every support at every ladder level",
+    "completion": false,
     "canonical_heavy_atom_identity_must_match_within_entity": true,
     "exact_coordinate_duplicate_count_max_per_entity": 0,
     "hydrogen_topology_variation_requires_explicit_per_support_receipt": true,
@@ -59,7 +60,23 @@
   "evidence": {
     "catalog_feasibility_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json",
-      "sha256": "9069f0eea7a4db213babbfc02d09512b5bfe00051a46d7ae723fa90c65c58828"
+      "sha256": "a74385b1df850d894275bf027545d3166620addf9ddbbd623a1a6003d7e4c849"
+    },
+    "catalog_checker": {
+      "path": "gpuopt/candidates/check_nested_support_catalog.py",
+      "sha256": "e11744cebe8c7e78e08ed65747ff67a7b8db4f818dfffb83381868d04889660f"
+    },
+    "catalog_producer": {
+      "path": "gpuopt/candidates/nested_support_catalog.py",
+      "sha256": "4bd7c9463b34a9d6c268784fd13b45a01bf18c5e97905c0a5a4efd1cd7da0c28"
+    },
+    "catalog_shard_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_v3_shards.tar.gz",
+      "sha256": "69fee89d20588cbeb2a15cc1c4a4f002f63a50928f2028f5835c5b3b871061c2"
+    },
+    "catalog_summary": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_catalog_yulab_v3/catalog_summary.json",
+      "sha256": "737aaff560041ab7b64a750d011469a43563ab8a307af518eea3b98903f99b41"
     },
     "current_k32_plan": {
       "path": "gpuopt/preunblind/k32_nested_k8_source_gate_plan_v1.json",
@@ -72,6 +89,14 @@
     "jeon_thesis": {
       "path": "references/thesis_jeon.pdf",
       "sha256": "8a51ff19002dfc028ed43fe99b39c5d363024b91ce4c1398a0246d8952cd925e"
+    },
+    "source_commitment": {
+      "path": ".auto/staging/k32_dynamic_distance_cache_source_commitment_v1.json",
+      "sha256": "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8"
+    },
+    "entity_roster": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
+      "sha256": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
     }
   },
   "fixed_protocol": {
@@ -89,6 +114,7 @@
     "training_normalization_only": true
   },
   "interpretation": {
+    "all_atom_count_feasibility_established": false,
     "bioemu_only_redundant_expansion": "count scaling only",
     "general_sampling_sufficiency_established": false,
     "jeon_transfer_claim_allowed": false,
@@ -130,12 +156,18 @@
   "readiness": {
     "blocking_conditions": [
       "K1536 exceeds the only currently evidenced BioEmu index namespace",
-      "K128 and K768 are count-feasible but diversity, complete-coordinate physicality, and exact nesting are unqualified",
+      "K32, K128, and K768 are heavy-topology count-feasible only; all-atom usability is unclaimed pending a frozen support-specific hydrogen canonicalization policy, geometry-availability mask policy, and per-entity recount",
       "K32 original structural-source provenance replay is not established for this study",
       "support construction and diversity thresholds are not frozen",
       "primary and replicate ladder roots are not committed"
     ],
     "formal_evaluation": "HOLD",
+    "level_progression": {
+      "general_sampling_sufficiency_claim_requires_a_separately_cleared_convergence_level": true,
+      "k128_and_k768_may_advance_without_k1536": true,
+      "lower_level_condition": "each level must first close its own hydrogen-canonicalization, geometry-mask, all-atom recount, diversity, physicality, exact-nesting, provenance, commitment, review, and authorization blockers",
+      "status": "LOWER_LEVELS_HOLD_ON_LEVEL_LOCAL_BLOCKERS_K1536_SEPARATELY_BLOCKED"
+    },
     "materialization": "HOLD",
     "science_authorization": "HOLD",
     "science_execution": "HOLD"
@@ -146,19 +178,38 @@
     "replicate_manifest_state": "ABSENT"
   },
   "source_feasibility": {
+    "all_atom_count_recount_required": true,
+    "all_atom_count_status": "UNCLAIMED_PENDING_HYDROGEN_CANONICALIZATION_GEOMETRY_MASK_AND_RECOUNT",
+    "all_atom_topology_count_diagnostics": {
+      "interpretation": "diagnostic topology counts only; not all-atom support usability",
+      "largest_single_topology_variant_entity_count_ge_k": {
+        "128": 135,
+        "1536": 0,
+        "32": 135,
+        "768": 117
+      },
+      "reference_topology_entity_count_ge_k": {
+        "128": 121,
+        "1536": 0,
+        "32": 130,
+        "768": 108
+      }
+    },
     "currently_evidenced_coordinate_methods": [
       "BioEmu"
     ],
-    "count_feasibility_definition": "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports",
+    "geometry_availability_mask_policy_state": "UNFROZEN",
+    "heavy_topology_count_feasibility_definition": "per entity using heavy-topology-compatible exact-heavy-coordinate-unique supports",
     "currently_evidenced_index_max": 1000,
     "currently_evidenced_index_min": 1,
     "level_status": {
-      "32": "COUNT_FEASIBLE_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING",
-      "128": "COUNT_FEASIBLE_UNQUALIFIED_DIVERSITY_PHYSICALITY_NESTING",
-      "768": "COUNT_FEASIBLE_UNQUALIFIED_DIVERSITY_PHYSICALITY_NESTING",
-      "1536": "BLOCKED_BY_CURRENT_SOURCE_CAPACITY"
+      "32": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_EXISTING_SEED_REQUIRES_NEW_PROVENANCE_BINDING_ALL_ATOM_UNCLAIMED",
+      "128": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
+      "768": "HEAVY_TOPOLOGY_COUNT_FEASIBLE_ONLY_ALL_ATOM_UNCLAIMED_PENDING_RECOUNT",
+      "1536": "HEAVY_TOPOLOGY_COUNT_BLOCKED_BY_CURRENT_SOURCE_CAPACITY_ALL_ATOM_UNCLAIMED"
     },
-    "new_target_unread_generation_or_coordinate_source_required_for_k1536": true
+    "new_target_unread_generation_or_coordinate_source_required_for_k1536": true,
+    "support_specific_hydrogen_canonicalization_policy_state": "UNFROZEN"
   },
   "state": "HOLD_FEASIBILITY_BLOCKED",
   "study_id": "atypemu_nested_support_count_v1",
