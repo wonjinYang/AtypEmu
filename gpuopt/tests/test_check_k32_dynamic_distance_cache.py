@@ -292,6 +292,23 @@ def _fixture(root: Path) -> tuple[argparse.Namespace, pd.DataFrame, Path]:
 
 
 class DynamicDistanceCacheCheckerTests(unittest.TestCase):
+    def test_source_scope_must_equal_parent_entity_fold(self) -> None:
+        entity = {"entity_uid": "e", "observer_fold": "A"}
+        frame = pd.DataFrame(
+            {
+                "entity_uid": ["e"] * 8,
+                "split": ["train"] * 8,
+                "observer_fold": ["A"] * 8,
+                "support_id": list(checker.SOURCE_SUPPORT_IDS),
+            }
+        )
+        with mock.patch.object(checker.pd, "read_parquet", return_value=frame):
+            checker.verify_source_scope(Path("synthetic.parquet"), entity)
+        frame["observer_fold"] = "B"
+        with mock.patch.object(checker.pd, "read_parquet", return_value=frame):
+            with self.assertRaisesRegex(ValueError, "fold scope mismatch"):
+                checker.verify_source_scope(Path("synthetic.parquet"), entity)
+
     def test_source_read_requests_only_the_six_identity_columns(self) -> None:
         frame = pd.DataFrame(
             {
@@ -319,8 +336,13 @@ class DynamicDistanceCacheCheckerTests(unittest.TestCase):
                 "EXPECTED_TARGET_AVAILABLE_ROWS": 32,
                 "EXPECTED_TARGET_MISSING_ROWS": 0,
             }
+            parquet_frame = frame.assign(split="train", observer_fold="A")
+
+            def read_parquet(_path: Path, columns: tuple[str, ...]) -> pd.DataFrame:
+                return parquet_frame.loc[:, list(columns)].copy()
+
             with mock.patch.multiple(checker, **patches), mock.patch.object(
-                checker.pd, "read_parquet", return_value=frame
+                checker.pd, "read_parquet", side_effect=read_parquet
             ):
                 summary = checker.check(args)
                 self.assertTrue(summary["passed"])

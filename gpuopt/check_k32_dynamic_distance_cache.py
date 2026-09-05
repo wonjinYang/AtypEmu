@@ -128,6 +128,7 @@ IDENTITY_COLUMNS = (
     "atom_id",
     "support_id",
 )
+SCOPE_COLUMNS = ("entity_uid", "split", "observer_fold", "support_id")
 
 SIDECHAIN_CHI_BONDS = {
     "ARG": (("CA", "CB"), ("CB", "CG"), ("CG", "CD"), ("CD", "NE")),
@@ -500,6 +501,22 @@ def read_source_targets(path: Path, entity_uid: str) -> pd.DataFrame:
             raise ValueError(f"source identity columns missing: {path}")
         frame = frame.loc[:, list(IDENTITY_COLUMNS)]
     return _target_rows(frame, entity_uid)
+
+
+def verify_source_scope(path: Path, entity: dict[str, str]) -> None:
+    """Independently prove the frozen feature file belongs to its parent fold."""
+
+    frame = pd.read_parquet(path, columns=SCOPE_COLUMNS)
+    if not set(SCOPE_COLUMNS).issubset(frame.columns):
+        raise ValueError(f"source scope columns missing: {path}")
+    frame = frame.loc[:, list(SCOPE_COLUMNS)]
+    if (
+        set(frame["entity_uid"].astype(str)) != {entity["entity_uid"]}
+        or set(frame["split"].astype(str)) != {"train"}
+        or set(frame["observer_fold"].astype(str)) != {entity["observer_fold"]}
+        or set(frame["support_id"].astype(str)) != set(SOURCE_SUPPORT_IDS)
+    ):
+        raise ValueError(f"source feature fold scope mismatch: {entity['entity_uid']}")
 
 
 def _stable_ids_hash(values: np.ndarray) -> str:
@@ -884,10 +901,12 @@ def check(args: argparse.Namespace) -> dict[str, Any]:
 
     feature_by_entity: dict[str, Path] = {}
     targets_by_entity: dict[str, pd.DataFrame] = {}
+    entity_by_uid = {entity["entity_uid"]: entity for entity in entities}
     for feature in source["features"]:
         entity_uid = str(feature["entity_uid"])
         path = _under(root, root / str(feature["relative_path"]))
         feature_by_entity[entity_uid] = path
+        verify_source_scope(path, entity_by_uid[entity_uid])
         targets = read_source_targets(path, entity_uid)
         # The frozen feature manifest counts the eight K=8 support rows per
         # identity; the cache contains one identity row and expands it to K=32.
@@ -1008,6 +1027,8 @@ def check(args: argparse.Namespace) -> dict[str, Any]:
         "replay_sample_target_support_rows": replay_rows,
         "replay_sample_spans_every_entity": True,
         "replay_sample_spans_every_support": True,
+        "fold_scope_verified_entities": len(feature_by_entity),
+        "checker_sha256": sha256_file(Path(__file__)),
         "per_chi_nonzero_jacobian_counts": nonzero,
         "jacobian_nonzero_counts": nonzero,
         "errors": [],
@@ -1046,6 +1067,7 @@ def main() -> int:
     print(json.dumps(summary, sort_keys=True))
     if code == 0:
         print("METRIC verified_target_support_rows=4073120")
+        print("METRIC fold_scope_verified_entities=135")
     return code
 
 
