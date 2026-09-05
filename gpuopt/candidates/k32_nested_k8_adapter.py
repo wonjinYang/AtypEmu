@@ -93,6 +93,16 @@ class SourceTargets:
     weight: np.ndarray
 
 
+@dataclass(frozen=True)
+class AssimilationResult:
+    initial_data_loss: float
+    final_data_loss: float
+    q: np.ndarray
+    residue_delta: np.ndarray
+    reference_offset: np.ndarray
+    coordinate_gradient_norm: float
+
+
 class DynamicDistanceObserver(nn.Module):
     """Small shared observer for target-free dynamic distance channels only."""
 
@@ -359,6 +369,118 @@ def fit_source_observer(
     for parameter in model.parameters():
         parameter.requires_grad_(False)
     return initial, final
+
+
+def optimize_assimilation(
+    model: DynamicDistanceObserver,
+    surface: Surface,
+    targets: SourceTargets,
+    anchor: np.ndarray,
+    context: tuple[np.ndarray, np.ndarray, np.ndarray],
+    *,
+    mode: str,
+    steps: int,
+) -> AssimilationResult:
+    """Freshly optimize one entity with one q shared across every label."""
+    modes = {"full", "no_coordinate", "uniform_q", "anchor_only"}
+    if mode not in modes:
+        raise ValueError(f"unknown assimilation mode: {mode}")
+    coordinate_active = mode in {"full", "uniform_q"}
+    q_active = mode in {"full", "no_coordinate"}
+    residue_ids = residue_inventory(surface)
+    delta_raw = nn.Parameter(
+        torch.zeros((len(residue_ids), len(surface.support_ids), 4))
+    )
+    q_logits = nn.Parameter(torch.zeros(len(surface.support_ids)))
+    reference_raw = nn.Parameter(torch.zeros(3))
+    parameters: list[nn.Parameter] = [reference_raw]
+    if coordinate_active:
+        parameters.append(delta_raw)
+    if q_active:
+        parameters.append(q_logits)
+    optimizer = torch.optim.Adam(parameters, lr=0.08, foreach=False)
+    base_distance = torch.from_numpy(surface.arrays[0])
+    available = torch.from_numpy(surface.arrays[5])
+    atom, residue, position = (torch.from_numpy(value) for value in context)
+    target = torch.from_numpy(targets.normalized)
+    weight = torch.from_numpy(targets.weight)
+    scale = torch.from_numpy(targets.scale)
+    anchor_deviation = torch.from_numpy(
+        ((anchor - targets.center[:, None]) / targets.scale[:, None]).astype(
+            np.float32
+        )
+    )
+    if surface.row_context is None:
+        raise ValueError("surface has no receipted atom identities")
+    element_lookup = {"H": 0, "C": 1, "N": 2}
+    try:
+        element = torch.as_tensor(
+            [element_lookup[value[0]] for value in surface.row_context[2]]
+        )
+    except KeyError as error:
+        raise ValueError("unsupported reference element") from error
+    bounds = torch.tensor((0.1, 0.5, 1.0))
+    with torch.no_grad():
+        base = model(base_distance, available, atom, residue, position)
+        base_mean = base.mean(dim=1, keepdim=True)
+
+    def objective() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        if coordinate_active:
+            delta = 0.05 * torch.tanh(delta_raw)
+            self_delta, neighbor_delta = gather_residue_deltas(
+                surface, residue_ids, delta
+            )
+            distance, mask = differentiable_actuate(
+                surface, self_delta, neighbor_delta
+            )
+            active = model(distance, mask, atom, residue, position)
+        else:
+            delta = torch.zeros_like(delta_raw)
+            active = base
+        support_prediction = 0.1 * base_mean + (active - base_mean)
+        support_prediction = support_prediction + anchor_deviation
+        q = (
+            torch.softmax(q_logits, dim=0)
+            if q_active
+            else torch.full_like(q_logits, 1.0 / len(q_logits))
+        )
+        reference = bounds * torch.tanh(reference_raw)
+        aggregate = torch.sum(q[None, :] * support_prediction, dim=1)
+        aggregate = aggregate + reference[element] / scale
+        data_loss = torch.mean(weight * torch.square(aggregate - target))
+        regularizer = 3.0e-3 * torch.mean(torch.square(torch.tanh(reference_raw)))
+        if coordinate_active:
+            regularizer = regularizer + 3.0e-2 * torch.mean(
+                torch.square(torch.tanh(delta_raw))
+            )
+        if q_active:
+            regularizer = regularizer + 3.0e-3 * torch.sum(
+                q * torch.log((q * len(q)).clamp_min(1.0e-12))
+            )
+        return data_loss + regularizer, data_loss, q, delta
+
+    initial = float(objective()[1].detach())
+    for _ in range(steps):
+        total, _, _, _ = objective()
+        optimizer.zero_grad(set_to_none=True)
+        total.backward()
+        optimizer.step()
+    _, final_data, q, delta = objective()
+    gradient_norm = 0.0
+    if coordinate_active:
+        gradient = torch.autograd.grad(final_data, delta_raw, retain_graph=False)[0]
+        if not torch.isfinite(gradient).all():
+            raise ValueError("nonfinite coordinate data gradient")
+        gradient_norm = float(gradient.norm().detach())
+    reference = bounds * torch.tanh(reference_raw.detach())
+    return AssimilationResult(
+        initial_data_loss=initial,
+        final_data_loss=float(final_data.detach()),
+        q=q.detach().numpy(),
+        residue_delta=delta.detach().numpy(),
+        reference_offset=reference.numpy(),
+        coordinate_gradient_norm=gradient_norm,
+    )
 
 
 def actuate(

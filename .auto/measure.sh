@@ -105,7 +105,20 @@ for seq_id in set(probe.row_context[0]):
 mapped_distance, mapped_available = adapter.differentiable_actuate(probe, row_delta, neighbor_row_delta)
 fit_model(mapped_distance, mapped_available, torch.from_numpy(atom[:16]), torch.from_numpy(residue[:16]), torch.from_numpy(position[:16])).sum().backward()
 assert residue_delta.grad is not None and torch.isfinite(residue_delta.grad).all() and residue_delta.grad.norm() > 0
-print("METRIC matched_adapter_checks=33")
+results = {
+    mode: adapter.optimize_assimilation(
+        fit_model, training_surface, targets, synthetic_anchor, fit_context,
+        mode=mode, steps=24,
+    )
+    for mode in ("full", "no_coordinate", "uniform_q", "anchor_only")
+}
+assert all(result.final_data_loss <= result.initial_data_loss for result in results.values())
+assert np.isclose(results["full"].q.sum(), 1.0) and results["full"].q.shape == (32,)
+assert np.array_equal(results["uniform_q"].q, np.full(32, 1 / 32, np.float32))
+assert not np.any(results["no_coordinate"].residue_delta) and not np.any(results["anchor_only"].residue_delta)
+assert results["full"].coordinate_gradient_norm > 0 and results["uniform_q"].coordinate_gradient_norm > 0
+assert all(not np.shares_memory(left.q, right.q) for left in results.values() for right in results.values() if left is not right)
+print("METRIC matched_adapter_checks=39")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
