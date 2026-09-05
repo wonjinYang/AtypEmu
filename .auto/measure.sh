@@ -360,7 +360,7 @@ preflight="$(mktemp)"
 rm -f "$preflight"
 $PY gpuopt/run_k32_nested_k8_source_gate.py \
   --root . --draft-commitment "$draft" --preflight-output "$preflight" --preflight-only
-$PY - "$preflight" <<'PY'
+$PY - "$preflight" "$draft" <<'PY'
 import ast
 import hashlib
 import json
@@ -368,6 +368,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 receipt = json.loads(Path(sys.argv[1]).read_text())
 assert receipt["production_ready"] is False
@@ -383,15 +384,98 @@ for node in tree.body:
         top_imports.update(alias.name.split(".")[0] for alias in node.names)
     elif isinstance(node, ast.ImportFrom):
         top_imports.add(str(node.module).split(".")[0])
-assert top_imports <= {"__future__", "argparse", "hashlib", "json", "pathlib", "sys", "typing"}
+assert top_imports <= {
+    "__future__", "argparse", "hashlib", "json", "pathlib", "subprocess", "sys", "typing"
+}
 
 # Exercise post-consumption source-half assembly using synthetic targets only.
 import numpy as np
 import pandas as pd
 from unittest import mock
 from gpuopt.candidates import k32_nested_k8_adapter as adapter
+import gpuopt.run_k32_nested_k8_source_gate as source_runner
 
 inventory = tuple(json.loads(Path(".auto/frozen/all_label_inventory.json").read_text())["eligible_atom_ids"])
+real_plan = adapter.source_crossfit_plan(Path("."))
+fake_calls = []
+
+class FakeAccess:
+    def __init__(self, source_commitment_sha256, authorization_sha256):
+        self.source_commitment_sha256 = source_commitment_sha256
+        self.authorization_sha256 = authorization_sha256
+
+class FakeAdapter:
+    ConsumedAuthorization = FakeAccess
+
+    @staticmethod
+    def source_crossfit_plan(root):
+        del root
+        return real_plan
+
+    @staticmethod
+    def assemble_source_half(root, entities, **kwargs):
+        del root
+        assert set(kwargs["target_sha256"]) == set(entities)
+        assert isinstance(kwargs["access"], FakeAccess)
+        if kwargs["role"] == "evaluation":
+            assert kwargs["normalization"] == (kwargs["fold"], kwargs["held_half"])
+        fake_calls.append(("assemble", kwargs["fold"], kwargs["held_half"], kwargs["role"]))
+        return SimpleNamespace(
+            fold=kwargs["fold"],
+            held_half=kwargs["held_half"],
+            targets=SimpleNamespace(
+                normalization=(kwargs["fold"], kwargs["held_half"])
+            ),
+        )
+
+    @staticmethod
+    def run_source_crossfit_cell(train, evaluation, **kwargs):
+        assert train.fold == evaluation.fold and train.held_half == evaluation.held_half
+        assert kwargs["epochs"] == 1024 and kwargs["steps"] == 100
+        fake_calls.append(("run", train.fold, train.held_half))
+        return evaluation
+
+    @staticmethod
+    def audit_source_cell_coordinates(root, result):
+        del root
+        fake_calls.append(("audit", result.fold, result.held_half))
+        return pd.DataFrame({"ok": [True]})
+
+    @staticmethod
+    def write_source_cell_outputs_new(path, result, physicality):
+        assert bool(physicality["ok"].iloc[0])
+        path.mkdir()
+        payload = {"fold": result.fold, "held_half": result.held_half}
+        (path / "receipt.json").write_text(json.dumps(payload) + "\n")
+        fake_calls.append(("write", result.fold, result.held_half))
+        return payload
+
+draft_commitment = json.loads(Path(sys.argv[2]).read_text())
+fake_consumed = SimpleNamespace(
+    source_commitment_sha256="1" * 64,
+    authorization_sha256="2" * 64,
+)
+with tempfile.TemporaryDirectory() as temporary:
+    fake_output = Path(temporary) / "source-run"
+    execution = source_runner.execute_source_cells(
+        Path("."), draft_commitment, fake_consumed, fake_output,
+        epochs=1024, steps=100, device_name="cpu", adapter_module=FakeAdapter,
+    )
+    assert execution["source_entity_count"] == 135
+    assert set(execution["cell_receipt_sha256"]) == {"A_0", "A_1", "B_0", "B_1"}
+    assert len([call for call in fake_calls if call[0] == "assemble"]) == 8
+    assert len([call for call in fake_calls if call[0] == "run"]) == 4
+    assert len([call for call in fake_calls if call[0] == "audit"]) == 4
+    assert len([call for call in fake_calls if call[0] == "write"]) == 4
+    try:
+        source_runner.execute_source_cells(
+            Path("."), draft_commitment, fake_consumed, fake_output,
+            epochs=1024, steps=100, device_name="cpu", adapter_module=FakeAdapter,
+        )
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("production source runner accepted output reuse")
 cell = adapter.source_crossfit_plan(Path("."))[0]
 entities = cell.train_entities[:2]
 evaluation_entities = cell.evaluation_entities[:2]
@@ -608,7 +692,7 @@ with tempfile.TemporaryDirectory() as temporary:
             raise AssertionError("independent source decision was overwritten")
 checker_source = Path("gpuopt/check_k32_nested_k8_source_gate.py").read_text()
 assert "gpuopt.candidates" not in checker_source
-print("METRIC matched_adapter_checks=154")
+print("METRIC matched_adapter_checks=164")
 PY
 rm -f "$preflight"
 rm -f "$draft"
