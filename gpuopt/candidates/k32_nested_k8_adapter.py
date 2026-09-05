@@ -127,6 +127,12 @@ class CrossfitHalf:
     evaluation_clusters: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class ConsumedAuthorization:
+    source_commitment_sha256: str
+    authorization_sha256: str
+
+
 class DynamicDistanceObserver(nn.Module):
     """Small shared observer for target-free dynamic distance channels only."""
 
@@ -341,6 +347,84 @@ def eligible_source_subset(
         surface, tuple(selected["target_id"].astype(str))
     )
     return {"frame": selected, "source_eligibility_receipt": receipt}, selected_surface
+
+
+def load_source_entity_targets(
+    root: Path,
+    surface: Surface,
+    *,
+    entity_uid: str,
+    fold: str,
+    expected_sha256: str,
+    access: ConsumedAuthorization,
+) -> pd.DataFrame:
+    """Open one source target only after an external authorization was consumed."""
+    if not isinstance(access, ConsumedAuthorization) or not all(
+        len(value) == 64
+        for value in (access.source_commitment_sha256, access.authorization_sha256)
+    ):
+        raise PermissionError("source target access requires a consumed authorization")
+    if fold not in {"A", "B"} or not expected_sha256:
+        raise ValueError("invalid source target binding")
+    fields = entity_uid.split(":")
+    if len(fields) != 4 or fields[0] != "bmrb" or fields[2] != "entity":
+        raise ValueError("invalid source entity identity")
+    path = root / "data/all_atom_observer_v1/targets" / f"bmr{fields[1]}.parquet"
+    if sha256(path) != expected_sha256:
+        raise ValueError("source target file binding mismatch")
+    frame = pd.read_parquet(
+        path,
+        columns=(
+            "entity_uid",
+            "target_id",
+            "seq_id",
+            "comp_id",
+            "atom_id",
+            "target_value",
+            "split",
+            "observer_fold",
+        ),
+    )
+    frame = frame[frame["entity_uid"].astype(str).eq(entity_uid)].copy()
+    if frame["target_id"].duplicated().any():
+        raise ValueError("duplicate source target identity")
+    if set(frame["split"].astype(str)) != {"train"} or set(
+        frame["observer_fold"].astype(str)
+    ) != {fold}:
+        raise ValueError("source target split or fold mismatch")
+    frame = frame.set_index("target_id").reindex(surface.target_ids).reset_index()
+    if frame.isna().any().any():
+        raise ValueError("source target does not exactly cover its coordinate surface")
+    return frame
+
+
+def source_entity_slices(surface: Surface) -> dict[str, np.ndarray]:
+    """Recover entity groups from the canonical entity-qualified target identity."""
+    groups: dict[str, list[int]] = {}
+    for row, target_id in enumerate(surface.target_ids.astype(str)):
+        parts = target_id.split(":target:", maxsplit=1)
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            raise ValueError("target identity is not entity-qualified")
+        groups.setdefault(parts[0], []).append(row)
+    return {
+        entity_uid: np.asarray(rows, dtype=np.int64)
+        for entity_uid, rows in sorted(groups.items())
+    }
+
+
+def subset_source_targets(targets: SourceTargets, rows: np.ndarray) -> SourceTargets:
+    rows = np.asarray(rows, dtype=np.int64)
+    if rows.ndim != 1 or len(rows) == 0:
+        raise ValueError("source target subset is empty or non-vector")
+    if np.any(rows < 0) or np.any(rows >= len(targets.normalized)):
+        raise ValueError("source target subset index is out of range")
+    return SourceTargets(
+        normalized=targets.normalized[rows].copy(),
+        center=targets.center[rows].copy(),
+        scale=targets.scale[rows].copy(),
+        weight=targets.weight[rows].copy(),
+        normalization=targets.normalization,
+    )
 
 
 def source_crossfit_plan(root: Path) -> tuple[CrossfitHalf, ...]:

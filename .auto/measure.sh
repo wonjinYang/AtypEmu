@@ -8,6 +8,7 @@ PY=/home/yang07/anaconda3/envs/atypemu/bin/python
 $PY - <<'PY'
 import inspect
 from pathlib import Path
+from unittest import mock
 import numpy as np
 import pandas as pd
 import torch
@@ -177,7 +178,34 @@ assert all(not parameter.requires_grad for parameter in fit_model.parameters())
 assert "device" in inspect.signature(adapter.fit_source_observer).parameters
 assert "batch_size" in inspect.signature(adapter.fit_source_observer).parameters
 assert "device" in inspect.signature(adapter.matched_assimilation).parameters
-print("METRIC matched_adapter_checks=60")
+groups = adapter.source_entity_slices(training_surface)
+entity_uid = str(training_surface.target_ids[0]).split(":target:", 1)[0]
+assert list(groups) == [entity_uid]
+assert np.array_equal(groups[entity_uid], np.arange(16))
+target_subset = adapter.subset_source_targets(targets, groups[entity_uid][::2])
+assert len(target_subset.normalized) == 8
+assert target_subset.normalization is targets.normalization
+target_read_called = False
+
+def forbidden_target_read(*args, **kwargs):
+    global target_read_called
+    target_read_called = True
+    raise AssertionError("target reader reached before authorization")
+
+with mock.patch.object(adapter.pd, "read_parquet", side_effect=forbidden_target_read):
+    try:
+        adapter.load_source_entity_targets(
+            Path("."), training_surface, entity_uid=entity_uid, fold="A",
+            expected_sha256="0" * 64, access=None,
+        )
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("preauthorization target read did not fail closed")
+assert not target_read_called
+annotation = inspect.signature(adapter.load_source_entity_targets).parameters["access"].annotation
+assert "ConsumedAuthorization" in annotation
+print("METRIC matched_adapter_checks=65")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
