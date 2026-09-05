@@ -14,6 +14,10 @@ import pandas as pd
 import torch
 from torch import nn
 
+from gpuopt.k32_source_gate_authorization import (
+    ConsumedAuthorization,
+    require_consumed_authorization,
+)
 from gpuopt.source_gate_eligibility import (
     build_eligibility_receipt,
     row_identity_sha256,
@@ -175,12 +179,6 @@ class CrossfitHalf:
     evaluation_entities: tuple[str, ...]
     train_clusters: tuple[str, ...]
     evaluation_clusters: tuple[str, ...]
-
-
-@dataclass(frozen=True)
-class ConsumedAuthorization:
-    source_commitment_sha256: str
-    authorization_sha256: str
 
 
 @dataclass(frozen=True)
@@ -420,11 +418,7 @@ def load_source_entity_targets(
     access: ConsumedAuthorization,
 ) -> pd.DataFrame:
     """Open one source target only after an external authorization was consumed."""
-    if not isinstance(access, ConsumedAuthorization) or not all(
-        len(value) == 64
-        for value in (access.source_commitment_sha256, access.authorization_sha256)
-    ):
-        raise PermissionError("source target access requires a consumed authorization")
+    require_consumed_authorization(access)
     if fold not in {"A", "B"} or not expected_sha256:
         raise ValueError("invalid source target binding")
     fields = entity_uid.split(":")

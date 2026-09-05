@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 AUTHORIZATION_CONTRACT = "k32_nested_k8_source_gate_authorization_v1"
@@ -28,6 +28,22 @@ class AuthorizationSpec:
 class ConsumedAuthorization:
     source_commitment_sha256: str
     authorization_sha256: str
+    _seal: object | None = field(default=None, repr=False, compare=False)
+
+
+_CONSUMED_SEAL = object()
+
+
+def require_consumed_authorization(value: object) -> ConsumedAuthorization:
+    """Reject capabilities not issued by this process after Git-bound consumption."""
+    if (
+        type(value) is not ConsumedAuthorization
+        or value._seal is not _CONSUMED_SEAL
+    ):
+        raise PermissionError("source target access requires a consumed authorization")
+    _require_hex(value.source_commitment_sha256, 64, "source commitment hash")
+    _require_hex(value.authorization_sha256, 64, "authorization hash")
+    return value
 
 
 def sha256(path: Path) -> str:
@@ -166,4 +182,8 @@ def consume_authorization(
         ],
         check=True,
     )
-    return ConsumedAuthorization(spec.source_commitment_sha256, authorization_sha256)
+    return ConsumedAuthorization(
+        spec.source_commitment_sha256,
+        authorization_sha256,
+        _CONSUMED_SEAL,
+    )

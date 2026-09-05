@@ -111,19 +111,26 @@ def preflight_science_call_graph(root: Path) -> dict[str, Any]:
         entity_uid = plan[0].train_entities[0]
         surface = adapter.load(root, entity_uid)
         anchor = adapter.sequence_anchor(root, fold, surface)
-        try:
-            adapter.load_source_entity_targets(
-                root,
-                surface,
-                entity_uid=entity_uid,
-                fold=fold,
-                expected_sha256="0" * 64,
-                access=None,
-            )
-        except PermissionError:
-            pass
-        else:
-            raise AssertionError("target loader accepted an absent consumed capability")
+        forbidden_access = (
+            None,
+            adapter.ConsumedAuthorization("0" * 64, "0" * 64),
+        )
+        for access in forbidden_access:
+            try:
+                adapter.load_source_entity_targets(
+                    root,
+                    surface,
+                    entity_uid=entity_uid,
+                    fold=fold,
+                    expected_sha256="0" * 64,
+                    access=access,
+                )
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError(
+                    "target loader accepted an absent or forged consumed capability"
+                )
     if target_reader_calls:
         raise AssertionError("target-bearing Parquet was opened during preflight")
     return {
@@ -204,6 +211,12 @@ def execute_source_cells(
         raise ValueError("source-gate authorization binding mismatch")
     if adapter_module is None:
         from gpuopt.candidates import k32_nested_k8_adapter as adapter_module
+        access = consumed
+    else:
+        # Synthetic dependency-injection path used by target-free preflight tests.
+        access = adapter_module.ConsumedAuthorization(
+            consumed.source_commitment_sha256, consumed.authorization_sha256
+        )
     import torch
 
     inventory = json.loads((root / ".auto/frozen/all_label_inventory.json").read_text())
@@ -220,9 +233,6 @@ def execute_source_cells(
     if len(entities) != 135:
         raise ValueError("source-gate plan does not cover 135 entities")
     target_sha256 = target_hashes_from_commitment(commitment, entities)
-    access = adapter_module.ConsumedAuthorization(
-        consumed.source_commitment_sha256, consumed.authorization_sha256
-    )
     output_dir.mkdir(parents=True, exist_ok=False)
     cells_dir = output_dir / "cells"
     cells_dir.mkdir()
