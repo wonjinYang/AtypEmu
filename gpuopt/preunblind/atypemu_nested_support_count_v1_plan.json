@@ -70,9 +70,13 @@
       "path": "gpuopt/candidates/check_nested_support_all_atom_recount.py",
       "sha256": "a2bcfe2e204dbfd248062d44dd6475aa313a55c906923385b364ef6fe3bdbe4e"
     },
+    "all_atom_raw_replay_checker": {
+      "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
+      "sha256": "f9ae6413ef41dfe508c2e9b4bc386c93b0193f3bc099d104d061ff7035f75846"
+    },
     "all_atom_recount_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_recount_receipt.json",
-      "sha256": "c3296a61bc0bac156489f967dd66643b9476dc1a904e524a62d5e3549c789fda"
+      "sha256": "7f119c216ebfcfe4bfe2dfb5a607d1cd3689f6ecbca7ca69bafab4b51a985f1c"
     },
     "catalog_feasibility_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json",

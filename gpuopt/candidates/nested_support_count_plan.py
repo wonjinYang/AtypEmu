@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "8c73c7dcf2316ca0fe31b3e629969c1b3bb821eb8a085e7475670776e475a18a"
+    "956ec52942ee3520238d7b5aa080de411f2ed3018aa5303e80baa120acddfd2d"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -75,9 +75,13 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/check_nested_support_all_atom_recount.py",
         "sha256": "a2bcfe2e204dbfd248062d44dd6475aa313a55c906923385b364ef6fe3bdbe4e",
     },
+    "all_atom_raw_replay_checker": {
+        "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
+        "sha256": "f9ae6413ef41dfe508c2e9b4bc386c93b0193f3bc099d104d061ff7035f75846",
+    },
     "all_atom_recount_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_recount_receipt.json",
-        "sha256": "c3296a61bc0bac156489f967dd66643b9476dc1a904e524a62d5e3549c789fda",
+        "sha256": "7f119c216ebfcfe4bfe2dfb5a607d1cd3689f6ecbca7ca69bafab4b51a985f1c",
     },
     "catalog_feasibility_receipt": {
         "path": str(CATALOG_RECEIPT_RELATIVE),
@@ -138,6 +142,7 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_policy",
     "all_atom_recount_producer",
     "all_atom_recount_checker",
+    "all_atom_raw_replay_checker",
     "all_atom_recount_receipt",
     "catalog_feasibility_receipt",
     "catalog_checker",
@@ -919,9 +924,12 @@ def main() -> int:
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
     )
     if args.self_test:
+        from check_nested_support_all_atom_recount_raw import (
+            self_test as raw_recount_self_test,
+        )
         from nested_support_all_atom_recount import self_test as recount_self_test
 
-        negative_checks += recount_self_test()
+        negative_checks += recount_self_test() + raw_recount_self_test()
     if not args.acknowledge_hold_only:
         print("STATUS HOLD_FEASIBILITY_BLOCKED")
         print("REFUSAL this artifact is not science or authorization clearance")
