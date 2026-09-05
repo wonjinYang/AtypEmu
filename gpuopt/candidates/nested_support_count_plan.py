@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "ca2ee3c4859c5850f7922805416a6561f5c59913686eba809d856e18e0e2401e"
+    "7cfef523ce39cb4e31e24c4e0ececda2ebdc480a64655babb623345bea22f147"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -78,6 +78,18 @@ SAFE_EVIDENCE = {
     "all_atom_raw_replay_checker": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
         "sha256": "2df2bacf45bdf6fa64e5d521575f531006dbd1f65db573207274622a7e2ccd8c",
+    },
+    "all_atom_raw_evidence_archive": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
+        "sha256": "e0df66a4046b9aef255f0d4992a732fdc2c7ebb4e1e5dccb7132a0ba511584f2",
+    },
+    "all_atom_raw_evidence_checker": {
+        "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
+        "sha256": "23781871b9f9cd8abe3884c8c2217f43727bc69eefe75e131399244582af945b",
+    },
+    "all_atom_raw_replay_correction_receipt": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
+        "sha256": "caf1b5e51577cc50273c52b1c2fa2d1ec796991fe9f85a53fbeb3d92e0b525ba",
     },
     "all_atom_recount_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_recount_receipt.json",
@@ -143,6 +155,9 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_producer",
     "all_atom_recount_checker",
     "all_atom_raw_replay_checker",
+    "all_atom_raw_evidence_archive",
+    "all_atom_raw_evidence_checker",
+    "all_atom_raw_replay_correction_receipt",
     "all_atom_recount_receipt",
     "catalog_feasibility_receipt",
     "catalog_checker",
@@ -571,7 +586,9 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         and interpretation.get("general_sampling_sufficiency_established") is False
         and interpretation.get("one_ladder_establishes_general_sufficiency") is False
         and interpretation.get("all_atom_count_feasibility_established") is False
-        and interpretation.get("all_atom_recount_completed") is True,
+        and interpretation.get("all_atom_recount_completed") is True
+        and interpretation.get("independent_raw_pdb_replay_status")
+        == "PASS_134850_PARTITIONS_EXACT_HOLD_PRESERVED",
         "K32, Jeon, or sampling-sufficiency interpretation drifted",
         checks,
         "interpretation_limits",
@@ -919,10 +936,14 @@ def main() -> int:
         self_test as recount_checker_self_test,
         verify as verify_recount,
     )
+    from check_nested_support_all_atom_raw_evidence import (
+        verify as verify_raw_evidence,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
     )
+    raw_evidence_checks = verify_raw_evidence(root)
     if args.self_test:
         from check_nested_support_all_atom_recount_raw import (
             self_test as raw_recount_self_test,
@@ -936,7 +957,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")

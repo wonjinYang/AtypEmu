@@ -74,6 +74,18 @@
       "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
       "sha256": "2df2bacf45bdf6fa64e5d521575f531006dbd1f65db573207274622a7e2ccd8c"
     },
+    "all_atom_raw_evidence_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
+      "sha256": "e0df66a4046b9aef255f0d4992a732fdc2c7ebb4e1e5dccb7132a0ba511584f2"
+    },
+    "all_atom_raw_evidence_checker": {
+      "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
+      "sha256": "23781871b9f9cd8abe3884c8c2217f43727bc69eefe75e131399244582af945b"
+    },
+    "all_atom_raw_replay_correction_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
+      "sha256": "caf1b5e51577cc50273c52b1c2fa2d1ec796991fe9f85a53fbeb3d92e0b525ba"
+    },
     "all_atom_recount_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_recount_receipt.json",
       "sha256": "7f119c216ebfcfe4bfe2dfb5a607d1cd3689f6ecbca7ca69bafab4b51a985f1c"
@@ -138,6 +150,7 @@
     "all_atom_recount_completed": true,
     "bioemu_only_redundant_expansion": "count scaling only",
     "general_sampling_sufficiency_established": false,
+    "independent_raw_pdb_replay_status": "PASS_134850_PARTITIONS_EXACT_HOLD_PRESERVED",
     "jeon_transfer_claim_allowed": false,
     "k32_role": "low-K coordinate/Jacobian causal-infrastructure smoke only",
     "one_ladder_establishes_general_sufficiency": false

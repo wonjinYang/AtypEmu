@@ -1,0 +1,24 @@
+{
+  "artifact_kind": "hold_only_raw_replay_metadata_correction_not_authorization",
+  "authorization_consumed": false,
+  "checker": {
+    "git_blob": "87b54968722ecfda8c0c49ba80d6b99c95ff31be",
+    "path": "gpuopt/candidates/check_nested_support_all_atom_recount_raw.py",
+    "sha256": "2df2bacf45bdf6fa64e5d521575f531006dbd1f65db573207274622a7e2ccd8c"
+  },
+  "contract": "atypemu_nested_support_count_v1_all_atom_raw_replay_correction_v1",
+  "correct_source_git_commit": "7021381b80f11521e0b6c701a142a6afdd15c783",
+  "correction": "The source_git_commit string in the v2 shard and complete execution receipts does not resolve and is invalid metadata. The executed checker bytes are identified by their exact SHA-256 and Git blob, which resolve at correct_source_git_commit.",
+  "invalid_source_git_commit_claim": "7021381c2c76aa630a0b7f800900e7d22b6bb850",
+  "outer_or_formal_metrics_opened": false,
+  "raw_replay_result_changed": false,
+  "science_executed": false,
+  "source_scores_read": false,
+  "status": "CORRECTED_METADATA_RAW_REPLAY_PASS_ALL_LEVELS_REMAIN_HOLD",
+  "study_id": "atypemu_nested_support_count_v1",
+  "target_values_read": false,
+  "v2_evidence_archive": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
+    "sha256": "e0df66a4046b9aef255f0d4992a732fdc2c7ebb4e1e5dccb7132a0ba511584f2"
+  }
+}

@@ -98,4 +98,8 @@ PY
 /home/yang07/anaconda3/bin/ruff check \
   gpuopt/candidates/nested_support_count_plan.py \
   gpuopt/candidates/nested_support_catalog.py \
-  gpuopt/candidates/check_nested_support_catalog.py
+  gpuopt/candidates/check_nested_support_catalog.py \
+  gpuopt/candidates/nested_support_all_atom_recount.py \
+  gpuopt/candidates/check_nested_support_all_atom_recount.py \
+  gpuopt/candidates/check_nested_support_all_atom_recount_raw.py \
+  gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py
