@@ -103,6 +103,16 @@ class AssimilationResult:
     coordinate_gradient_norm: float
 
 
+@dataclass(frozen=True)
+class CrossfitHalf:
+    fold: str
+    held_half: int
+    train_entities: tuple[str, ...]
+    evaluation_entities: tuple[str, ...]
+    train_clusters: tuple[str, ...]
+    evaluation_clusters: tuple[str, ...]
+
+
 class DynamicDistanceObserver(nn.Module):
     """Small shared observer for target-free dynamic distance channels only."""
 
@@ -236,6 +246,102 @@ def nested8(surface: Surface) -> Surface:
         arrays,
         surface.row_context,
     )
+
+
+def concatenate_surfaces(surfaces: tuple[Surface, ...]) -> Surface:
+    if not surfaces:
+        raise ValueError("surface concatenation is empty")
+    roster = surfaces[0].support_ids
+    nested_roster = tuple(SUPPORT_IDS[index] for index in NESTED)
+    if roster not in {SUPPORT_IDS, nested_roster} or any(
+        surface.support_ids != roster for surface in surfaces
+    ):
+        raise ValueError("surface concatenation requires one exact support roster")
+    target_ids = np.concatenate([surface.target_ids for surface in surfaces])
+    if len(set(target_ids.tolist())) != len(target_ids):
+        raise ValueError("surface concatenation has duplicate target identities")
+    if any(surface.row_context is None for surface in surfaces):
+        raise ValueError("surface concatenation lacks row context")
+    arrays = tuple(
+        np.concatenate([surface.arrays[index] for surface in surfaces], axis=0)
+        for index in range(len(surfaces[0].arrays))
+    )
+    context = tuple(
+        np.concatenate([surface.row_context[index] for surface in surfaces])
+        for index in range(3)
+    )
+    return Surface(target_ids, roster, arrays, context)
+
+
+def source_crossfit_plan(root: Path) -> tuple[CrossfitHalf, ...]:
+    """Build fixed sequence-cluster-disjoint source halves without targets."""
+    source_path = root / next(iter(HASHES))
+    source = json.loads(source_path.read_text())
+    parent_path = root / source["parent_commitment_relative_path"]
+    if sha256(parent_path) != source["parent_commitment_sha256"]:
+        raise ValueError("parent source commitment mismatch")
+    parent = json.loads(parent_path.read_text())
+    expected = {
+        str(entity["entity_uid"]): entity
+        for entity in parent["entities"]
+        if entity.get("split") == "train" and entity.get("observer_fold") in {"A", "B"}
+    }
+    source_entities = {str(entity["entity_uid"]): entity for entity in source["entities"]}
+    if source_entities.keys() != expected.keys():
+        raise ValueError("K32 cache and source cohort differ")
+    output = []
+    for fold in ("A", "B"):
+        entities = sorted(
+            (entity for entity in expected.values() if entity["observer_fold"] == fold),
+            key=lambda entity: str(entity["entity_uid"]),
+        )
+        clusters: dict[str, list[str]] = {}
+        for entity in entities:
+            clusters.setdefault(str(entity["sequence_cluster_id"]), []).append(
+                str(entity["entity_uid"])
+            )
+        loads = [0, 0]
+        assignment: dict[str, int] = {}
+        for cluster, members in sorted(
+            clusters.items(), key=lambda item: (-len(item[1]), item[0])
+        ):
+            half = min(range(2), key=lambda index: (loads[index], index))
+            assignment[cluster] = half
+            loads[half] += len(members)
+        if not all(loads):
+            raise ValueError("source fold cannot form two nonempty cluster halves")
+        for held_half in (0, 1):
+            evaluation_clusters = tuple(
+                sorted(cluster for cluster, half in assignment.items() if half == held_half)
+            )
+            train_clusters = tuple(
+                sorted(cluster for cluster, half in assignment.items() if half != held_half)
+            )
+            evaluation = tuple(
+                sorted(
+                    str(entity["entity_uid"])
+                    for entity in entities
+                    if str(entity["sequence_cluster_id"]) in evaluation_clusters
+                )
+            )
+            train = tuple(
+                sorted(
+                    str(entity["entity_uid"])
+                    for entity in entities
+                    if str(entity["sequence_cluster_id"]) in train_clusters
+                )
+            )
+            output.append(
+                CrossfitHalf(
+                    fold,
+                    held_half,
+                    train,
+                    evaluation,
+                    train_clusters,
+                    evaluation_clusters,
+                )
+            )
+    return tuple(output)
 
 
 def context_indices(

@@ -118,7 +118,19 @@ assert np.array_equal(results["uniform_q"].q, np.full(32, 1 / 32, np.float32))
 assert not np.any(results["no_coordinate"].residue_delta) and not np.any(results["anchor_only"].residue_delta)
 assert results["full"].coordinate_gradient_norm > 0 and results["uniform_q"].coordinate_gradient_norm > 0
 assert all(not np.shares_memory(left.q, right.q) for left in results.values() for right in results.values() if left is not right)
-print("METRIC matched_adapter_checks=39")
+plan = adapter.source_crossfit_plan(Path("."))
+assert len(plan) == 4 and {(part.fold, part.held_half) for part in plan} == {("A", 0), ("A", 1), ("B", 0), ("B", 1)}
+assert all(not (set(part.train_clusters) & set(part.evaluation_clusters)) for part in plan)
+assert all(not (set(part.train_entities) & set(part.evaluation_entities)) for part in plan)
+assert len(set(entity for part in plan for entity in part.evaluation_entities)) == 135
+second = adapter.load(Path("."), "bmrb:10142:entity:1")
+combined = adapter.concatenate_surfaces((surface, second))
+assert len(combined.target_ids) == len(surface.target_ids) + len(second.target_ids)
+combined_nested = adapter.nested8(combined)
+separate_nested = adapter.concatenate_surfaces((adapter.nested8(surface), adapter.nested8(second)))
+assert np.array_equal(combined_nested.target_ids, separate_nested.target_ids)
+assert all(np.array_equal(left, right) for left, right in zip(combined_nested.arrays, separate_nested.arrays, strict=True))
+print("METRIC matched_adapter_checks=45")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
