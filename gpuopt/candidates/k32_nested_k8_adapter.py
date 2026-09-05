@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import torch
 from torch import nn
 
@@ -23,6 +24,19 @@ HASHES = {
     "gpuopt/check_k32_dynamic_distance_cache.py": "59b2a3b82c8d7937a34f661ead3a88d1acc13b6ce25505abf6cf762c0e02f21e",
     ".auto/runs/k32_dynamic_distance_cache_independent_check_v1r1.json": "54f16dd0d518aec9f3618df5c1f3240da91a1886d340161d76dfc4084f83eab2",
 }
+SEQUENCE_HASHES = {
+    "A": "165f34ced53aabb4b908a43716ac8f4b76e4b3990507994b4fea0aa7d4fabd58",
+    "B": "97346891f5fa7e7daa41a81a73cf5c90f9bbb577f293f6d816e76ea6576553ee",
+}
+SEQUENCE_SUMMARY_HASHES = {
+    "A": "3f64bba6c197b7318b23f1587c4f218de027e89372aec754a8d21cb876642cef",
+    "B": "2419aee1fc84353749565c201275694fcc8f864d972456f276017433a27e7f38",
+}
+SEQUENCE_RECEIPT_HASH = "2869e7b28d08580de1046c453a6acafe04f77a45a0b1eecd6aba86ec2bd6149f"
+RESIDUES = (
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+)
 ARRAY_KEYS = {
     "entity_uid", "bmrb_id", "target_ids", "support_ids", "support_indices",
     "seq_ids", "comp_ids", "atom_ids", "element_order",
@@ -52,6 +66,7 @@ class Surface:
     target_ids: np.ndarray
     support_ids: tuple[str, ...]
     arrays: tuple[np.ndarray, ...]
+    row_context: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
 
 
 @dataclass(frozen=True)
@@ -73,18 +88,36 @@ class ModelInputs:
 class DynamicDistanceObserver(nn.Module):
     """Small shared observer for target-free dynamic distance channels only."""
 
-    def __init__(self) -> None:
+    def __init__(self, atom_levels: int) -> None:
         super().__init__()
+        self.atom = nn.Embedding(atom_levels, 16)
+        self.residue = nn.Embedding(len(RESIDUES) + 1, 8)
         self.network = nn.Sequential(
-            nn.Linear(10, 32),
+            nn.Linear(35, 48),
             nn.SiLU(),
-            nn.Linear(32, 1),
+            nn.Linear(48, 1),
         )
 
     def forward(
-        self, distance: torch.Tensor, available: torch.Tensor
+        self,
+        distance: torch.Tensor,
+        available: torch.Tensor,
+        atom_index: torch.Tensor,
+        residue_index: torch.Tensor,
+        relative_position: torch.Tensor,
     ) -> torch.Tensor:
-        features = torch.cat((distance / 10.0, available.to(distance.dtype)), dim=-1)
+        supports = distance.shape[1]
+        row = torch.cat(
+            (
+                self.atom(atom_index),
+                self.residue(residue_index),
+                relative_position[:, None],
+            ),
+            dim=1,
+        )[:, None, :].expand(-1, supports, -1)
+        features = torch.cat(
+            (distance / 10.0, available.to(distance.dtype), row), dim=-1
+        )
         return self.network(features).squeeze(-1)
 
 
@@ -142,6 +175,11 @@ def load(root: Path, entity_uid: str) -> Surface:
         ):
             raise ValueError("cache support mismatch")
         target_ids = values["target_ids"].astype(str)
+        row_context = (
+            np.array(values["seq_ids"], copy=True),
+            values["comp_ids"].astype(str),
+            values["atom_ids"].astype(str),
+        )
         if ids_sha256(target_ids) != row["target_ids_sha256"]:
             raise ValueError("cache target identity mismatch")
         arrays = tuple(np.array(values[name], copy=True) for name in names)
@@ -169,7 +207,7 @@ def load(root: Path, entity_uid: str) -> Surface:
         or int((~atom_available).sum()) != row["target_missing_count"]
     ):
         raise ValueError("cache availability invariant mismatch")
-    return Surface(target_ids, SUPPORT_IDS, arrays)
+    return Surface(target_ids, SUPPORT_IDS, arrays, row_context)
 
 
 def nested8(surface: Surface) -> Surface:
@@ -178,7 +216,47 @@ def nested8(surface: Surface) -> Surface:
         surface.target_ids.copy(),
         tuple(surface.support_ids[index] for index in NESTED),
         arrays,
+        surface.row_context,
     )
+
+
+def context_indices(
+    surface: Surface, atom_inventory: tuple[str, ...]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if surface.row_context is None:
+        raise ValueError("surface has no receipted row context")
+    seq_ids, comp_ids, atom_ids = surface.row_context
+    atom_lookup = {name: index + 1 for index, name in enumerate(atom_inventory)}
+    residue_lookup = {name: index + 1 for index, name in enumerate(RESIDUES)}
+    atom = np.asarray([atom_lookup.get(value, 0) for value in atom_ids], np.int64)
+    residue = np.asarray(
+        [residue_lookup.get(value, 0) for value in comp_ids], np.int64
+    )
+    position = (seq_ids - 1) / max(int(seq_ids.max()) - 1, 1)
+    return atom, residue, position.astype(np.float32)
+
+
+def sequence_anchor(root: Path, fold: str, surface: Surface) -> np.ndarray:
+    """Load a fixed-final sequence-only anchor without target values."""
+    if fold not in SEQUENCE_HASHES:
+        raise ValueError("unknown source fold")
+    base = root / "gpuopt/assets/sequence_final_atom_macro_ensemble3_v0"
+    prediction = base / fold / "predictions.parquet"
+    summary = base / fold / "summary.json"
+    if (
+        sha256(prediction) != SEQUENCE_HASHES[fold]
+        or sha256(summary) != SEQUENCE_SUMMARY_HASHES[fold]
+        or sha256(base / "receipt.json") != SEQUENCE_RECEIPT_HASH
+    ):
+        raise ValueError("sequence-anchor binding mismatch")
+    frame = pd.read_parquet(prediction, columns=("target_id", "prediction"))
+    if frame["target_id"].duplicated().any():
+        raise ValueError("duplicate sequence-anchor target identity")
+    aligned = frame.set_index("target_id")["prediction"].reindex(surface.target_ids)
+    values = aligned.to_numpy(dtype=np.float32)
+    if not np.isfinite(values).all():
+        raise ValueError("sequence anchor does not cover the K32 target inventory")
+    return np.repeat(values[:, None], len(surface.support_ids), axis=1)
 
 
 def actuate(

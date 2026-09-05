@@ -48,13 +48,19 @@ neighbor_delta = torch.zeros((16, 32, 4), requires_grad=True)
 active_distance, available = adapter.differentiable_actuate(probe, self_delta, neighbor_delta)
 assert np.array_equal(active_distance.detach().numpy(), probe.arrays[0])
 torch.manual_seed(20260905)
-observer_model = adapter.DynamicDistanceObserver()
-observer_model(active_distance, available).sum().backward()
+inventory = tuple(__import__("json").load(open(".auto/frozen/all_label_inventory.json"))["eligible_atom_ids"])
+atom, residue, position = adapter.context_indices(surface, inventory)
+observer_model = adapter.DynamicDistanceObserver(len(inventory) + 1)
+observer_model(active_distance, available, torch.from_numpy(atom[:16]), torch.from_numpy(residue[:16]), torch.from_numpy(position[:16])).sum().backward()
 assert self_delta.grad is not None and torch.isfinite(self_delta.grad).all() and self_delta.grad.norm() > 0
 small_distance = active_distance[:, adapter.NESTED]
 small_available = available[:, adapter.NESTED]
-assert observer_model(small_distance, small_available).shape == (16, 8)
-print("METRIC matched_adapter_checks=21")
+assert observer_model(small_distance, small_available, torch.from_numpy(atom[:16]), torch.from_numpy(residue[:16]), torch.from_numpy(position[:16])).shape == (16, 8)
+anchor = adapter.sequence_anchor(Path("."), "B", surface)
+assert anchor.shape == (len(surface.target_ids), 32) and np.array_equal(anchor[:, 0], anchor[:, -1])
+assert np.all(anchor[:, adapter.NESTED] == anchor[:, :1])
+assert surface.row_context is adapter.nested8(surface).row_context
+print("METRIC matched_adapter_checks=25")
 print("METRIC source_target_values_read=0")
 print("METRIC outer_or_formal_metrics_opened=0")
 PY
