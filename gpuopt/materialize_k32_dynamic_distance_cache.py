@@ -341,6 +341,8 @@ def _commitment_payload(
     entities = _entity_roster(parent)
     pdb_files = _parent_output_roster(root, parent_receipt, entities)
     features = _feature_roster(root, entities)
+    if sum(int(row["row_count"]) for row in features) != EXPECTED_FEATURE_ROW_COUNT * 8:
+        raise ValueError("source feature target/support row count mismatch")
     script = _script_path(root)
     bound_files = []
     for relative in BOUND_PREREQUISITES:

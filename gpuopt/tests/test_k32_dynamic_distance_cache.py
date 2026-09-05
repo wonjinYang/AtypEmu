@@ -248,6 +248,32 @@ class DynamicDistanceCacheTests(unittest.TestCase):
             self.assertEqual(json.loads(path.read_text())["one"], 1)
 
     @mock.patch.object(cache, "EXPECTED_ENTITY_COUNT", 1)
+    def test_feature_roster_rejects_target_bearing_parquet_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            feature = root / cache.FEATURE_ROOT_RELATIVE / "bmr1.parquet"
+            feature.parent.mkdir(parents=True)
+            feature.write_bytes(b"not opened after schema rejection")
+            schema = mock.Mock(
+                names=[
+                    "entity_uid",
+                    "split",
+                    "observer_fold",
+                    "support_id",
+                    "target_value",
+                ]
+            )
+            with mock.patch.object(cache.pq, "read_schema", return_value=schema):
+                with self.assertRaisesRegex(ValueError, "target-bearing"):
+                    cache._feature_roster(
+                        root, [{"entity_uid": "e", "bmrb_id": "bmr1"}]
+                    )
+
+    @mock.patch.object(cache, "EXPECTED_ENTITY_COUNT", 1)
+    @mock.patch.object(cache, "EXPECTED_FEATURE_ROW_COUNT", 1)
+    @mock.patch.object(cache, "EXPECTED_TARGET_SUPPORT_ROWS", 32)
+    @mock.patch.object(cache, "EXPECTED_TARGET_AVAILABLE_ROWS", 32)
+    @mock.patch.object(cache, "EXPECTED_TARGET_MISSING_ROWS", 0)
     def test_freeze_binds_source_roster_and_tampering_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
