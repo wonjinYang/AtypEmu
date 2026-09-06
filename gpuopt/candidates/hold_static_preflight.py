@@ -53,6 +53,15 @@ TASKS = (
             "--acknowledge-hold-only",
         ),
     ),
+    (
+        "condition-uncertainty-plan",
+        (
+            PYTHON,
+            PREFIX + "check_condition_uncertainty_protonation_plan.py",
+            "--self-test",
+            "--acknowledge-hold-only",
+        ),
+    ),
 )
 EXPECTED_STDOUT = {
     "all-atom-recount": (
@@ -85,8 +94,17 @@ EXPECTED_STDOUT = {
         "METRIC authorization_consumed=0",
         "STATUS HOLD_CONDITION_MANIFEST_INCOMPLETE",
     ),
+    "condition-uncertainty-plan": (
+        "METRIC condition_uncertainty_support_plan_checks=101",
+        "METRIC target_values_read=0",
+        "METRIC source_scores_read=0",
+        "METRIC science_executed=0",
+        "METRIC authorization_consumed=0",
+        "STATUS HOLD_CONDITION_UNCERTAINTY_INPUTS_UNQUALIFIED",
+    ),
 }
 SOURCE_RELATIVES = (
+    "gpuopt/candidates/check_condition_uncertainty_protonation_plan.py",
     "gpuopt/candidates/check_nested_support_all_atom_recount.py",
     "gpuopt/candidates/check_nested_support_catalog.py",
     "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py",
@@ -98,6 +116,7 @@ SOURCE_RELATIVES = (
 )
 REQUIRED = SOURCE_RELATIVES + (
     ".auto/measure.sh",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_plan.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json",

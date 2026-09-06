@@ -1357,6 +1357,9 @@ def main() -> int:
     from check_solution_state_protonation_support_plan import (
         verify as verify_solution_state_support_plan,
     )
+    from check_condition_uncertainty_protonation_plan import (
+        verify as verify_condition_uncertainty_protonation_plan,
+    )
     from solution_state_condition_catalog import (
         self_test as solution_state_condition_catalog_self_test,
     )
@@ -1441,6 +1444,9 @@ def main() -> int:
     raw_evidence_checks = verify_raw_evidence(root)
     solution_state_support_checks = verify_solution_state_support_plan(
         run_self_test=args.self_test
+    )
+    condition_uncertainty_support_checks = (
+        verify_condition_uncertainty_protonation_plan(run_self_test=args.self_test)
     )
     solution_state_condition_catalog_checks = (
         solution_state_condition_catalog_self_test() if args.self_test else 0
@@ -1670,7 +1676,7 @@ def main() -> int:
     )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v6_evidence_checks + openmm86_deposited_ph_recovery_v6_semantic_checks + openmm86_unique_assigned_ph_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v2_checks + openmm86_unique_assigned_ph_v1_recovery_v3_checks + openmm86_unique_assigned_ph_recovery_v3_independent_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + condition_uncertainty_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v6_evidence_checks + openmm86_deposited_ph_recovery_v6_semantic_checks + openmm86_unique_assigned_ph_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v2_checks + openmm86_unique_assigned_ph_v1_recovery_v3_checks + openmm86_unique_assigned_ph_recovery_v3_independent_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")

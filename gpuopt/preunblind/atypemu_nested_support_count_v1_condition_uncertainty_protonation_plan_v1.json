@@ -1,0 +1,169 @@
+{
+  "artifact_kind": "hold_only_target_unread_condition_uncertainty_protonation_plan_not_support_not_authorization",
+  "authorization": {
+    "consumption_allowed": false,
+    "existing_authorizations_reusable": false,
+    "fresh_external_authorization_required_after_all_gates": true,
+    "request_allowed_by_this_plan": false
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "condition_policy": {
+    "classification_states": [
+      "observed",
+      "state_missing",
+      "state_ambiguous"
+    ],
+    "entity_count": 135,
+    "observed_entity_count": 119,
+    "observed_rule": "use the one exact sealed numeric pH as a delta condition proposal",
+    "same_conditional_algorithm_for_every_entity": true,
+    "unresolved_entity_count": 16,
+    "unresolved_reason_codes_preserved": true,
+    "unresolved_rule": {
+      "ambiguous_numeric_candidates_affect_proposal": false,
+      "branch_mass": "uniform across frozen OpenMM hydrogen-definition pH regimes; design proposal only",
+      "lower_ph_bound_inclusive": "0.0",
+      "method": "derive one midpoint representative for every interval induced by all sorted unique finite pH transition thresholds in the frozen Modeller source and hydrogen definitions",
+      "single_ph_imputation_allowed": false,
+      "upper_ph_bound_inclusive": "14.0"
+    }
+  },
+  "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1",
+  "forbidden_source_builder_inputs": [
+    "assigned_atom_inventory",
+    "chemical_shift_targets",
+    "eligibility_rows",
+    "existing_all_atom_blocker_receipt",
+    "fold_or_evaluation_role",
+    "source_or_outer_scores",
+    "target_atom_identities",
+    "target_values"
+  ],
+  "interpretation_limits": {
+    "all_atom_feasibility_established": false,
+    "condition_metadata_recovered_for_unresolved_entities": false,
+    "openmm_output_is_a_probabilistic_microstate_ensemble": false,
+    "openmm_output_is_one_dominant_variant_realization_at_a_proposal_ph": true,
+    "ph_regime_mass_is_a_physical_prior": false,
+    "policy_self_checker_is_independent_science_evidence": false,
+    "sampling_sufficiency_established": false
+  },
+  "openmm_policy": {
+    "add_hydrogens_call": "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Reference)",
+    "environment": {
+      "container_sha256": "ABSENT_UNQUALIFIED",
+      "force_field_relative_path": "amber14/protein.ff14SB.xml",
+      "force_field_sha256": "ABSENT_UNQUALIFIED",
+      "hydrogen_definitions_relative_path": "openmm/app/data/hydrogens.xml",
+      "hydrogen_definitions_sha256": "ABSENT_UNQUALIFIED",
+      "modeller_source_relative_path": "openmm/app/modeller.py",
+      "modeller_source_sha256": "ABSENT_UNQUALIFIED",
+      "openmm_exact_version": "8.6_BUILD_UNQUALIFIED",
+      "platform": "Reference"
+    },
+    "existing_atom_positions_must_remain_exact": true,
+    "input_hydrogen_policy": "remove every input hydrogen-isotope atom before addHydrogens so automatic pH selection cannot retain a stale incompatible hydrogen",
+    "official_documentation": "https://docs.openmm.org/latest/api-python/generated/openmm.app.modeller.Modeller.html",
+    "output_records": [
+      "ordered atom identities",
+      "coordinates",
+      "canonical protonation signature from ordered residue and hydrogen-name-to-heavy-parent bonds",
+      "returned variant vector",
+      "proposal pH",
+      "parent heavy-coordinate hash",
+      "environment hashes"
+    ],
+    "randomness": {
+      "execution_isolation": "one fresh process per support",
+      "seed_derivation": "first 64 bits of SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id)",
+      "seed_every_exposed_rng": true,
+      "two_run_byte_identical_replay_required": true
+    },
+    "standard_residue_policy": "fail the entire candidate on an unsupported or nonstandard residue; no entity or residue exception",
+    "variants_argument": null
+  },
+  "physicality_and_replay": {
+    "all_distinct_atom_minimum_distance_angstrom": "0.5",
+    "checks": [
+      "finite coordinates",
+      "unique atom identities",
+      "complete hydrogens for the selected OpenMM realization",
+      "valid valence and covalent geometry",
+      "backbone continuity",
+      "force-field System construction",
+      "exact ordered parent heavy-atom identity and coordinate preservation",
+      "byte-identical deterministic replay"
+    ],
+    "effective_distinct_state_definition": "unique canonical protonation signature; coordinates and returned null variants do not define the signature",
+    "new_hydrogen_parent_bond_check": "every added hydrogen has exactly one bonded heavy parent and the force-field System construction and finite-energy checks pass",
+    "independent_checker": "ABSENT_UNQUALIFIED",
+    "must_cover_every_emitted_support": true,
+    "post_generation_identity_only_inventory_recount_required": true
+  },
+  "proposal_and_posterior": {
+    "condition_regime_mass": "1 divided by the frozen regime count for unresolved entities and 1 for observed entities",
+    "design_weight_per_support_at_level_k": "1/K, stored outside immutable support coordinate bytes",
+    "downstream_inference_contract": "ABSENT_UNQUALIFIED",
+    "later_one_shared_q_may_change_support_membership_order_or_coordinates": false,
+    "later_one_shared_q_must_remain_one_entity_level_distribution_across_all_labels": true,
+    "proposal_weights_are_posterior_weights": false
+  },
+  "provenance": {
+    "condition_evidence": {
+      "independent_checker_path": "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py",
+      "independent_checker_sha256": "7f3a574a72a8413449c205fef5624b710e3fff2ab18623dae64fb0f3fa38bea8",
+      "receipt_path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json",
+      "receipt_sha256": "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b"
+    },
+    "exact_condition_manifest": "ABSENT_UNQUALIFIED",
+    "parent_heavy_coordinate_manifest": "ABSENT_UNQUALIFIED",
+    "protein_sequence_manifest": "ABSENT_UNQUALIFIED"
+  },
+  "required_stage_order": [
+    "freeze_this_policy_before_unresolved_proposal_branch_values_or_support_bytes_are_materialized",
+    "freeze_exact_condition_environment_force_field_hydrogen_definitions_and_parent_manifests",
+    "independent_cold_review",
+    "run_bounded_target_unread_one_observed_one_unresolved_smoke",
+    "freeze_generator_checker_and_source_commitment",
+    "construct_complete_supports",
+    "independently_replay_every_coordinate_and_physicality_check",
+    "freeze_exact_support_order_and_nesting",
+    "run_identity_only_coverage_recount",
+    "separate_science_commitment_review_and_fresh_authorization"
+  ],
+  "state": "HOLD_POLICY_PREDECLARED_INPUTS_AND_EXECUTABLE_UNQUALIFIED",
+  "study_id": "atypemu_nested_support_count_v1",
+  "support_mapping": {
+    "condition_branch_assignment": "observed entities always use branch 0; unresolved branch=(entity_sha256_offset+zero_based_parent_rank) mod regime_count",
+    "entity_sha256_offset": "first 64 bits of SHA256(candidate_id NUL entity_uid) modulo regime_count",
+    "exact_prefix_levels": [
+      32,
+      128,
+      768
+    ],
+    "parent_support_order": "ABSENT_UNQUALIFIED",
+    "prefix_contract": "support IDs and coordinate bytes at lower K are exact prefixes of higher K; K-specific design weights are separate metadata",
+    "regime_allocation_discrepancy": "for every unresolved entity and K, each regime count differs from K/regime_count by less than 1",
+    "support_id": "SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id NUL parent_heavy_coordinate_sha256 NUL environment_sha256)"
+  },
+  "unresolved_blockers": [
+    "exact 135-entity condition manifest preserving observed missing and ambiguous states is absent",
+    "exact OpenMM 8.6 environment force-field and hydrogen-definition hashes are absent",
+    "protein-sequence and parent-heavy-coordinate manifests are absent",
+    "generator source commitment and independent checker are absent",
+    "bounded one-observed one-unresolved target-unread smoke is absent",
+    "all-support deterministic replay physicality and effective-distinct-state audits are absent",
+    "support order and diversity thresholds remain unqualified",
+    "downstream proposal-to-one-shared-q inference contract remains unqualified",
+    "K1536 remains separately blocked by current source capacity"
+  ]
+}
