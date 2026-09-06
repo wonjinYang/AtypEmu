@@ -36,7 +36,9 @@ independently checked:
 
 The current protonation and support-count work remains target-unread and HOLD-only.
 Synthetic self-tests in `shared_q_support_diagnostic.py` do not satisfy these
-prerequisites.
+prerequisites. Run both `python gpuopt/shared_q_support_diagnostic.py` and
+`python gpuopt/test_shared_q_support_diagnostic.py`; the second check compares
+the certified dual solution with a separately parameterized primal SLSQP solve.
 
 ## Source-only diagnostic arms
 

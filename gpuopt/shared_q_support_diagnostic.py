@@ -137,13 +137,15 @@ def kl_support_projection(
         raise ValueError("nonfinite objective or certificate")
     if identity_error > 1e-10 * (1.0 + abs(primal) + abs(dual_value)):
         raise ValueError("primal-dual certificate identity failed")
+    certificate_tolerance = tolerance * (1.0 + abs(primal))
     return {
         "q": q, "prediction": a @ q,
         "data_wls": 0.5 * float(residual @ residual),
         "kl_to_prior": kl_value, "objective": primal,
         "lower_bound": max(0.0, -dual_value), "primal_dual_gap": gap,
         "certificate_identity_error": identity_error,
-        "converged": bool(gap <= tolerance * (1.0 + abs(primal))),
+        "gap_tolerance": certificate_tolerance,
+        "converged": bool(gap <= certificate_tolerance),
         "iterations": int(result.nit), "solver_success": bool(result.success),
         "solver_message": str(result.message),
     }
