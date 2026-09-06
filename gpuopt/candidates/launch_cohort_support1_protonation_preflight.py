@@ -27,7 +27,14 @@ CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v1.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v2.json"
+)
+V1_COMMITMENT_FAILURE_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+    "ff15ipq_preflight_source_commitment_v1_failure_receipt.json"
+)
+V1_COMMITMENT_FAILURE_SHA256 = (
+    "cd1d6b7615dd1174ed697a039000637e21c0ee4fc7988a7d023ef3b7f407e5ac"
 )
 PARENT_FF14SB_HOLD_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
@@ -79,11 +86,13 @@ INPUTS = {
         ),
         "3a95bb683385079a46d921b0e17aa56cd684578b25b34ee13e9e1fd541356f8e",
     ),
-    "smoke_evidence.json": (
-        Path(
-            "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_evidence_v3.json"
-        ),
-        "57bc3939e0deffdf4dce16eb5f3082089c78230733ceb05b64122a2a38e7163a",
+    "ff15ipq_template_scan_receipt.json": (
+        FF15IPQ_SCAN_RELATIVE,
+        FF15IPQ_SCAN_SHA256,
+    ),
+    "parent_ff14sb_hold_receipt.json": (
+        PARENT_FF14SB_HOLD_RELATIVE,
+        PARENT_FF14SB_HOLD_SHA256,
     ),
 }
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
@@ -262,6 +271,11 @@ def validate_plan(plan: dict[str, Any]) -> None:
         }
         and plan["source_commitment"].get("canonical_relative_path")
         == COMMITMENT_RELATIVE.as_posix()
+        and plan["source_commitment"].get("prior_v1_source_commitment_failure_receipt")
+        == {
+            "path": V1_COMMITMENT_FAILURE_RELATIVE.as_posix(),
+            "sha256": V1_COMMITMENT_FAILURE_SHA256,
+        }
         and plan["frozen_inputs"].get("parent_ff14sb_hold_receipt")
         == {
             "path": PARENT_FF14SB_HOLD_RELATIVE.as_posix(),
@@ -295,7 +309,8 @@ def validate_plan(plan: dict[str, Any]) -> None:
         "protein_sequence_manifest": INPUTS["sequence.json"],
         "parent_heavy_coordinate_manifest": INPUTS["parent.json"],
         "input_check_receipt": INPUTS["input_check_receipt.json"],
-        "smoke_evidence": INPUTS["smoke_evidence.json"],
+        "ff15ipq_template_scan_receipt": INPUTS["ff15ipq_template_scan_receipt.json"],
+        "parent_ff14sb_hold_receipt": INPUTS["parent_ff14sb_hold_receipt.json"],
     }
     for name, (relative, expected) in bindings.items():
         row = plan["frozen_inputs"].get(name)
@@ -332,7 +347,7 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v1"
+        != "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v2"
         or commitment["status"] != "FROZEN_COMMITTED"
         or not isinstance(commitment["git_commit"], str)
         or GIT_SHA.fullmatch(commitment["git_commit"]) is None
@@ -345,6 +360,11 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
         raise ValueError("parent ff14SB HOLD receipt binding mismatch")
     if digest(repo_regular(root, FF15IPQ_SCAN_RELATIVE)) != FF15IPQ_SCAN_SHA256:
         raise ValueError("ff15ipq template-scan receipt binding mismatch")
+    if (
+        digest(repo_regular(root, V1_COMMITMENT_FAILURE_RELATIVE))
+        != V1_COMMITMENT_FAILURE_SHA256
+    ):
+        raise ValueError("ff15ipq source-commitment-v1 failure binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),

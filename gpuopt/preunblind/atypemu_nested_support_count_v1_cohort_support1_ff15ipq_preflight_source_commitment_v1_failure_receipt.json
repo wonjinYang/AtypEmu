@@ -1,0 +1,10 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1",
+  "failure_class": "PRE_STAGE_FROZEN_INPUT_BINDING_NAME_MISMATCH",
+  "failed_launch_commit": "3fe123b6d3cda75ca287bd4778db9f1e3b8668e0",
+  "failed_source_commitment_sha256": "b95f06cc4fb13d300b4533d31113db61fc0577b9aeaa315a11f59d4969e06752",
+  "scope": "target-unread HOLD-only pre-stage validation; no staged data, target, score, science, authorization, materialization, or support-feasibility surface",
+  "status": "FAILED_CLOSED_BEFORE_STAGING",
+  "stderr_terminal": "ValueError: plan frozen binding mismatch: smoke_evidence",
+  "target_or_score_read_count": 0
+}

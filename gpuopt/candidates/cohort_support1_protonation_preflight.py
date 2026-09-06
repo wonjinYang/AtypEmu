@@ -41,11 +41,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
-    "source_commitment_v1.json"
+    "source_commitment_v2.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
-    "source_commitment_v1"
+    "source_commitment_v2"
 )
 MAX_PARALLEL_WORKERS = 8
 AA3_TO_1 = {
