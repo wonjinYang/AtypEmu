@@ -12,19 +12,17 @@ import sys
 from typing import Any, Dict, Iterable, Mapping, Tuple
 
 
-CANDIDATE_ID = (
-    "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1"
-)
+CANDIDATE_ID = "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2"
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
-    "source_commitment_v1"
+    "recovery_source_commitment_v2"
 )
 SIF = Path(
     "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.sif"
 )
 SIF_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
 OUTPUT_RELATIVE = Path(
-    ".auto/staging/condition_uncertainty_protonation_smoke_execution_v1"
+    ".auto/staging/condition_uncertainty_protonation_smoke_recovery_execution_v2"
 )
 SOURCES = {
     "checker": Path(
@@ -34,6 +32,10 @@ SOURCES = {
     "launcher": Path(
         "gpuopt/candidates/launch_condition_uncertainty_protonation_smoke.py"
     ),
+    "predecessor_failure_evidence": Path(
+        "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_"
+        "protonation_smoke_failure_evidence_v1.json"
+    ),
     "plan": Path(
         "gpuopt/preunblind/"
         "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1.json"
@@ -42,7 +44,7 @@ SOURCES = {
 COMMITMENT_RELATIVE = Path(
     "gpuopt/preunblind/"
     "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
-    "source_commitment_v1.json"
+    "recovery_source_commitment_v2.json"
 )
 PARENTS = {
     "bmr10109_BioEmu_1.pdb": Path(
@@ -148,7 +150,7 @@ def _commitment(root: Path) -> Tuple[Dict[str, Any], bytes]:
         or value["candidate_id"] != CANDIDATE_ID
         or value["contract"] != COMMITMENT_CONTRACT
         or value["runtime_sif_sha256"] != SIF_SHA256
-        or value["state"] != "HOLD_SMOKE_SOURCE_FROZEN_UNRUN"
+        or value["state"] != "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN"
         or set(value["closed_capabilities"]) != CLOSED_FIELDS
         or any(
             value["closed_capabilities"][field] is not False for field in CLOSED_FIELDS
@@ -255,6 +257,8 @@ def _command(sealed: Path, output: Path, program: str) -> list:
         "%s:/work/generator.py:ro" % (sealed / "generator.py"),
         "%s:/work/checker.py:ro" % (sealed / "checker.py"),
         "%s:/work/launcher.py:ro" % (sealed / "launcher.py"),
+        "%s:/work/failure_evidence.json:ro"
+        % (sealed / "predecessor_failure_evidence.json"),
         "%s:/work/plan.json:ro" % (sealed / "plan.json"),
         "%s:/work/source_commitment.json:ro" % (sealed / "source_commitment.json"),
         "%s:/inputs/bmr10109_BioEmu_1.pdb:ro" % (sealed / "bmr10109_BioEmu_1.pdb"),

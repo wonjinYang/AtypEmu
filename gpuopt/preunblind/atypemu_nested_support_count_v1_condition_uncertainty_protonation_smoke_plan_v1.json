@@ -1,6 +1,6 @@
 {
-  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_plan_not_support_not_authorization",
-  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
+  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_recovery_plan_not_support_not_authorization",
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2",
   "closed_capabilities": {
     "authorization_consumed": false,
     "outer_or_formal_metrics_opened": false,
@@ -10,7 +10,7 @@
     "target_atom_identities_read": false,
     "target_values_read": false
   },
-  "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1",
+  "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_plan_v2",
   "entities": [
     {
       "bmrb_id": "bmr10109",
@@ -77,6 +77,7 @@
         "/work/generator.py",
         "/work/checker.py",
         "/work/launcher.py",
+        "/work/failure_evidence.json",
         "/work/plan.json",
         "/work/source_commitment.json",
         "/inputs/bmr10109_BioEmu_1.pdb",
@@ -97,11 +98,19 @@
       "modeller_source_relative_path": "openmm/app/modeller.py",
       "modeller_source_sha256": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
       "openmm_exact_version": "8.6.0.dev-c6173db",
+      "openmm_version_accessor": "openmm.version.full_version",
       "platform": "Reference",
       "sif_host_path": "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.sif",
       "sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
     },
     "seed_derivation": "first 64 bits of SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id)"
+  },
+  "failed_predecessor": {
+    "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
+    "failure_evidence_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_failure_evidence_v1.json",
+    "failure_evidence_sha256": "14fdc1a1229b1b32b61af8aaf07c7fe11740cc172f163acb5f55c0567f3b8fa2",
+    "isolated_path": "/work/failure_evidence.json",
+    "repair": "compare openmm.version.full_version rather than openmm.__version__"
   },
   "interpretation_limits": {
     "all_atom_feasibility_established": false,
@@ -131,13 +140,13 @@
     "raw_sha256": "37af7bd203fbe105178657663879f1737c905aebb12d4d9115d61773dc1e8843"
   },
   "source_commitment": {
-    "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_source_commitment_v1",
+    "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_source_commitment_v2",
     "isolated_path": "/work/source_commitment.json",
     "required_before_execution": true
   },
-  "state": "HOLD_SMOKE_SOURCE_FROZEN_UNRUN",
+  "state": "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN",
   "unresolved_blockers": [
-    "the bounded smoke has not yet run",
+    "the bounded smoke recovery has not yet run",
     "this smoke cannot qualify any support beyond its two exact parent examples",
     "production protonation generator source commitment and all-support independent checker are absent",
     "all-support deterministic replay physicality and effective-distinct-state audits are absent",

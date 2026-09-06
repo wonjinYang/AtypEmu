@@ -13,22 +13,22 @@ import sys
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 
-CANDIDATE_ID = (
-    "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1"
-)
+CANDIDATE_ID = "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2"
 PLAN_CONTRACT = (
-    "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1"
+    "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
+    "recovery_plan_v2"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
-    "source_commitment_v1"
+    "recovery_source_commitment_v2"
 )
 PLAN_PATH = Path("/work/plan.json")
 COMMITMENT_PATH = Path("/work/source_commitment.json")
 GENERATOR_PATH = Path("/work/generator.py")
 CHECKER_PATH = Path("/work/checker.py")
 LAUNCHER_PATH = Path("/work/launcher.py")
-OUTPUT = Path("/out/condition_uncertainty_protonation_smoke_v1")
+FAILURE_EVIDENCE_PATH = Path("/work/failure_evidence.json")
+OUTPUT = Path("/out/condition_uncertainty_protonation_smoke_recovery_v2")
 STANDARD_RESIDUES = frozenset(
     (
         "ALA",
@@ -154,6 +154,7 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
             "contract",
             "entities",
             "execution",
+            "failed_predecessor",
             "interpretation_limits",
             "output_contract",
             "parent_policy",
@@ -165,10 +166,10 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     )
     if (
         plan["artifact_kind"]
-        != "hold_only_target_unread_bounded_protonation_smoke_plan_not_support_not_authorization"
+        != "hold_only_target_unread_bounded_protonation_smoke_recovery_plan_not_support_not_authorization"
         or plan["candidate_id"] != CANDIDATE_ID
         or plan["contract"] != PLAN_CONTRACT
-        or plan["state"] != "HOLD_SMOKE_SOURCE_FROZEN_UNRUN"
+        or plan["state"] != "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN"
     ):
         raise CheckError("plan identity/state drifted")
     _closed(plan["closed_capabilities"], "plan capabilities")
@@ -207,6 +208,7 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
                 "/work/generator.py",
                 "/work/checker.py",
                 "/work/launcher.py",
+                "/work/failure_evidence.json",
                 "/work/plan.json",
                 "/work/source_commitment.json",
                 "/inputs/bmr10109_BioEmu_1.pdb",
@@ -228,6 +230,7 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
             "modeller_source_relative_path",
             "modeller_source_sha256",
             "openmm_exact_version",
+            "openmm_version_accessor",
             "platform",
             "sif_host_path",
             "sif_sha256",
@@ -242,6 +245,7 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         "modeller_source_relative_path": "openmm/app/modeller.py",
         "modeller_source_sha256": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
         "openmm_exact_version": "8.6.0.dev-c6173db",
+        "openmm_version_accessor": "openmm.version.full_version",
         "platform": "Reference",
         "sif_host_path": "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.sif",
         "sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
@@ -349,6 +353,14 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         "raw_sha256": "37af7bd203fbe105178657663879f1737c905aebb12d4d9115d61773dc1e8843",
     }:
         raise CheckError("parent policy binding drifted")
+    if plan["failed_predecessor"] != {
+        "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
+        "failure_evidence_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_failure_evidence_v1.json",
+        "failure_evidence_sha256": "14fdc1a1229b1b32b61af8aaf07c7fe11740cc172f163acb5f55c0567f3b8fa2",
+        "isolated_path": "/work/failure_evidence.json",
+        "repair": "compare openmm.version.full_version rather than openmm.__version__",
+    }:
+        raise CheckError("failed predecessor binding drifted")
     if plan["source_commitment"] != {
         "contract": COMMITMENT_CONTRACT,
         "isolated_path": "/work/source_commitment.json",
@@ -372,7 +384,7 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     }:
         raise CheckError("output contract drifted")
     if plan["unresolved_blockers"] != [
-        "the bounded smoke has not yet run",
+        "the bounded smoke recovery has not yet run",
         "this smoke cannot qualify any support beyond its two exact parent examples",
         "production protonation generator source commitment and all-support independent checker are absent",
         "all-support deterministic replay physicality and effective-distinct-state audits are absent",
@@ -411,7 +423,7 @@ def _commitment(raw: bytes, plan_raw: bytes) -> str:
             "bounded target-unread smoke source only; not all-support, science, score, "
             "feasibility, or authorization evidence"
         )
-        or value["state"] != "HOLD_SMOKE_SOURCE_FROZEN_UNRUN"
+        or value["state"] != "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN"
     ):
         raise CheckError("commitment identity drifted")
     commit = value["source_git_commit"]
@@ -422,11 +434,16 @@ def _commitment(raw: bytes, plan_raw: bytes) -> str:
     ):
         raise CheckError("source Git commit is malformed")
     _closed(value["closed_capabilities"], "commitment capabilities")
-    _schema(value["sources"], {"checker", "generator", "launcher", "plan"}, "sources")
+    _schema(
+        value["sources"],
+        {"checker", "generator", "launcher", "predecessor_failure_evidence", "plan"},
+        "sources",
+    )
     actual = {
         "checker": _file(CHECKER_PATH, 1_000_000),
         "generator": _file(GENERATOR_PATH, 1_000_000),
         "launcher": _file(LAUNCHER_PATH, 1_000_000),
+        "predecessor_failure_evidence": _file(FAILURE_EVIDENCE_PATH, 100_000),
         "plan": plan_raw,
     }
     for name, body in actual.items():
@@ -614,7 +631,7 @@ def _runtime(plan: Mapping[str, Any]) -> Tuple[Any, Any, Dict[str, str]]:
     from openmm.app import ForceField, modeller
 
     expected = plan["execution"]["runtime"]
-    if openmm.__version__ != expected["openmm_exact_version"]:
+    if openmm.version.full_version != expected["openmm_exact_version"]:
         raise CheckError("OpenMM version drifted")
     platform = Platform.getPlatformByName("Reference")
     source = Path(modeller.__file__).resolve(strict=True)
