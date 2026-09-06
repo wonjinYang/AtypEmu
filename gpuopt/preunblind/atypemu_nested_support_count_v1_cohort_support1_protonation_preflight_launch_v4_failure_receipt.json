@@ -1,0 +1,33 @@
+{
+  "artifact_kind": "hold_target_unread_cohort_support1_preflight_first_worker_failure_receipt",
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v4_failure_receipt",
+  "executed_git_head": "6c88113124eb73668ee2960d3aa80a9cf238b882",
+  "failure": "the first worker stopped before addHydrogens because private parent-topology replay fields were included in an exact comparison with OpenMM's physical heavy-record projection",
+  "failure_class": "FIRST_WORKER_PRE_ADDHYDROGENS_RECORD_PROJECTION_CRASH",
+  "local_failed_stage": {
+    "byte_count": 97664828,
+    "file_count": 148,
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v4",
+    "tree_sha256": "d4d4100684db736681f2551b15795191ce1a31de5030234c59c94e21e6933f7e"
+  },
+  "local_output": {
+    "file_count": 0,
+    "path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v3"
+  },
+  "next_route": "separately bound source_commitment_v5 separating parent-topology replay metadata from physical heavy-record comparisons; v4 stage/output remain immutable and ineligible",
+  "source_commitment_v4": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4.json",
+    "sha256": "4cf1cd680ec16341bf7a3dd9fb94a0ccb0adbfc26facb2d80e2e0734d70d4ca6"
+  },
+  "status": "HOLD_FIRST_WORKER_FAILURE_BEFORE_PROTONATION"
+}
