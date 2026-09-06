@@ -43,11 +43,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v6.json"
+    "source_commitment_v7.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v6"
+    "source_commitment_v7"
 )
 MAX_PARALLEL_WORKERS = 8
 AA3_TO_1 = {
@@ -675,6 +675,24 @@ def _heavy_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _heavy_records_numerically_exact(
+    left: list[dict[str, Any]], right: list[dict[str, Any]]
+) -> bool:
+    identity = (
+        "atom_name",
+        "chain_id",
+        "element",
+        "insertion_code",
+        "residue_id",
+        "residue_name",
+    )
+    return len(left) == len(right) and all(
+        all(a[key] == b[key] for key in identity)
+        and all(Decimal(a[key]) == Decimal(b[key]) for key in ("x", "y", "z"))
+        for a, b in zip(left, right, strict=True)
+    )
+
+
 def _heavy_hashes(records: list[dict[str, Any]]) -> tuple[str, str]:
     parsed_heavy = [row for row in records if row["element"] not in {"H", "D", "T"}]
     topology = hashlib.sha256()
@@ -967,7 +985,7 @@ def _worker(
     if len(list(pdb.topology.atoms())) != len(source_records):
         raise ValueError("PDBFile atom inventory differs from parsed source")
     pre_heavy = _openmm_heavy_records(pdb.topology, pdb.positions, unit)
-    if pre_heavy != source_heavy:
+    if not _heavy_records_numerically_exact(pre_heavy, source_heavy):
         raise ValueError("PDBFile did not preserve parsed input heavy records exactly")
     source_keys = {
         tuple(
@@ -988,9 +1006,9 @@ def _worker(
         atom for atom in modeller.topology.atoms() if _atom_key(atom) not in source_keys
     ]
     modeller.delete(delete)  # Deletes every input hydrogen isotope before pH selection.
-    if (
-        _openmm_heavy_records(modeller.topology, modeller.positions, unit)
-        != source_heavy
+    if not _heavy_records_numerically_exact(
+        _openmm_heavy_records(modeller.topology, modeller.positions, unit),
+        source_heavy,
     ):
         raise ValueError("heavy records changed while removing input hydrogens")
     forcefield = app.ForceField("amber14/protein.ff14SB.xml")
@@ -999,7 +1017,7 @@ def _worker(
         forcefield, pH=float(state.ph), variants=None, platform=platform
     )
     post_heavy = _openmm_heavy_records(modeller.topology, modeller.positions, unit)
-    if post_heavy != source_heavy:
+    if not _heavy_records_numerically_exact(post_heavy, source_heavy):
         raise ValueError("addHydrogens changed parsed parent heavy records")
     physicality = _physicality(modeller, forcefield, platform, unit, openmm)
     directory = _state_dir(output, state, repeat)
@@ -1020,7 +1038,9 @@ def _worker(
         os.close(descriptor)
     os.chmod(pdb_path, 0o444)
     emitted_records, _, _ = _pdb_records(read_regular(directory, "protonated.pdb"))
-    if _heavy_records(emitted_records) != source_heavy:
+    if not _heavy_records_numerically_exact(
+        _heavy_records(emitted_records), source_heavy
+    ):
         raise ValueError("emitted PDB parsed heavy records are not exact")
     metadata = {
         "branch_id": state.branch_id,
@@ -1108,6 +1128,23 @@ def _run(inputs: Path, output: Path) -> None:
 
 
 def self_test() -> int:
+    base = {
+        "atom_name": "CA",
+        "chain_id": "A",
+        "element": "C",
+        "insertion_code": "",
+        "residue_id": "1",
+        "residue_name": "ALA",
+        "x": "-0.000",
+        "y": "1.000",
+        "z": "2.000",
+    }
+    equivalent = dict(base, x="0.000")
+    changed = dict(equivalent, atom_name="CB")
+    if not _heavy_records_numerically_exact([base], [equivalent]):
+        raise AssertionError("signed zero must be numerically exact")
+    if _heavy_records_numerically_exact([base], [changed]):
+        raise AssertionError("heavy identity drift was accepted")
     rows = []
     for index in range(119):
         rows.append(

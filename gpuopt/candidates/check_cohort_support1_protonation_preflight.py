@@ -41,11 +41,11 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v6.json"
+    "source_commitment_v7.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v6"
+    "source_commitment_v7"
 )
 MAX_PARALLEL_WORKERS = 8
 AA = {
@@ -684,6 +684,24 @@ def heavy_hashes(atoms: list[dict[str, Any]]) -> tuple[str, str, list[dict[str, 
     return topology.hexdigest(), digest(canonical(coordinates)), heavy
 
 
+def numerically_exact_heavy(
+    left: list[dict[str, Any]], right: list[dict[str, Any]]
+) -> bool:
+    identity = (
+        "atom_name",
+        "chain_id",
+        "element",
+        "insertion_code",
+        "residue_id",
+        "residue_name",
+    )
+    return len(left) == len(right) and all(
+        all(a[name] == b[name] for name in identity)
+        and all(Decimal(a[name]) == Decimal(b[name]) for name in ("x", "y", "z"))
+        for a, b in zip(left, right, strict=True)
+    )
+
+
 def require_runtime(openmm: Any, app: Any) -> None:
     if openmm.version.full_version != "8.6.0.dev-c6173db":
         raise ValueError("OpenMM exact version drifted")
@@ -933,7 +951,7 @@ def replay_worker(
     pdb = app.PDBFile(str(_path(inputs, state.pdb_path)))
     if len(list(pdb.topology.atoms())) != len(source):
         raise ValueError("PDBFile atom inventory differs from parsed source")
-    if mm_heavy(pdb.topology, pdb.positions, unit) != heavy:
+    if not numerically_exact_heavy(mm_heavy(pdb.topology, pdb.positions, unit), heavy):
         raise ValueError("independent pre-addHydrogens heavy identity audit failed")
     modeller = app.Modeller(pdb.topology, pdb.positions)
     required = {
@@ -953,14 +971,18 @@ def replay_worker(
     modeller.delete(
         [atom for atom in modeller.topology.atoms() if atom_id(atom) not in required]
     )
-    if mm_heavy(modeller.topology, modeller.positions, unit) != heavy:
+    if not numerically_exact_heavy(
+        mm_heavy(modeller.topology, modeller.positions, unit), heavy
+    ):
         raise ValueError("independent hydrogen removal changed heavy coordinates")
     ff = app.ForceField("amber14/protein.ff14SB.xml")
     reference = Platform.getPlatformByName("Reference")
     variants = modeller.addHydrogens(
         ff, pH=float(state.ph), variants=None, platform=reference
     )
-    if mm_heavy(modeller.topology, modeller.positions, unit) != heavy:
+    if not numerically_exact_heavy(
+        mm_heavy(modeller.topology, modeller.positions, unit), heavy
+    ):
         raise ValueError("independent post-addHydrogens heavy audit failed")
     audit = independent_physicality(modeller, ff, reference, unit, openmm)
     destination = output / f"{token(uid)}--{branch}"
@@ -980,7 +1002,7 @@ def replay_worker(
     os.chmod(pdb_file, 0o444)
     emitted, _, _ = pdb_records(regular(destination, "replay.pdb"))
     _, _, emitted_heavy = heavy_hashes(emitted)
-    if emitted_heavy != heavy:
+    if not numerically_exact_heavy(emitted_heavy, heavy):
         raise ValueError("independent emitted PDB heavy audit failed")
     replay = {
         "branch_id": branch,
@@ -1165,6 +1187,23 @@ def check(inputs: Path, generated: Path, output: Path) -> None:
 
 
 def self_test() -> int:
+    base = {
+        "atom_name": "CA",
+        "chain_id": "A",
+        "element": "C",
+        "insertion_code": "",
+        "residue_id": "1",
+        "residue_name": "ALA",
+        "x": "-0.000",
+        "y": "1.000",
+        "z": "2.000",
+    }
+    equivalent = dict(base, x="0.000")
+    changed = dict(equivalent, residue_id="2")
+    if not numerically_exact_heavy([base], [equivalent]):
+        raise AssertionError("signed zero must be numerically exact")
+    if numerically_exact_heavy([base], [changed]):
+        raise AssertionError("heavy identity drift was accepted")
     synthetic = []
     for number in range(119):
         synthetic.append(
