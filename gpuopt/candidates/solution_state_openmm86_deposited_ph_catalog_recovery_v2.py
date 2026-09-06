@@ -69,6 +69,10 @@ ID_RE = re.compile(r"[1-9][0-9]*\Z")
 BMRB_RE = re.compile(r"bmr([1-9][0-9]*)\Z")
 MISSING = frozenset((None, "", ".", "?"))
 MAX_RESPONSE_BYTES = 10_000_000
+MAX_SOURCE_BYTES = 2_000_000
+MAX_ARCHIVE_BYTES = 100_000_000
+MAX_ARCHIVE_MEMBERS = 10_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 500_000_000
 
 # The archived loops were collected by the predecessor catalog.  Their broad
 # metadata allowlists are copied here so a newly appearing target-bearing tag
@@ -238,7 +242,7 @@ def _safe_relative(relative: Path) -> None:
         raise ValueError("fixed repository-relative path is unsafe")
 
 
-def _read_regular(root: Path, relative: Path, label: str) -> bytes:
+def _read_regular(root: Path, relative: Path, label: str, maximum: int) -> bytes:
     _safe_relative(relative)
     current = root
     for piece in relative.parts:
@@ -253,8 +257,16 @@ def _read_regular(root: Path, relative: Path, label: str) -> bytes:
         raise ValueError("non-regular %s" % label)
     descriptor = os.open(current, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode):
+            raise ValueError("non-regular %s" % label)
+        if opened.st_size < 0 or opened.st_size > maximum:
+            raise ValueError("%s exceeds the byte limit" % label)
         with os.fdopen(descriptor, "rb", closefd=False) as handle:
-            return handle.read()
+            data = handle.read(opened.st_size + 1)
+        if len(data) != opened.st_size:
+            raise ValueError("%s changed while being read" % label)
+        return data
     finally:
         os.close(descriptor)
 
@@ -293,10 +305,16 @@ def _read_v1_failure_evidence(root: Path) -> Dict[str, Any]:
         raise ValueError("sealed v1 failure inventory drifted")
 
     receipt_raw = _read_regular(
-        root, V1_FAILURE_RELATIVE / "failure_receipt.json", "sealed v1 failure receipt"
+        root,
+        V1_FAILURE_RELATIVE / "failure_receipt.json",
+        "sealed v1 failure receipt",
+        MAX_RESPONSE_BYTES,
     )
     marker_raw = _read_regular(
-        root, V1_FAILURE_RELATIVE / "started_at_utc.txt", "sealed v1 start marker"
+        root,
+        V1_FAILURE_RELATIVE / "started_at_utc.txt",
+        "sealed v1 start marker",
+        1024,
     )
     if _sha256(receipt_raw) != V1_FAILURE_RECEIPT_SHA256:
         raise ValueError("sealed v1 failure receipt raw SHA-256 drifted")
@@ -363,17 +381,43 @@ def _create_output(root: Path) -> Path:
     return output
 
 
+def _git(root: Path, arguments: Sequence[str], label: str) -> bytes:
+    process: Optional[subprocess.Popen[bytes]] = None
+    try:
+        process = subprocess.Popen(
+            list(arguments),
+            cwd=str(root),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
+        assert process.stdout is not None
+        output = process.stdout.read(MAX_SOURCE_BYTES + 1)
+        if len(output) > MAX_SOURCE_BYTES:
+            process.kill()
+            process.wait(timeout=30)
+            raise ValueError("committed %s exceeds the byte limit" % label)
+        if process.wait(timeout=30) != 0:
+            raise ValueError("cannot inspect committed %s" % label)
+        return output
+    except (OSError, subprocess.TimeoutExpired) as error:
+        if process is not None:
+            process.kill()
+            process.wait()
+        raise ValueError("cannot inspect committed %s" % label) from error
+
+
 def _committed_bytes(root: Path, relative: Path, current: bytes, label: str) -> str:
     try:
-        revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(root), check=True, capture_output=True, text=True, timeout=30,
-        ).stdout.strip()
-        committed = subprocess.run(
-            ["git", "show", "%s:%s" % (revision, relative.as_posix())],
-            cwd=str(root), check=True, capture_output=True, timeout=30,
-        ).stdout
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        revision = _git(root, ("git", "rev-parse", "HEAD"), "HEAD").decode(
+            "ascii"
+        ).strip()
+        committed = _git(
+            root,
+            ("git", "show", "%s:%s" % (revision, relative.as_posix())),
+            label,
+        )
+    except (UnicodeDecodeError, ValueError) as error:
         raise ValueError("cannot bind %s to committed HEAD" % label) from error
     if re.fullmatch(r"[0-9a-f]{40}", revision) is None or committed != current:
         raise ValueError("%s bytes are not identical to committed HEAD" % label)
@@ -381,7 +425,9 @@ def _committed_bytes(root: Path, relative: Path, current: bytes, label: str) -> 
 
 
 def _load_plan(root: Path) -> Tuple[bytes, Dict[str, Any], str]:
-    raw = _read_regular(root, PLAN_RELATIVE, "immutable recovery plan")
+    raw = _read_regular(
+        root, PLAN_RELATIVE, "immutable recovery plan", MAX_SOURCE_BYTES
+    )
     if _sha256(raw) != PLAN_RAW_SHA256:
         raise ValueError("immutable recovery plan raw-byte hash drifted")
     plan = _loads(raw, "immutable recovery plan")
@@ -405,7 +451,7 @@ def _load_plan(root: Path) -> Tuple[bytes, Dict[str, Any], str]:
 
 
 def _producer_provenance(root: Path) -> Dict[str, str]:
-    raw = _read_regular(root, PRODUCER_RELATIVE, "producer source")
+    raw = _read_regular(root, PRODUCER_RELATIVE, "producer source", MAX_SOURCE_BYTES)
     revision = _committed_bytes(root, PRODUCER_RELATIVE, raw, "producer source")
     return {
         "source_producer_relative_path": PRODUCER_RELATIVE.as_posix(),
@@ -708,10 +754,11 @@ def _validate_roster(raw: bytes) -> List[Dict[str, Any]]:
 def _archive_prior_responses(
     archive: zipfile.ZipFile, bmrb_id: str
 ) -> Tuple[Dict[str, bytes], List[Dict[str, str]]]:
-    names = archive.namelist()
-    if len(names) != len(set(names)):
-        raise ValueError("canonical archive has duplicate member names")
-    info_by_name = {info.filename: info for info in archive.infolist()}
+    infos = archive.infolist()
+    names = [info.filename for info in infos]
+    if len(infos) > MAX_ARCHIVE_MEMBERS or len(names) != len(set(names)):
+        raise ValueError("canonical archive member inventory is unsafe")
+    info_by_name = {info.filename: info for info in infos}
     responses: Dict[str, bytes] = {}
     bindings: List[Dict[str, str]] = []
     for loop in PRIOR_LOOPS:
@@ -722,6 +769,7 @@ def _archive_prior_responses(
         payload = archive.read(info)
         if len(payload) != info.file_size:
             raise ValueError("sealed v4 response member length drifted")
+        _rows(payload, bmrb_id[3:], loop)
         responses[loop] = payload
         bindings.append(
             {
@@ -731,6 +779,39 @@ def _archive_prior_responses(
             }
         )
     return responses, bindings
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        request: urllib.request.Request,
+        fp: Any,
+        code: int,
+        message: str,
+        headers: Any,
+        new_url: str,
+    ) -> None:
+        return None
+
+
+def _require_exact_official_url(value: str, expected: str) -> None:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        wanted = urllib.parse.urlsplit(expected)
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("BMRB API response URL is malformed") from error
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "api.bmrb.io"
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
+        or parsed.fragment
+        or parsed.path != wanted.path
+        or parsed.query != wanted.query
+    ):
+        raise ValueError("BMRB API response URL leaves the exact official route")
 
 
 def _fetch_assigned_list(entry_id: str) -> Tuple[bytes, str, str]:
@@ -745,13 +826,12 @@ def _fetch_assigned_list(entry_id: str) -> Tuple[bytes, str, str]:
         requested_url,
         headers={"Application": APPLICATION_HEADER, "Accept": "application/json"},
     )
-    with urllib.request.urlopen(request, timeout=60) as response:
+    opener = urllib.request.build_opener(_NoRedirect())
+    with opener.open(request, timeout=60) as response:
         if response.status != 200:
             raise ValueError("BMRB API status is %s" % response.status)
         final_url = response.geturl()
-        final = urllib.parse.urlsplit(final_url)
-        if final.scheme != "https" or final.hostname != "api.bmrb.io":
-            raise ValueError("BMRB API redirect leaves the official host")
+        _require_exact_official_url(final_url, requested_url)
         payload = response.read(MAX_RESPONSE_BYTES + 1)
     if len(payload) > MAX_RESPONSE_BYTES:
         raise ValueError("BMRB API response exceeds size limit")
@@ -791,12 +871,15 @@ def _failure_receipt(
 
 def fetch_catalog() -> Dict[str, Any]:
     root = _bound_root()
+    # Recovery is admissible only after the fixed predecessor failure is
+    # validated.  This is intentionally before output creation, plan/source
+    # reads, roster/archive reads, and every network request.
+    v1_failure_evidence = _read_v1_failure_evidence(root)
     output = _create_output(root)
     started = _utc_now()
     _write_new(output / "started_at_utc.txt", (started + "\n").encode("utf-8"))
     plan_binding: Optional[Dict[str, str]] = None
     producer: Optional[Dict[str, str]] = None
-    v1_failure_evidence: Dict[str, Any] = V1_FAILURE_BINDING
     response_manifest: List[Dict[str, str]] = []
     try:
         plan_raw, _plan, plan_commit = _load_plan(root)
@@ -806,15 +889,24 @@ def fetch_catalog() -> Dict[str, Any]:
             "git_commit": plan_commit,
         }
         producer = _producer_provenance(root)
-        # This sealed local-only recovery gate precedes roster/archive reads and requests.
-        v1_failure_evidence = _read_v1_failure_evidence(root)
-        archive_raw = _read_regular(root, ARCHIVE_RELATIVE, "canonical condition archive")
+        archive_raw = _read_regular(
+            root, ARCHIVE_RELATIVE, "canonical condition archive", MAX_ARCHIVE_BYTES
+        )
         if _sha256(archive_raw) != ARCHIVE_SHA256:
             raise ValueError("canonical condition archive raw SHA-256 drifted")
-        roster_raw = _read_regular(root, ROSTER_RELATIVE, "bound roster")
+        roster_raw = _read_regular(
+            root, ROSTER_RELATIVE, "bound roster", MAX_RESPONSE_BYTES
+        )
         roster = _validate_roster(roster_raw)
         summaries: List[Dict[str, Any]] = []
         with zipfile.ZipFile(io.BytesIO(archive_raw)) as archive:
+            infos = archive.infolist()
+            if (
+                len(infos) > MAX_ARCHIVE_MEMBERS
+                or sum(info.file_size for info in infos)
+                > MAX_ARCHIVE_UNCOMPRESSED_BYTES
+            ):
+                raise ValueError("canonical archive expansion exceeds fixed limits")
             for entity in roster:
                 bmrb_id = str(entity["bmrb_id"])
                 entry_id = bmrb_id[3:]
@@ -1021,7 +1113,12 @@ def self_test() -> int:
             [],
         )
         produced = _loads(
-            _read_regular(output, Path("failure_receipt.json"), "synthetic failure receipt"),
+            _read_regular(
+                output,
+                Path("failure_receipt.json"),
+                "synthetic failure receipt",
+                MAX_RESPONSE_BYTES,
+            ),
             "synthetic failure receipt",
         )
         assert produced["v1_failure_evidence"] == V1_FAILURE_BINDING
