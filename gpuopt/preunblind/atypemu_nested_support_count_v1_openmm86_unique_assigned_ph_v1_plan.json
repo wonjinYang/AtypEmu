@@ -1,0 +1,71 @@
+{
+  "artifact_kind": "hold_only_target_unread_metadata_reinterpretation_plan_not_authorization",
+  "bound_inputs": {
+    "parent_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_plan.json",
+      "raw_sha256": "9244f880c7a67e97c5a370013b3cfc81cccc8cb9d7267b2fff0b0a1b5dddab91"
+    },
+    "prior_condition_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "raw_sha256": "cca8e8f94bb812d226f19055f4b6377da9f070520f21fc3ab76bde490a5b0b8a"
+    },
+    "recovery_v6_evidence_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_v1.zip",
+      "raw_sha256": "0fc60731b7f6cc053c9cf623ecb8e033ce8058f0f42791ea894414e98143d7b8"
+    },
+    "recovery_v6_evidence_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_receipt.json",
+      "raw_sha256": "c6fe9398b0ea44668da5cc1f8c8bd8e8b799f1659e501f4fb2b887d047462f36"
+    },
+    "recovery_v6_semantic_checker": {
+      "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_semantic_independent.py",
+      "raw_sha256": "f12eb66b24c4696562e9c1833836c240cac4c30299b963761614b70903e46d84"
+    }
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1",
+  "execution": {
+    "acknowledgement": "--acknowledge-hold-only",
+    "archive_reads": [
+      ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_v1.zip"
+    ],
+    "default_mode": "synthetic in-memory self-test; no archive reads",
+    "external_execution_intent": ".auto/staging/openmm86_unique_assigned_ph_v1_execution_intent.json",
+    "execute_flag": "--execute",
+    "output_receipt": ".auto/staging/openmm86_unique_assigned_ph_v1/receipt.json",
+    "receipt_creation": "O_EXCL; exactly one receipt and no response materialization",
+    "reviewed_source_binding": "Execution requires a separately created exact-schema intent binding the committed Git HEAD, candidate-source raw SHA-256, plan raw SHA-256, and both archive hashes.",
+    "validation_reads": [
+      "this exact-hash companion plan",
+      "the exact-hash parent plan",
+      "the exact-hash recovery-v6 evidence receipt",
+      "the exact-hash independently authored recovery-v6 semantic checker",
+      "the committed candidate source",
+      "the external exact-schema execution intent"
+    ]
+  },
+  "fallback_rule": {
+    "direct_assigned_list": "Require exactly one valid _Assigned_chem_shift_list row for the BMRB entry, with one valid assigned-list ID and one valid Sample_condition_list_ID.",
+    "experiment_resolution": "Every valid Chem_shift_experiment assigned-list ID must equal the direct ID, and at least one must do so. A row with a valid Experiment_ID and a missing, invalid, or other assigned-list ID is rejected. Every complete matching Experiment_ID resolves to zero or one Experiment row; duplicate matches are rejected.",
+    "preferred_linkage": "Fallback is forbidden if any matching Experiment row has a valid Sample_condition_list_ID. It is permitted only when every complete-link resolution is absent or has a missing or invalid condition pointer.",
+    "ph": "At the direct condition list, require exactly one numeric pH row in [0,14], with Val_units exactly pH or empty. Missing, invalid, contradictory, or additional pH rows remain HOLD."
+  },
+  "metadata_scope": "Target-unread reinterpretation of fixed recovery-v6 metadata only. No network, source construction, coordinate construction, OpenMM execution, score inspection, target inspection, or authorization consumption is permitted.",
+  "metadata_resolution_limit": "A resolved metadata pointer or deposited pH cannot establish protonation feasibility, all-atom feasibility, support feasibility, or science feasibility.",
+  "state": "HOLD_ONLY_STATIC_CANDIDATE",
+  "warnings": [
+    "Preferred Experiment-loop condition linkage always takes precedence over the direct assigned-list fallback.",
+    "Present-but-ambiguous preferred linkage is not absence and never authorizes fallback.",
+    "No metadata result is a science, support, protonation, or all-atom clearance."
+  ]
+}
