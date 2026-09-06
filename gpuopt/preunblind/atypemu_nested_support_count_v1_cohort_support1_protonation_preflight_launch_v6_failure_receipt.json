@@ -1,0 +1,25 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "checker_output_exists": false,
+  "failure_class": "PRE_GENERATION_HEAVY_RECORD_SIGNED_ZERO_EQUIVALENCE_ASSERTION",
+  "failed_branch_id": "observed-0",
+  "failed_entity_uid": "bmrb:11206:entity:1",
+  "frozen_git_commit": "3cab29ae3fb0012c9d5b8da2a3dc985279d8732b",
+  "generation_completed_state_directory_count": 30,
+  "generation_completed_state_file_count": 60,
+  "generation_output_tree_sha256": "ca458c2af7ab08c99cf004241404d33a56cf3d757d596955249aaa62228d2f61",
+  "launch_commit": "e401cfb7122fedc7cf7cd95f1cfa21cdfa7c3afe",
+  "observed_difference": {
+    "atom_index": 429,
+    "axis": "y",
+    "openmm_value": "0.000",
+    "source_value": "-0.000"
+  },
+  "output_relative_path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v5",
+  "scope": "target-unread HOLD-only cohort support-1 protonation preflight; no target, score, science, authorization, materialization, or support-feasibility surface",
+  "source_commitment_sha256": "e0f92d4cfe477f8bb7d6c7f28b00226283099f3a21b069548424e571a8b9b870",
+  "stage_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v6",
+  "status": "FAILED_CLOSED_BEFORE_COMPLETE_GENERATION",
+  "stderr_terminal": "ValueError: addHydrogens changed parsed parent heavy records",
+  "target_or_score_read_count": 0
+}
