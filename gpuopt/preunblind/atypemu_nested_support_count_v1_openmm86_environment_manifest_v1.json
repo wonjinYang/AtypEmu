@@ -1,0 +1,126 @@
+{
+  "artifact_kind": "openmm86_runtime_environment_manifest_not_authorization",
+  "base_image": {
+    "amd64_manifest_digest": "sha256:781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7",
+    "name": "python:3.13.7-slim-bookworm"
+  },
+  "build_recipe": {
+    "path": "gpuopt/candidates/openmm86_protonation_runtime.Dockerfile",
+    "sha256": "007e877565ca25883bcfdc083513b240d94e93c0416514e62cc791f3414836cc"
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_environment_manifest_v1",
+  "conversion": {
+    "docker_archive": {
+      "filename": "openmm86_protonation_8.6.0.docker.tar",
+      "sha256": "e2a1532d6fc4435b6940f38b6197287395015f2df8bb17c0a76683c624d9b0a3",
+      "size": 109516800
+    },
+    "docker_image": {
+      "amd64_config_digest": "sha256:3fd1c4478594daf5231b8d0dc296be47b97d78a66ce8c7cd5ae484cde77b35eb",
+      "amd64_layer_digests": [
+        "sha256:5c32499ab806884c5725c705c2bf528662d034ed99de13d3205309e0d9ef0375",
+        "sha256:79dc17963468084e50bd8100760c1d19f0c4711c75a624e91f83ad282cc114f7",
+        "sha256:5c36186b8d8417454960b65c9c32b077ab4f3fb3c662ff5d4eeb5fd6abf649ff",
+        "sha256:4ce903582132c9254f5172f6336ca9b39b7554f483694627d03a62f181950257",
+        "sha256:098d6a910a7ac3523e4376a85f96d3cfa6b4984324636d7378ab39aba0e1ec0d",
+        "sha256:4b32dad6a12f98596ec264ba2f1cb441e672548738090f0b1721d72ec016031c"
+      ],
+      "amd64_manifest_digest": "sha256:6fa60f0b8729602696f49aa7387f8519e354ba400ec878cee567632f52b57844",
+      "build_attestation_digest": "sha256:898e3e0e7688d7d03e195abfb2ad1cedf833a81e2b23cc5b27bc67c23ad8c586",
+      "image_index_digest": "sha256:f555076df2698a38dc016815219ff51325f052ad31e214951e067ac0ac96563e"
+    },
+    "singularity_labels": {
+      "org.label-schema.build-arch": "amd64",
+      "org.label-schema.build-date": "Monday_7_September_2026_3:26:22_KST",
+      "org.label-schema.schema-version": "1.0",
+      "org.label-schema.usage.singularity.deffile.bootstrap": "docker-archive",
+      "org.label-schema.usage.singularity.deffile.from": "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.docker.tar",
+      "org.label-schema.usage.singularity.version": "4.3.4-noble"
+    }
+  },
+  "freezer": {
+    "path": "gpuopt/candidates/freeze_condition_uncertainty_inputs.py",
+    "sha256": "062858e6bb1f9994cdc135a66670fa793682d5b9f8fcf49413b85e79cae74874"
+  },
+  "inspection": {
+    "files": {
+      "force_field": {
+        "path": "/usr/local/lib/python3.13/site-packages/openmm/app/data/amber14/protein.ff14SB.xml",
+        "sha256": "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8",
+        "size": 224056
+      },
+      "hydrogen_definitions": {
+        "path": "/usr/local/lib/python3.13/site-packages/openmm/app/data/hydrogens.xml",
+        "sha256": "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d",
+        "size": 13147
+      },
+      "modeller_source": {
+        "path": "/usr/local/lib/python3.13/site-packages/openmm/app/modeller.py",
+        "sha256": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
+        "size": 95003
+      }
+    },
+    "numpy_version": "2.3.3",
+    "openmm_version": "8.6",
+    "openmm_version_full": "8.6.0.dev-c6173db",
+    "platforms": [
+      "Reference",
+      "CPU"
+    ],
+    "python_version": "3.13.7",
+    "source_ph_thresholds": [
+      "6.5"
+    ],
+    "xml_maxph_thresholds": [
+      "4.4",
+      "8.5",
+      "10.0"
+    ]
+  },
+  "ph_regimes": {
+    "combined_transition_thresholds": [
+      "4.4",
+      "6.5",
+      "8.5",
+      "10.0"
+    ],
+    "interval_midpoints": [
+      "2.2",
+      "5.45",
+      "7.5",
+      "9.25",
+      "12.0"
+    ],
+    "lower_bound_inclusive": "0.0",
+    "upper_bound_inclusive": "14.0"
+  },
+  "required_platform": "Reference",
+  "runtime_sif": {
+    "filename": "openmm86_protonation_8.6.0.sif",
+    "sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "size": 78290944
+  },
+  "scope": "target-unread HOLD-only input identity; not support or science evidence",
+  "wheels": [
+    {
+      "filename": "numpy-2.3.3-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "5b83648633d46f77039c29078751f80da65aa64d5622a3cd62aaef9d835b6c93",
+      "size": 16636301
+    },
+    {
+      "filename": "openmm-8.6.0-cp313-cp313-manylinux_2_34_x86_64.whl",
+      "sha256": "1b0f39a812452fd9eb1faf28ed4e9d832aef44fc2072f4442a81a4ce7a6f56bf",
+      "size": 14425566
+    }
+  ]
+}
