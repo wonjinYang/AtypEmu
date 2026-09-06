@@ -1,0 +1,43 @@
+{
+  "archive": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_v1.zip",
+    "sha256": "cc962fef0297aad433979372020343abfb593715690a39dda114c016f4ee0c36",
+    "source_member_count": 140,
+    "zip_member_count": 141
+  },
+  "artifact_kind": "hold_only_target_unread_openmm86_deposited_ph_recovery_v6_evidence_receipt",
+  "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_v1",
+  "execution": {
+    "consumed_intent_sha256": "41152c6f559e7711cffa9d033324ed89bcb325270ae3f6fb4a47bf2bc4f316e9",
+    "execution_lock_sha256": "41152c6f559e7711cffa9d033324ed89bcb325270ae3f6fb4a47bf2bc4f316e9",
+    "execution_receipt_sha256": "b817fef58b3bc1a64ae546c993cc550752eecc132844c498a43174c2eff943c3",
+    "git_commit": "ad13d0276533c0d8acc90703f1c44c6c5fab6ae2",
+    "outcome": "local_hold_verified"
+  },
+  "independent_semantic_checker": {
+    "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_semantic_independent.py",
+    "raw_derived_record_count": 135,
+    "sha256": "f12eb66b24c4696562e9c1833836c240cac4c30299b963761614b70903e46d84",
+    "verification_check_count": 810
+  },
+  "result": {
+    "all_entities_ph_feasible": false,
+    "entity_count": 135,
+    "hold_entity_count": 20,
+    "output_receipt_sha256": "4050e642509cb90c5120eccc459ebaf7299b237fee487365d45a6664ee7ec213",
+    "ph_feasible_entity_count": 115,
+    "started_at_utc_sha256": "6d382b6401c822e79828a6b9212ca3336de214c9ce31da56b86a9690d7d753ff",
+    "status": "HOLD_DEPOSITED_PH_METADATA_INCOMPLETE_OR_AMBIGUOUS"
+  },
+  "scope": "artifact-integrity and target-unread metadata HOLD evidence only; not all-atom support feasibility, source construction, science authorization, or score evidence"
+}

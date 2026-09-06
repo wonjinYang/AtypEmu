@@ -257,6 +257,18 @@
     "openmm86_deposited_ph_catalog_recovery_v6_handler": {
       "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v6_if_intent.py",
       "sha256": "c077226516b3b0aa97029d9ac453b57134e7fc04ece69805305460d09caf4034"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_checker": {
+      "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_evidence.py",
+      "sha256": "2fa35326d934f81e8e1b75f76fda1e5240961e19d5a8bee000b883df50232532"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_receipt.json",
+      "sha256": "c6fe9398b0ea44668da5cc1f8c8bd8e8b799f1659e501f4fb2b887d047462f36"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_semantic_checker": {
+      "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_semantic_independent.py",
+      "sha256": "f12eb66b24c4696562e9c1833836c240cac4c30299b963761614b70903e46d84"
     }
   },
   "fixed_protocol": {
@@ -319,6 +331,7 @@
     "blocking_conditions": [
       "K1536 exceeds the only currently evidenced BioEmu index namespace",
       "K32, K128, and K768 are all-atom count-infeasible under the frozen policy because bmr50238 has zero compliant supports: assigned GLU:HE2 is unavailable across all 1000 catalog supports",
+      "uniform deposited-pH support construction remains blocked because recovery-v6 resolves exactly one pH for only 115/135 entities and holds the other 20 on missing or ambiguous metadata",
       "K32 original structural-source provenance replay is not established for this study",
       "support construction and diversity thresholds are not frozen",
       "primary and replicate ladder roots are not committed"

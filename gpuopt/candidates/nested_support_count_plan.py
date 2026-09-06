@@ -31,7 +31,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "18a9422d6b51f789648b766c94ad95e758a581c703d774146cdebfa5a2af0d25"
+    "22d91380baf6032cc708216781cee62060b0518c235066a91f7c37dc0c31e085"
 )
 OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
@@ -220,6 +220,18 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v6_if_intent.py",
         "sha256": "c077226516b3b0aa97029d9ac453b57134e7fc04ece69805305460d09caf4034",
     },
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_checker": {
+        "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_evidence.py",
+        "sha256": "2fa35326d934f81e8e1b75f76fda1e5240961e19d5a8bee000b883df50232532",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_receipt": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_receipt.json",
+        "sha256": "c6fe9398b0ea44668da5cc1f8c8bd8e8b799f1659e501f4fb2b887d047462f36",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_semantic_checker": {
+        "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_semantic_independent.py",
+        "sha256": "f12eb66b24c4696562e9c1833836c240cac4c30299b963761614b70903e46d84",
+    },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
@@ -356,6 +368,9 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_recovery_v6_producer",
     "openmm86_deposited_ph_catalog_recovery_v6_checker",
     "openmm86_deposited_ph_catalog_recovery_v6_handler",
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_checker",
+    "openmm86_deposited_ph_catalog_recovery_v6_evidence_receipt",
+    "openmm86_deposited_ph_catalog_recovery_v6_semantic_checker",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -468,6 +483,7 @@ EXPECTED_PROVENANCE = {
 EXPECTED_BLOCKERS = [
     "K1536 exceeds the only currently evidenced BioEmu index namespace",
     "K32, K128, and K768 are all-atom count-infeasible under the frozen policy because bmr50238 has zero compliant supports: assigned GLU:HE2 is unavailable across all 1000 catalog supports",
+    "uniform deposited-pH support construction remains blocked because recovery-v6 resolves exactly one pH for only 115/135 entities and holds the other 20 on missing or ambiguous metadata",
     "K32 original structural-source provenance replay is not established for this study",
     "support construction and diversity thresholds are not frozen",
     "primary and replicate ladder roots are not committed",
@@ -1382,6 +1398,13 @@ def main() -> int:
     from run_openmm86_deposited_ph_recovery_v6_if_intent import (
         self_test as openmm86_deposited_ph_catalog_recovery_v6_handler_self_test,
     )
+    from check_openmm86_deposited_ph_recovery_v6_evidence import (
+        self_test as openmm86_deposited_ph_recovery_v6_evidence_self_test,
+    )
+    from check_openmm86_deposited_ph_recovery_v6_semantic_independent import (
+        self_test as openmm86_deposited_ph_recovery_v6_semantic_self_test,
+        verify as verify_openmm86_deposited_ph_recovery_v6_semantics,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1463,6 +1486,19 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_deposited_ph_recovery_v6_evidence_checks = (
+        openmm86_deposited_ph_recovery_v6_evidence_self_test(root)
+        if args.self_test
+        else 0
+    )
+    openmm86_deposited_ph_recovery_v6_semantic_checks = (
+        verify_openmm86_deposited_ph_recovery_v6_semantics(root)
+        + (
+            openmm86_deposited_ph_recovery_v6_semantic_self_test(root)
+            if args.self_test
+            else 0
+        )
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1479,7 +1515,7 @@ def main() -> int:
     )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v6_evidence_checks + openmm86_deposited_ph_recovery_v6_semantic_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
