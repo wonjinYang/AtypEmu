@@ -1,0 +1,106 @@
+{
+  "artifact_kind": "hold_only_target_unread_unique_assigned_ph_recovery_v2_plan_not_authorization",
+  "bound_failure": {
+    "recovery_v1_execution_intent": {
+      "path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v1_execution_intent.json",
+      "raw_sha256": "ef7a18d2c34cccf3cc69fa100e623786ab8cbda984e65b4ee1e3dbacda48a4b3"
+    },
+    "recovery_v1_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1_recovery_v1_plan.json",
+      "raw_sha256": "368cf599cbe6df757f40d3f214e4e5691511daf13ed0a7b36c59e5e55c20a575"
+    },
+    "recovery_v1_postoutput_failure_receipt": {
+      "path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v1_postoutput_failure_receipt.json",
+      "raw_sha256": "1c095c3d3bb61b6b6ea8859c723053d3293137799f70e5a4911110daa067a910"
+    },
+    "recovery_v1_sealed_output": {
+      "eligible_for_reuse": false,
+      "path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v1/receipt.json",
+      "raw_sha256": "e3bc6ae75a79cff1d3580ea366d3631dfdad87f60dd1b228e069edad770f99dc"
+    },
+    "recovery_v1_source": {
+      "git_commit": "8142433b41ba8d60636b81f8c82f0fc081d5e9b0",
+      "path": "gpuopt/candidates/openmm86_unique_assigned_ph_v1_recovery_v1.py",
+      "raw_sha256": "1534df3eb693c8d7eaa228349ee001c4a330f3b36c6a35efb25b83f966dab2d4"
+    },
+    "run_146_log": {
+      "path": ".auto/log.jsonl",
+      "raw_line_sha256": "184f3a4c600741ee2d56ea986d29d092c969f97a4b8b1a02192a3df9856ce86f",
+      "semantic_subset": {
+        "run": 146
+      }
+    },
+    "v1_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1_plan.json",
+      "raw_sha256": "c35724112714e3e5de474f08538540e121241ebef3458717b034e712dd5b083e"
+    },
+    "v1_source": {
+      "path": "gpuopt/candidates/openmm86_unique_assigned_ph_v1.py",
+      "raw_sha256": "29974dbb0b41a0e3282d67171dfd939b212dc983d5db4cc90be08f533fcf0752"
+    }
+  },
+  "bound_inputs": {
+    "parent_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_plan.json",
+      "raw_sha256": "9244f880c7a67e97c5a370013b3cfc81cccc8cb9d7267b2fff0b0a1b5dddab91"
+    },
+    "prior_condition_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "raw_sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70"
+    },
+    "recovery_v6_evidence_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_v1.zip",
+      "raw_sha256": "cc962fef0297aad433979372020343abfb593715690a39dda114c016f4ee0c36"
+    },
+    "recovery_v6_evidence_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v6_evidence_receipt.json",
+      "raw_sha256": "c6fe9398b0ea44668da5cc1f8c8bd8e8b799f1659e501f4fb2b887d047462f36"
+    },
+    "recovery_v6_semantic_checker": {
+      "path": "gpuopt/candidates/check_openmm86_deposited_ph_recovery_v6_semantic_independent.py",
+      "raw_sha256": "f12eb66b24c4696562e9c1833836c240cac4c30299b963761614b70903e46d84"
+    }
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1_recovery_v2",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_unique_assigned_ph_v1_recovery_v2",
+  "execution": {
+    "acknowledgement": "--acknowledge-hold-only",
+    "default_mode": "synthetic in-memory self-test; no .auto reads",
+    "execute_flag": "--execute",
+    "external_execution_intent": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v2_execution_intent.json",
+    "output_receipt": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v2/receipt.json",
+    "receipt_creation": "O_EXCL; one separately named receipt only",
+    "reviewed_binding": "A separately created exact-schema intent must bind committed Git HEAD, recovery-v2 source SHA-256, recovery-v2 plan SHA-256, both corrected archive SHA-256 values, and the three full terminal recovery-v1 failure SHA-256 values."
+  },
+  "metadata_resolution_limit": "Metadata-only qualification cannot establish protonation feasibility, support feasibility, or science feasibility.",
+  "recovery_source": {
+    "path": "gpuopt/candidates/openmm86_unique_assigned_ph_v1_recovery_v2.py",
+    "raw_sha256": "9b104d59b7dc9aaea1283a863c091ee81bf32bda045b0a9e04412f808a214d81"
+  },
+  "recovery_v6_result": {
+    "hold_identity_count": 20,
+    "metadata_resolved_entity_count": 115
+  },
+  "repair": {
+    "frozen_v1_fallback": "openmm86_unique_assigned_ph_v1._fallback_entity",
+    "only_change": "pass {(bmrb, loop): prior[(bmrb, loop)] for loop in v1.LOOPS} for each held entity",
+    "preserve_closed_capabilities": true,
+    "preserve_independently_derived_held_identity_count": 20,
+    "preserve_v1_fallback_semantics": true
+  },
+  "state": "HOLD_ONLY_STATIC_RECOVERY",
+  "warnings": [
+    "Recovery-v1 sealed output is terminal failure binding only and is not reused as evidence.",
+    "The frozen v1 fallback is invoked unchanged with only its required entity-local three-loop mapping.",
+    "No metadata result is protonation, support, science, score, target, or authorization evidence."
+  ]
+}
