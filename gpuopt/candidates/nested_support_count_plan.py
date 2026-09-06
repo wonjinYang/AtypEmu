@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "86b2d3581d944fbb212e9a5a3343507aae1c0fad6a6a6990b1841eeb16fd66df"
+    "7dab830fd128b88109eeb14fa47192c75e28b2fce2b257048854b980cd684e44"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -63,6 +63,10 @@ TOP_LEVEL_FIELDS = {
     "target_unread_scope",
 }
 SAFE_EVIDENCE = {
+    "solution_state_condition_catalog_producer": {
+        "path": "gpuopt/candidates/solution_state_condition_catalog.py",
+        "sha256": "0085d9bcbe72a2bd01200209c12a1d65aeab3a7baaaa07f7a4f628edf939e47c",
+    },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
@@ -957,6 +961,9 @@ def main() -> int:
     from check_solution_state_protonation_support_plan import (
         verify as verify_solution_state_support_plan,
     )
+    from solution_state_condition_catalog import (
+        self_test as solution_state_condition_catalog_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -964,6 +971,9 @@ def main() -> int:
     raw_evidence_checks = verify_raw_evidence(root)
     solution_state_support_checks = verify_solution_state_support_plan(
         run_self_test=args.self_test
+    )
+    solution_state_condition_catalog_checks = (
+        solution_state_condition_catalog_self_test() if args.self_test else 0
     )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
@@ -978,7 +988,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")

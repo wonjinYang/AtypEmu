@@ -58,6 +58,10 @@
     "state": "BLOCKED_PENDING_TARGET_UNREAD_THRESHOLDS"
   },
   "evidence": {
+    "solution_state_condition_catalog_producer": {
+      "path": "gpuopt/candidates/solution_state_condition_catalog.py",
+      "sha256": "0085d9bcbe72a2bd01200209c12a1d65aeab3a7baaaa07f7a4f628edf939e47c"
+    },
     "all_atom_recount_policy": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json",
       "sha256": "f792ea47639f19d0376088b2c2e2fd5e9a161f33e4871205664bc9972e1b35ae"
