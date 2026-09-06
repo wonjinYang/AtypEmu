@@ -62,6 +62,14 @@ TASKS = (
             "--acknowledge-hold-only",
         ),
     ),
+    (
+        "condition-uncertainty-inputs",
+        (
+            PYTHON,
+            PREFIX + "check_condition_uncertainty_inputs.py",
+            "--self-test",
+        ),
+    ),
 )
 EXPECTED_STDOUT = {
     "all-atom-recount": (
@@ -100,10 +108,21 @@ EXPECTED_STDOUT = {
         "METRIC source_scores_read=0",
         "METRIC science_executed=0",
         "METRIC authorization_consumed=0",
-        "STATUS HOLD_CONDITION_UNCERTAINTY_INPUTS_UNQUALIFIED",
+        "STATUS HOLD_INPUTS_QUALIFIED_PROTONATION_SMOKE_UNRUN",
+    ),
+    "condition-uncertainty-inputs": (
+        "METRIC condition_input_checks=16",
+        "METRIC target_values_read=0",
+        "METRIC target_atom_identities_read=0",
+        "METRIC source_scores_read=0",
+        "METRIC source_construction_executed=0",
+        "METRIC science_executed=0",
+        "METRIC authorization_consumed=0",
+        "STATUS PASS",
     ),
 }
 SOURCE_RELATIVES = (
+    "gpuopt/candidates/check_condition_uncertainty_inputs.py",
     "gpuopt/candidates/check_condition_uncertainty_protonation_plan.py",
     "gpuopt/candidates/check_nested_support_all_atom_recount.py",
     "gpuopt/candidates/check_nested_support_catalog.py",
@@ -113,11 +132,18 @@ SOURCE_RELATIVES = (
     "gpuopt/candidates/nested_support_all_atom_recount.py",
     "gpuopt/candidates/nested_support_catalog.py",
     "gpuopt/candidates/nested_support_count_plan.py",
+    "gpuopt/candidates/freeze_condition_uncertainty_inputs.py",
 )
 REQUIRED = SOURCE_RELATIVES + (
     ".auto/measure.sh",
+    "gpuopt/candidates/openmm86_protonation.Dockerfile",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_manifest_v1.json",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_inputs_check_receipt_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1.json",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_environment_manifest_v1.json",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_parent_heavy_coordinate_manifest_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_plan.json",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_protein_sequence_manifest_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json",
     "references/thesis_jeon.pdf",
@@ -280,7 +306,10 @@ def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
 
 def committed_head(root: Path) -> str:
     top = _git(root, "rev-parse", "--show-toplevel")
-    if top.returncode != 0 or Path(top.stdout.decode().strip()).resolve() != root.resolve():
+    if (
+        top.returncode != 0
+        or Path(top.stdout.decode().strip()).resolve() != root.resolve()
+    ):
         raise RuntimeError("preflight root is not the Git worktree root")
     tracked = _git(root, "ls-files", "--error-unmatch", "--", *TRACKED_REQUIRED)
     if tracked.returncode != 0:
@@ -303,7 +332,11 @@ def committed_head(root: Path) -> str:
 
 def _read_once(root: Path, relative: str) -> Tuple[bytes, Tuple[int, ...]]:
     pure = PurePosixPath(relative)
-    if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
+    if (
+        pure.is_absolute()
+        or not pure.parts
+        or any(part in {"", ".", ".."} for part in pure.parts)
+    ):
         raise RuntimeError(f"invalid required input path: {relative}")
     directory_flags = (
         os.O_RDONLY
@@ -311,7 +344,9 @@ def _read_once(root: Path, relative: str) -> Tuple[bytes, Tuple[int, ...]]:
         | getattr(os, "O_DIRECTORY", 0)
         | getattr(os, "O_NOFOLLOW", 0)
     )
-    file_flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    file_flags = (
+        os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    )
     directory = os.open(root, directory_flags)
     descriptor = -1
     try:
@@ -331,6 +366,7 @@ def _read_once(root: Path, relative: str) -> Tuple[bytes, Tuple[int, ...]]:
             chunks.append(chunk)
         after = os.fstat(descriptor)
         linked = os.stat(pure.parts[-1], dir_fd=directory, follow_symlinks=False)
+
         def identity(value: os.stat_result) -> Tuple[int, ...]:
             return (
                 value.st_dev,
@@ -340,6 +376,7 @@ def _read_once(root: Path, relative: str) -> Tuple[bytes, Tuple[int, ...]]:
                 value.st_mtime_ns,
                 value.st_ctime_ns,
             )
+
         if identity(before) != identity(after) or identity(after) != identity(linked):
             raise RuntimeError(f"required input changed while reading: {relative}")
         return b"".join(chunks), identity(after)
@@ -516,9 +553,7 @@ def main() -> int:
             snapshot_sha256 = isolated_snapshot(ROOT, snapshot_root, head)
             if head != committed_head(ROOT):
                 raise RuntimeError("committed source changed while snapshotting")
-            results, seconds = run_tasks(
-                TASKS, snapshot_root, workers, TIMEOUT_SECONDS
-            )
+            results, seconds = run_tasks(TASKS, snapshot_root, workers, TIMEOUT_SECONDS)
         unchanged = head == committed_head(ROOT)
     except Exception as exc:
         print(f"HOLD_PREFLIGHT FAIL error={type(exc).__name__}: {exc}")

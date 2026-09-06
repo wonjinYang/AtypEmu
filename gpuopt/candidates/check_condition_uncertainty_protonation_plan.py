@@ -30,8 +30,10 @@ RECEIPT_RELATIVE = Path(
 INDEPENDENT_CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py"
 )
-PLAN_RAW_SHA256 = "c5ae35a046cdf350c8476414d3a46118f25dbb7de1cdfbef5765474f9b9728f6"
-PLAN_CANONICAL_SHA256 = "7ccba891fc7d837d8a0bdb426d5d22e12dbb62e94d954366c24be59ac87d503d"
+PLAN_RAW_SHA256 = "37d1cb52c2bd904d3dde8104c8ee3b5194da6c31d42c36c0a78e6b72cc93b7a1"
+PLAN_CANONICAL_SHA256 = (
+    "e0ec8761a2031979521017f0a49275207c949ec5ccd62b345097befb0290ebe6"
+)
 V1_PLAN_RAW_SHA256 = "597086a617935f458b25be52190616b291ee3d6f6d8b92eaefc053a05cf8d67d"
 RECEIPT_RAW_SHA256 = "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b"
 INDEPENDENT_CHECKER_RAW_SHA256 = (
@@ -88,10 +90,7 @@ EXPECTED_STAGE_ORDER = [
     "separate_science_commitment_review_and_fresh_authorization",
 ]
 EXPECTED_BLOCKERS = [
-    "exact 135-entity condition manifest preserving observed missing and ambiguous states is absent",
-    "exact OpenMM 8.6 environment force-field and hydrogen-definition hashes are absent",
-    "protein-sequence and parent-heavy-coordinate manifests are absent",
-    "generator source commitment and independent checker are absent",
+    "protonation generator source commitment and independent generator checker are absent",
     "bounded one-observed one-unresolved target-unread smoke is absent",
     "all-support deterministic replay physicality and effective-distinct-state audits are absent",
     "support order and diversity thresholds remain unqualified",
@@ -129,14 +128,14 @@ def _require(condition: bool, message: str, checks: list[str], name: str) -> Non
 def _read_regular(
     root: Path, relative: Path, *, maximum_bytes: int = 2_000_000
 ) -> bytes:
-    if relative.is_absolute() or not relative.parts or any(
-        part in {"", ".", ".."} for part in relative.parts
+    if (
+        relative.is_absolute()
+        or not relative.parts
+        or any(part in {"", ".", ".."} for part in relative.parts)
     ):
         raise ValueError(f"invalid relative input path: {relative}")
     directory_flags = (
-        os.O_RDONLY
-        | getattr(os, "O_DIRECTORY", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
+        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
     )
     directory = os.open(root, directory_flags)
     try:
@@ -165,6 +164,7 @@ def _read_regular(
                 remaining -= len(chunk)
             raw = b"".join(chunks)
             after = os.fstat(descriptor)
+
             def identity(value: os.stat_result) -> tuple[int, ...]:
                 return (
                     value.st_dev,
@@ -174,6 +174,7 @@ def _read_regular(
                     value.st_mtime_ns,
                     value.st_ctime_ns,
                 )
+
             if len(raw) != before.st_size or identity(before) != identity(after):
                 raise ValueError(f"input changed while reading: {relative}")
             return raw
@@ -187,7 +188,11 @@ def _bound_root() -> Path:
     checker = Path(__file__).absolute()
     root = checker.parents[2]
     canonical = root / CHECKER_RELATIVE
-    if checker != canonical or checker.is_symlink() or checker.resolve(strict=True) != checker:
+    if (
+        checker != canonical
+        or checker.is_symlink()
+        or checker.resolve(strict=True) != checker
+    ):
         raise ValueError(f"noncanonical or indirect checker path: {checker}")
     return root
 
@@ -196,11 +201,11 @@ def _condition_regime_midpoints(thresholds: list[Decimal]) -> tuple[Decimal, ...
     if thresholds != sorted(set(thresholds)) or any(
         threshold <= 0 or threshold >= 14 for threshold in thresholds
     ):
-        raise ValueError("thresholds must be unique, sorted, and strictly inside [0,14]")
+        raise ValueError(
+            "thresholds must be unique, sorted, and strictly inside [0,14]"
+        )
     boundaries = [Decimal("0"), *thresholds, Decimal("14")]
-    return tuple(
-        (left + right) / 2 for left, right in zip(boundaries, boundaries[1:])
-    )
+    return tuple((left + right) / 2 for left, right in zip(boundaries, boundaries[1:]))
 
 
 def _branch_schedule(entity_uid: str, branch_count: int, count: int) -> tuple[int, ...]:
@@ -208,8 +213,7 @@ def _branch_schedule(entity_uid: str, branch_count: int, count: int) -> tuple[in
         raise ValueError("invalid branch schedule input")
     key = (
         "atypemu_nested_support_count_v1_condition_uncertainty_protonation_v1"
-        "\0"
-        + entity_uid
+        "\0" + entity_uid
     ).encode()
     offset = int.from_bytes(hashlib.sha256(key).digest()[:8], "big") % branch_count
     return tuple((offset + index) % branch_count for index in range(count))
@@ -243,8 +247,7 @@ def validate_plan(plan: dict[str, Any], *, enforce_hash: bool = True) -> list[st
         "identity",
     )
     _require(
-        plan["state"]
-        == "HOLD_POLICY_PREDECLARED_INPUTS_AND_EXECUTABLE_UNQUALIFIED",
+        plan["state"] == "HOLD_INPUTS_QUALIFIED_PROTONATION_SMOKE_UNRUN",
         "plan escaped HOLD",
         checks,
         "hold_state",
@@ -344,19 +347,27 @@ def validate_plan(plan: dict[str, Any], *, enforce_hash: bool = True) -> list[st
     _require(
         environment
         == {
-            "container_sha256": "ABSENT_UNQUALIFIED",
+            "container_sha256": (
+                "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
+            ),
             "force_field_relative_path": "amber14/protein.ff14SB.xml",
-            "force_field_sha256": "ABSENT_UNQUALIFIED",
+            "force_field_sha256": (
+                "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8"
+            ),
             "hydrogen_definitions_relative_path": "openmm/app/data/hydrogens.xml",
-            "hydrogen_definitions_sha256": "ABSENT_UNQUALIFIED",
+            "hydrogen_definitions_sha256": (
+                "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d"
+            ),
             "modeller_source_relative_path": "openmm/app/modeller.py",
-            "modeller_source_sha256": "ABSENT_UNQUALIFIED",
-            "openmm_exact_version": "8.6_BUILD_UNQUALIFIED",
+            "modeller_source_sha256": (
+                "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3"
+            ),
+            "openmm_exact_version": "8.6.0.dev-c6173db",
             "platform": "Reference",
         },
-        "OpenMM environment was prematurely qualified or drifted",
+        "qualified OpenMM environment drifted",
         checks,
-        "environment_unqualified",
+        "environment_qualified",
     )
     _require(
         openmm["randomness"]
@@ -414,11 +425,30 @@ def validate_plan(plan: dict[str, Any], *, enforce_hash: bool = True) -> list[st
                 "receipt_path": RECEIPT_RELATIVE.as_posix(),
                 "receipt_sha256": RECEIPT_RAW_SHA256,
             },
-            "exact_condition_manifest": "ABSENT_UNQUALIFIED",
-            "parent_heavy_coordinate_manifest": "ABSENT_UNQUALIFIED",
-            "protein_sequence_manifest": "ABSENT_UNQUALIFIED",
+            "exact_condition_manifest": {
+                "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_manifest_v1.json",
+                "sha256": "ac51d7a40259f3a61e5fec0b521964d85a86d54aa2b91b78d051f9a0cca22618",
+            },
+            "input_boundary_check": {
+                "checker_path": "gpuopt/candidates/check_condition_uncertainty_inputs.py",
+                "checker_sha256": "bc657d843c15ffc05cf482cb38401e425511a283760ef05a4aba9a3430ff9aee",
+                "receipt_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_inputs_check_receipt_v1.json",
+                "receipt_sha256": "3a95bb683385079a46d921b0e17aa56cd684578b25b34ee13e9e1fd541356f8e",
+            },
+            "openmm_environment_manifest": {
+                "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_environment_manifest_v1.json",
+                "sha256": "6a5f3ff4a041d0fc055ee0a3b855ef2715a826812d11d6b2fdf1744a56fecd88",
+            },
+            "parent_heavy_coordinate_manifest": {
+                "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_parent_heavy_coordinate_manifest_v1.json",
+                "sha256": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
+            },
+            "protein_sequence_manifest": {
+                "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_protein_sequence_manifest_v1.json",
+                "sha256": "4faf799877e0387a90c9f00c641e958bd02585dde6b1b99bbdcaeb9f2e82012b",
+            },
         },
-        "provenance drifted or an input was prematurely qualified",
+        "qualified input provenance drifted",
         checks,
         "provenance",
     )
@@ -468,11 +498,20 @@ def self_test(plan: dict[str, Any]) -> int:
         ("condition_policy.unresolved_entity_count", 0),
         ("condition_policy.classification_states", ["observed"]),
         ("condition_policy.unresolved_rule.single_ph_imputation_allowed", True),
-        ("condition_policy.unresolved_rule.ambiguous_numeric_candidates_affect_proposal", True),
+        (
+            "condition_policy.unresolved_rule.ambiguous_numeric_candidates_affect_proposal",
+            True,
+        ),
         ("forbidden_source_builder_inputs", ["target_values"]),
-        ("interpretation_limits.openmm_output_is_a_probabilistic_microstate_ensemble", True),
+        (
+            "interpretation_limits.openmm_output_is_a_probabilistic_microstate_ensemble",
+            True,
+        ),
         ("interpretation_limits.ph_regime_mass_is_a_physical_prior", True),
-        ("interpretation_limits.policy_self_checker_is_independent_science_evidence", True),
+        (
+            "interpretation_limits.policy_self_checker_is_independent_science_evidence",
+            True,
+        ),
         ("openmm_policy.variants_argument", ["GLH"]),
         ("openmm_policy.environment.platform", "CUDA"),
         ("openmm_policy.environment.openmm_exact_version", "8.6"),
@@ -582,11 +621,11 @@ def verify(*, run_self_test: bool) -> int:
     )
     _require(
         v1["state"] == "HOLD_CONDITION_MANIFEST_INCOMPLETE"
-        and v1["condition_manifest"]["recovery_v3"]
-        ["metadata_resolved_entity_count"]
+        and v1["condition_manifest"]["recovery_v3"]["metadata_resolved_entity_count"]
         == 119
-        and v1["condition_manifest"]["recovery_v3"]
-        ["state_missing_or_ambiguous_entity_count"]
+        and v1["condition_manifest"]["recovery_v3"][
+            "state_missing_or_ambiguous_entity_count"
+        ]
         == 16,
         "v1 HOLD evidence semantics drifted",
         checks,
@@ -611,7 +650,7 @@ def main() -> int:
     args = parser.parse_args()
     checks = verify(run_self_test=args.self_test)
     if not args.acknowledge_hold_only:
-        print("STATUS HOLD_CONDITION_UNCERTAINTY_INPUTS_UNQUALIFIED")
+        print("STATUS HOLD_INPUTS_QUALIFIED_PROTONATION_SMOKE_UNRUN")
         print("REFUSAL this plan is not support construction or authorization")
         return 3
     print(f"METRIC condition_uncertainty_support_plan_checks={checks}")
@@ -619,7 +658,7 @@ def main() -> int:
     print("METRIC source_scores_read=0")
     print("METRIC science_executed=0")
     print("METRIC authorization_consumed=0")
-    print("STATUS HOLD_CONDITION_UNCERTAINTY_INPUTS_UNQUALIFIED")
+    print("STATUS HOLD_INPUTS_QUALIFIED_PROTONATION_SMOKE_UNRUN")
     return 0
 
 
