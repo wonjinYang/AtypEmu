@@ -1,0 +1,33 @@
+{
+  "artifact_kind": "hold_target_unread_cohort_support1_preflight_pregeneration_failure_receipt",
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v3_failure_receipt",
+  "executed_git_head": "cb0796ed01379cf5152006a848e666fdffe4ff55",
+  "failure": "the staged generator rejected all 135 support-1 topology bindings before OpenMM execution because the new adapter's JSON-object topology encoding did not reproduce the parent catalog's ordered PDB-identity byte encoding",
+  "failure_class": "PRE_GENERATION_PARENT_TOPOLOGY_ENCODING_MISMATCH",
+  "local_failed_stage": {
+    "byte_count": 97662734,
+    "file_count": 148,
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v3",
+    "tree_sha256": "39cd6fed88b369f94e2517cd3876287156e2ed2c6ec5bca6d07be194593b99e7"
+  },
+  "local_output": {
+    "file_count": 0,
+    "path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v2"
+  },
+  "next_route": "separately bound source_commitment_v4 reproducing the parent ordered PDB-identity topology hash exactly; v3 stage/output remain immutable and ineligible",
+  "source_commitment_v3": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v3.json",
+    "sha256": "50c2ac81e9bef1e4c8f9c142b9b4b3282f1e18bb3d1faa4f23e3d2720d7a7595"
+  },
+  "status": "HOLD_PRE_GENERATION_FAILURE_NO_OPENMM_EXECUTION"
+}
