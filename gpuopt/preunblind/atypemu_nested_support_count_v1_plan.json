@@ -86,6 +86,14 @@
       "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
       "sha256": "50343442484781f3e5780ed8eca59a7daa53432bbcbdfa2b063b632da8fad944"
     },
+    "solution_state_protonation_support_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
+      "sha256": "16618f36d5979b7facbc9803d23fc7152c967af14be202c485e5f974d4f63422"
+    },
+    "solution_state_protonation_support_checker": {
+      "path": "gpuopt/candidates/check_solution_state_protonation_support_plan.py",
+      "sha256": "03c7d203d89d0597e109e8b212399cd6cea7146d54766996fa6346b218b783aa"
+    },
     "all_atom_raw_replay_correction_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
       "sha256": "caf1b5e51577cc50273c52b1c2fa2d1ec796991fe9f85a53fbeb3d92e0b525ba"

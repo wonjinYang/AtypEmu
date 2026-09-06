@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "ed9d4dcf396d7ba22a1cbe2618f0169777822fbd5514e8bde3f0ab5602f6ae00"
+    "86b2d3581d944fbb212e9a5a3343507aae1c0fad6a6a6990b1841eeb16fd66df"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -90,6 +90,14 @@ SAFE_EVIDENCE = {
     "all_atom_raw_evidence_checker": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
         "sha256": "50343442484781f3e5780ed8eca59a7daa53432bbcbdfa2b063b632da8fad944",
+    },
+    "solution_state_protonation_support_plan": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
+        "sha256": "16618f36d5979b7facbc9803d23fc7152c967af14be202c485e5f974d4f63422",
+    },
+    "solution_state_protonation_support_checker": {
+        "path": "gpuopt/candidates/check_solution_state_protonation_support_plan.py",
+        "sha256": "03c7d203d89d0597e109e8b212399cd6cea7146d54766996fa6346b218b783aa",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -162,6 +170,8 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_raw_evidence_archive",
     "all_atom_raw_evidence_archive_v3",
     "all_atom_raw_evidence_checker",
+    "solution_state_protonation_support_plan",
+    "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
     "all_atom_recount_receipt",
     "catalog_feasibility_receipt",
@@ -944,11 +954,17 @@ def main() -> int:
     from check_nested_support_all_atom_raw_evidence import (
         verify as verify_raw_evidence,
     )
+    from check_solution_state_protonation_support_plan import (
+        verify as verify_solution_state_support_plan,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
     )
     raw_evidence_checks = verify_raw_evidence(root)
+    solution_state_support_checks = verify_solution_state_support_plan(
+        run_self_test=args.self_test
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -962,7 +978,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")

@@ -1,0 +1,124 @@
+{
+  "artifact_kind": "hold_only_target_unread_solution_state_support_plan_not_authorization",
+  "authorization": {
+    "consumption_allowed": false,
+    "existing_authorizations_reusable": false,
+    "fresh_external_authorization_required_after_all_gates": true
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_solution_state_protonation_support_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read_by_source_builder": false,
+    "target_values_read": false
+  },
+  "cohort_policy": {
+    "entity_count": 135,
+    "entity_or_residue_exceptions": [],
+    "missing_condition_record": "FAIL_ENTIRE_CANDIDATE",
+    "uniform_policy_required": true
+  },
+  "condition_manifest": {
+    "allowed_fields": [
+      "entity_uid",
+      "experiment_id",
+      "sample_id",
+      "sample_condition_list_id",
+      "solution_ph",
+      "solution_temperature_k",
+      "solution_ionic_strength_mm",
+      "source_relative_path",
+      "source_sha256"
+    ],
+    "forbidden_fields": [
+      "atom_id",
+      "atom_name",
+      "chemical_shift",
+      "target_uid",
+      "target_value"
+    ],
+    "linkage": "Chem_shift_experiment.Experiment_ID through the entry-level Experiment loop to sample and sample-condition records",
+    "missing_numeric_condition": "FAIL_ENTIRE_CANDIDATE_NO_FALLBACK",
+    "path": "ABSENT_UNQUALIFIED",
+    "sha256": "ABSENT_UNQUALIFIED",
+    "state": "ABSENT_BLOCKS_SOURCE_CONSTRUCTION"
+  },
+  "contract": "atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1",
+  "exact_nesting": {
+    "count_unit": "one completed coordinate support with one explicitly declared protonation microstate",
+    "levels": [
+      32,
+      128,
+      768
+    ],
+    "prefix_identity": "support IDs and coordinate bytes at lower K are exact prefixes of every higher K",
+    "support_ordering": "ABSENT_UNQUALIFIED",
+    "support_ordering_must_precede_target_inventory_access": true
+  },
+  "forbidden_source_builder_inputs": [
+    "assigned_atom_inventory",
+    "chemical_shift_targets",
+    "eligibility_rows",
+    "existing_all_atom_blocker_receipt",
+    "source_or_outer_scores",
+    "target_atom_identities",
+    "target_values"
+  ],
+  "microstate_policy": {
+    "algorithm": "ABSENT_UNQUALIFIED",
+    "complete_explicit_hydrogens_required": true,
+    "force_field_and_version": "ABSENT_UNQUALIFIED",
+    "post_recount_reweighting_allowed": false,
+    "probabilities": "finite positive proposal probabilities normalized across retained states before recount",
+    "pruning_rule": "ABSENT_UNQUALIFIED",
+    "seed_derivation": "ABSENT_UNQUALIFIED",
+    "selection_inputs": [
+      "parent_structure",
+      "protein_sequence",
+      "solution_conditions"
+    ],
+    "target_conditioned_state_selection_allowed": false
+  },
+  "parent_inputs": {
+    "parent_structure_manifest": "ABSENT_UNQUALIFIED",
+    "protein_sequence_manifest": "ABSENT_UNQUALIFIED",
+    "required_parent_heavy_atom_identity": "exact atom identity and coordinate hash preservation",
+    "source_namespace": "data/solution_state_protonation_support_v1"
+  },
+  "physicality_gate": {
+    "all_distinct_atom_minimum_distance_angstrom": 0.5,
+    "checks": [
+      "finite coordinates",
+      "unique atom identities",
+      "complete microstate hydrogens",
+      "valid valence and covalent geometry",
+      "backbone continuity",
+      "parent heavy-atom identity and coordinate preservation"
+    ],
+    "independent_checker": "ABSENT_UNQUALIFIED",
+    "must_cover_every_emitted_support": true
+  },
+  "required_stage_order": [
+    "freeze_condition_manifest",
+    "freeze_policy_generator_checker_environment_and_parent_inputs",
+    "independent_cold_review",
+    "create_source_commitment",
+    "construct_complete_supports",
+    "independent_raw_coordinate_and_physicality_replay",
+    "freeze_target_unread_support_order_and_exact_nesting",
+    "identity_only_coverage_recount",
+    "separate_science_commitment_review_and_authorization"
+  ],
+  "state": "HOLD_PLAN_ONLY_REQUIRED_BINDINGS_ABSENT",
+  "study_id": "atypemu_nested_support_count_v1",
+  "unresolved_blockers": [
+    "condition manifest absent",
+    "protonation algorithm force field version pruning and seed absent",
+    "parent input manifests absent",
+    "support ordering and diversity thresholds absent",
+    "independent physicality checker absent",
+    "K1536 remains separately blocked by current source capacity"
+  ]
+}

@@ -7,6 +7,14 @@ PY=/home/yang07/anaconda3/envs/atypemu/bin/python
 
 $PY gpuopt/candidates/nested_support_count_plan.py \
   --self-test --acknowledge-hold-only
+$PY gpuopt/candidates/check_solution_state_protonation_support_plan.py \
+  --self-test --acknowledge-hold-only
+if $PY gpuopt/candidates/check_solution_state_protonation_support_plan.py \
+  --plan gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json \
+  --self-test --acknowledge-hold-only >/dev/null 2>&1; then
+  echo "arbitrary solution-state support plan path was accepted" >&2
+  exit 1
+fi
 if $PY gpuopt/candidates/nested_support_count_plan.py \
   --root . --self-test --acknowledge-hold-only >/dev/null 2>&1; then
   echo "legacy arbitrary plan-root interface was accepted" >&2
@@ -102,4 +110,5 @@ PY
   gpuopt/candidates/nested_support_all_atom_recount.py \
   gpuopt/candidates/check_nested_support_all_atom_recount.py \
   gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py \
-  gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py
+  gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py \
+  gpuopt/candidates/check_solution_state_protonation_support_plan.py
