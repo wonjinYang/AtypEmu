@@ -84,7 +84,7 @@
     },
     "all_atom_raw_evidence_checker": {
       "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
-      "sha256": "528c05193f66848dea042fcbf7a062496d529cbee6e41ee3ba83e6323dc57792"
+      "sha256": "50343442484781f3e5780ed8eca59a7daa53432bbcbdfa2b063b632da8fad944"
     },
     "all_atom_raw_replay_correction_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -154,7 +154,7 @@
     "all_atom_recount_completed": true,
     "bioemu_only_redundant_expansion": "count scaling only",
     "general_sampling_sufficiency_established": false,
-    "independent_raw_pdb_replay_status": "MASK_REPLAY_PASS_TOPOLOGY_INDEPENDENCE_PENDING_V3",
+    "independent_raw_pdb_replay_status": "PASS_TOPOLOGY_AND_MASK_INDEPENDENT_RAW_REPLAY_ALL_LEVELS_REMAIN_HOLD",
     "jeon_transfer_claim_allowed": false,
     "k32_role": "low-K coordinate/Jacobian causal-infrastructure smoke only",
     "one_ladder_establishes_general_sufficiency": false

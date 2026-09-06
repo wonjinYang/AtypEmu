@@ -398,8 +398,15 @@ def _check_v3(files: dict[str, bytes]) -> int:
     assert complete["v2_mask_replay_evidence_archive"] == {
         "path": ARCHIVE_RELATIVE.as_posix(), "sha256": ARCHIVE_SHA256,
     }
-    assert complete["v3_aggregate_receipt"]["sha256"] == _sha256(aggregate_bytes)
-    assert complete["v3_shard_execution_receipt"]["sha256"] == _sha256(launch_bytes)
+    assert complete["v3_aggregate_receipt"] == {
+        "path": f"{RAW_V3}/aggregate_receipt.json",
+        "sha256": _sha256(aggregate_bytes),
+    }
+    assert complete["v3_shard_execution_receipt"] == {
+        "path": f"{V3}/shard_execution_receipt.json",
+        "sha256": _sha256(launch_bytes),
+    }
+    assert complete["fixed_input_bindings"] == aggregate["bindings"]
     assert complete["raw_replay_entity_count"] == 135
     assert complete["raw_replay_catalog_support_count"] == 134850
     assert complete["level_count_feasibility"] == EXPECTED_LEVELS
@@ -435,7 +442,7 @@ def verify(root: Path) -> int:
     v3_entity_count = _check_v3(v3_files)
     return (
         2 * 134850 + entity_count + v3_entity_count
-        + len(_expected_files()) + len(_expected_v3_files())
+        + len(_expected_files()) + len(_expected_v3_files()) + 3
     )
 
 

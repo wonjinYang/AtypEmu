@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "9330526c064caebf90cd3d0c5f708747fad26a1d470669d7dbb0de5d40d7c6db"
+    "ed9d4dcf396d7ba22a1cbe2618f0169777822fbd5514e8bde3f0ab5602f6ae00"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -89,7 +89,7 @@ SAFE_EVIDENCE = {
     },
     "all_atom_raw_evidence_checker": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
-        "sha256": "528c05193f66848dea042fcbf7a062496d529cbee6e41ee3ba83e6323dc57792",
+        "sha256": "50343442484781f3e5780ed8eca59a7daa53432bbcbdfa2b063b632da8fad944",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -593,7 +593,7 @@ def validate_plan(plan: dict[str, Any], root: Path) -> list[str]:
         and interpretation.get("all_atom_count_feasibility_established") is False
         and interpretation.get("all_atom_recount_completed") is True
         and interpretation.get("independent_raw_pdb_replay_status")
-        == "MASK_REPLAY_PASS_TOPOLOGY_INDEPENDENCE_PENDING_V3",
+        == "PASS_TOPOLOGY_AND_MASK_INDEPENDENT_RAW_REPLAY_ALL_LEVELS_REMAIN_HOLD",
         "K32, Jeon, or sampling-sufficiency interpretation drifted",
         checks,
         "interpretation_limits",
