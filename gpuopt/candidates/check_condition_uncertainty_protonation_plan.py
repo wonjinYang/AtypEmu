@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import stat
+import tempfile
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -125,66 +126,70 @@ def _require(condition: bool, message: str, checks: list[str], name: str) -> Non
     checks.append(name)
 
 
-def _read_regular(path: Path, *, maximum_bytes: int = 2_000_000) -> bytes:
-    before = os.lstat(path)
-    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
-        raise ValueError(f"indirect or non-regular input: {path}")
-    if before.st_size > maximum_bytes:
-        raise ValueError(f"input exceeds byte limit: {path}")
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+def _read_regular(
+    root: Path, relative: Path, *, maximum_bytes: int = 2_000_000
+) -> bytes:
+    if relative.is_absolute() or not relative.parts or any(
+        part in {"", ".", ".."} for part in relative.parts
+    ):
+        raise ValueError(f"invalid relative input path: {relative}")
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    directory = os.open(root, directory_flags)
     try:
-        current = os.fstat(descriptor)
-        def identity(value: os.stat_result) -> tuple[int, ...]:
-            return (
-                value.st_dev,
-                value.st_ino,
-                value.st_mode,
-                value.st_size,
-                value.st_mtime_ns,
-                value.st_ctime_ns,
-            )
-        if identity(before) != identity(current):
-            raise ValueError(f"input changed before reading: {path}")
-        chunks = []
-        remaining = maximum_bytes + 1
-        while remaining:
-            chunk = os.read(descriptor, min(1_048_576, remaining))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        raw = b"".join(chunks)
-        after = os.fstat(descriptor)
-        linked = os.stat(path, follow_symlinks=False)
-        if len(raw) != before.st_size or not (
-            identity(before) == identity(after) == identity(linked)
-        ):
-            raise ValueError(f"input changed while reading: {path}")
-        return raw
+        for part in relative.parts[:-1]:
+            child = os.open(part, directory_flags, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        descriptor = os.open(
+            relative.parts[-1],
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=directory,
+        )
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise ValueError(f"non-regular input: {relative}")
+            if before.st_size > maximum_bytes:
+                raise ValueError(f"input exceeds byte limit: {relative}")
+            chunks = []
+            remaining = maximum_bytes + 1
+            while remaining:
+                chunk = os.read(descriptor, min(1_048_576, remaining))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                remaining -= len(chunk)
+            raw = b"".join(chunks)
+            after = os.fstat(descriptor)
+            def identity(value: os.stat_result) -> tuple[int, ...]:
+                return (
+                    value.st_dev,
+                    value.st_ino,
+                    value.st_mode,
+                    value.st_size,
+                    value.st_mtime_ns,
+                    value.st_ctime_ns,
+                )
+            if len(raw) != before.st_size or identity(before) != identity(after):
+                raise ValueError(f"input changed while reading: {relative}")
+            return raw
+        finally:
+            os.close(descriptor)
     finally:
-        os.close(descriptor)
+        os.close(directory)
 
 
-def _bound_paths() -> tuple[Path, Path, Path, Path, Path]:
+def _bound_root() -> Path:
     checker = Path(__file__).absolute()
     root = checker.parents[2]
-    expected = {
-        checker: root / CHECKER_RELATIVE,
-        root / PLAN_RELATIVE: root / PLAN_RELATIVE,
-        root / V1_PLAN_RELATIVE: root / V1_PLAN_RELATIVE,
-        root / RECEIPT_RELATIVE: root / RECEIPT_RELATIVE,
-        root / INDEPENDENT_CHECKER_RELATIVE: root / INDEPENDENT_CHECKER_RELATIVE,
-    }
-    for path, canonical in expected.items():
-        if path != canonical or path.is_symlink() or path.resolve(strict=True) != path:
-            raise ValueError(f"noncanonical or indirect path: {path}")
-    return (
-        root,
-        root / PLAN_RELATIVE,
-        root / V1_PLAN_RELATIVE,
-        root / RECEIPT_RELATIVE,
-        root / INDEPENDENT_CHECKER_RELATIVE,
-    )
+    canonical = root / CHECKER_RELATIVE
+    if checker != canonical or checker.is_symlink() or checker.resolve(strict=True) != checker:
+        raise ValueError(f"noncanonical or indirect checker path: {checker}")
+    return root
 
 
 def _condition_regime_midpoints(thresholds: list[Decimal]) -> tuple[Decimal, ...]:
@@ -531,32 +536,49 @@ def self_test(plan: dict[str, Any]) -> int:
             assert prefix == _branch_schedule(
                 "bmrb:synthetic:entity:1", branches, level
             )
-    return len(cases) + 5 + 16 * 3
+    with tempfile.TemporaryDirectory(prefix="condition-policy-self-test-") as directory:
+        root = Path(directory)
+        (root / "real").mkdir()
+        (root / "real" / "input.json").write_bytes(b"{}")
+        assert _read_regular(root, Path("real/input.json")) == b"{}"
+        (root / "indirect").symlink_to(root / "real", target_is_directory=True)
+        (root / "leaf.json").symlink_to(root / "real" / "input.json")
+        for relative in (Path("indirect/input.json"), Path("leaf.json"), Path("../x")):
+            try:
+                _read_regular(root, relative)
+            except (OSError, ValueError):
+                continue
+            raise AssertionError(f"indirect input accepted: {relative}")
+    return len(cases) + 9 + 16 * 3
 
 
 def verify(*, run_self_test: bool) -> int:
-    _, plan_path, v1_path, receipt_path, checker_path = _bound_paths()
-    raw = _read_regular(plan_path)
+    root = _bound_root()
+    raw = _read_regular(root, PLAN_RELATIVE)
     if _sha256(raw) != PLAN_RAW_SHA256:
         raise ValueError("condition-uncertainty plan raw hash drifted")
     plan = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
     checks = validate_plan(plan)
     bound_inputs = (
-        (v1_path, V1_PLAN_RAW_SHA256, "v1 HOLD plan"),
-        (receipt_path, RECEIPT_RAW_SHA256, "recovery-v3 receipt"),
+        (V1_PLAN_RELATIVE, V1_PLAN_RAW_SHA256, "v1 HOLD plan"),
+        (RECEIPT_RELATIVE, RECEIPT_RAW_SHA256, "recovery-v3 receipt"),
         (
-            checker_path,
+            INDEPENDENT_CHECKER_RELATIVE,
             INDEPENDENT_CHECKER_RAW_SHA256,
             "recovery-v3 independent checker",
         ),
     )
-    for path, expected, label in bound_inputs:
-        if _sha256(_read_regular(path)) != expected:
+    verified_raw: dict[str, bytes] = {}
+    for relative, expected, label in bound_inputs:
+        verified_raw[label] = _read_regular(root, relative)
+        if _sha256(verified_raw[label]) != expected:
             raise ValueError(f"{label} hash drifted")
         checks.append(label.replace(" ", "_") + "_raw_binding")
-    v1 = json.loads(_read_regular(v1_path), object_pairs_hook=_reject_duplicate_keys)
+    v1 = json.loads(
+        verified_raw["v1 HOLD plan"], object_pairs_hook=_reject_duplicate_keys
+    )
     receipt = json.loads(
-        _read_regular(receipt_path), object_pairs_hook=_reject_duplicate_keys
+        verified_raw["recovery-v3 receipt"], object_pairs_hook=_reject_duplicate_keys
     )
     _require(
         v1["state"] == "HOLD_CONDITION_MANIFEST_INCOMPLETE"

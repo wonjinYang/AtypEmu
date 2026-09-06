@@ -95,7 +95,7 @@ EXPECTED_STDOUT = {
         "STATUS HOLD_CONDITION_MANIFEST_INCOMPLETE",
     ),
     "condition-uncertainty-plan": (
-        "METRIC condition_uncertainty_support_plan_checks=101",
+        "METRIC condition_uncertainty_support_plan_checks=105",
         "METRIC target_values_read=0",
         "METRIC source_scores_read=0",
         "METRIC science_executed=0",
