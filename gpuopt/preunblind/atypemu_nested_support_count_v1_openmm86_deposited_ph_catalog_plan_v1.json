@@ -67,6 +67,7 @@
       "independent coordinate, physicality, provenance, and exact-nesting gates"
     ]
   },
+  "evidence_trust_boundary": "the producer receipt and raw-response manifest are local consistency evidence only; neither PASS nor HOLD is immutable until a separately named archive and execution receipt are exact-hash-bound by the parent plan and replayed by an independently committed checker",
   "linkage_policy": {
     "dictionary_fact": "_Assigned_chem_shift_list.Sample_condition_list_ID points to _Sample_condition_list.ID",
     "dictionary_official_reference": "https://bmrb.io/dictionary/tag.php?tagcat=Assigned_chem_shift_list",

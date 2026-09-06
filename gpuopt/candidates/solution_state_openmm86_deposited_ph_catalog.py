@@ -34,7 +34,7 @@ PLAN_RELATIVE = Path(
     "gpuopt/preunblind/"
     "atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1.json"
 )
-PLAN_RAW_SHA256 = "caefd2517fe2a133204432f20e799e56504e8ebfa103aeaa1a715c1a8992ed15"
+PLAN_RAW_SHA256 = "e3bc877da2c3a0c3cac90399a99aac93817bd16646f29abc15ed575b0a95d913"
 PRODUCER_RELATIVE = Path(
     "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog.py"
 )

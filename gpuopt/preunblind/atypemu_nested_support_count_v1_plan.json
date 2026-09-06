@@ -160,11 +160,15 @@
     },
     "openmm86_deposited_ph_catalog_plan": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1.json",
-      "sha256": "caefd2517fe2a133204432f20e799e56504e8ebfa103aeaa1a715c1a8992ed15"
+      "sha256": "e3bc877da2c3a0c3cac90399a99aac93817bd16646f29abc15ed575b0a95d913"
     },
     "openmm86_deposited_ph_catalog_producer": {
       "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog.py",
-      "sha256": "ddd5d621bbf2d434836d311833b29598e6cd11543cde31e2e28ee1b7f36a6cc2"
+      "sha256": "1a449a2e966347d5bd607dcb22c5b52a59cfb2034aa6db49ae295232ed38f0ef"
+    },
+    "openmm86_deposited_ph_catalog_checker": {
+      "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog.py",
+      "sha256": "dcbd457f33d66f2fe51367db42fe760b614196ba81d5a8fdb3f0990320387ff7"
     }
   },
   "fixed_protocol": {
