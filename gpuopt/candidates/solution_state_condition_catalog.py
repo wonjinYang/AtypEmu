@@ -24,7 +24,13 @@ ROSTER_RELATIVE = Path(
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
 OUTPUT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery"
+)
+PARENT_FAILURE_RELATIVE = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json"
+)
+PARENT_FAILURE_SHA256 = (
+    "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
 )
 PRODUCER_RELATIVE = Path("gpuopt/candidates/solution_state_condition_catalog.py")
 LOOPS = (
@@ -141,6 +147,19 @@ ROSTER_ENTITY_FIELDS = {
     "entity_uid",
     "observer_fold",
     "split",
+}
+PARENT_FAILURE_FIELDS = {
+    "artifact_kind",
+    "authorization_consumed",
+    "error",
+    "response_count_written",
+    "science_executed",
+    "source_producer_git_commit",
+    "source_producer_relative_path",
+    "source_producer_sha256",
+    "source_scores_read",
+    "started_at_utc",
+    "target_values_read",
 }
 
 
@@ -534,11 +553,39 @@ def _validate_roster(roster: Any, roster_raw: bytes) -> list[dict[str, Any]]:
     return entities
 
 
+def _validate_parent_failure(parent_raw: bytes, expected_sha256: str) -> dict[str, Any]:
+    if _sha256(parent_raw) != expected_sha256:
+        raise ValueError("recovery parent failure receipt hash drifted")
+    parent = _loads(parent_raw)
+    if (
+        set(parent) != PARENT_FAILURE_FIELDS
+        or parent.get("artifact_kind")
+        != "target_unread_condition_catalog_failure_receipt"
+        or parent.get("response_count_written") != 39
+        or parent.get("source_producer_git_commit")
+        != "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+        or parent.get("target_values_read") is not False
+        or parent.get("source_scores_read") is not False
+        or parent.get("science_executed") is not False
+        or parent.get("authorization_consumed") is not False
+    ):
+        raise ValueError("recovery parent failure receipt semantics drifted")
+    return parent
+
+
 def fetch_catalog() -> dict[str, Any]:
     root = _bound_root()
     producer_provenance = _producer_provenance(root)
     roster_path = root / ROSTER_RELATIVE
     output = root / OUTPUT_RELATIVE
+    parent_failure_path = root / PARENT_FAILURE_RELATIVE
+    _require_safe_parents(parent_failure_path, root)
+    parent_failure_raw = _read_newline_safe(parent_failure_path)
+    _validate_parent_failure(parent_failure_raw, PARENT_FAILURE_SHA256)
+    recovery_parent = {
+        "path": PARENT_FAILURE_RELATIVE.as_posix(),
+        "sha256": PARENT_FAILURE_SHA256,
+    }
     _require_safe_parents(roster_path, root)
     if not roster_path.is_file() or roster_path.is_symlink():
         raise ValueError("bound roster path is unavailable or indirect")
@@ -596,6 +643,7 @@ def fetch_catalog() -> dict[str, Any]:
             "source_scores_read": False,
             "science_executed": False,
             "authorization_consumed": False,
+            "recovery_parent_failure": recovery_parent,
             **producer_provenance,
         }
         _write_new(
@@ -636,6 +684,7 @@ def fetch_catalog() -> dict[str, Any]:
         "science_executed": False,
         "authorization_consumed": False,
         "source_construction_executed": False,
+        "recovery_parent_failure": recovery_parent,
         **producer_provenance,
     }
     _write_new(
@@ -798,7 +847,30 @@ def self_test() -> int:
             pass
         else:
             raise AssertionError("dangling symlink parent was accepted")
-    return 15
+    parent_fixture = {
+        "artifact_kind": "target_unread_condition_catalog_failure_receipt",
+        "authorization_consumed": False,
+        "error": "URLError: synthetic DNS failure",
+        "response_count_written": 39,
+        "science_executed": False,
+        "source_producer_git_commit": (
+            "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+        ),
+        "source_producer_relative_path": PRODUCER_RELATIVE.as_posix(),
+        "source_producer_sha256": "0" * 64,
+        "source_scores_read": False,
+        "started_at_utc": "2000-01-01T00:00:00Z",
+        "target_values_read": False,
+    }
+    parent_raw = (json.dumps(parent_fixture, sort_keys=True) + "\n").encode()
+    _validate_parent_failure(parent_raw, _sha256(parent_raw))
+    try:
+        _validate_parent_failure(parent_raw + b"\n", _sha256(parent_raw))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("tampered recovery parent was accepted")
+    return 16
 
 
 def main() -> int:

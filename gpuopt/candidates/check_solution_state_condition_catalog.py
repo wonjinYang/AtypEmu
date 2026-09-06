@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 ARTIFACT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery"
 )
 RECEIPT_RELATIVE = ARTIFACT_RELATIVE / "receipt.json"
 RAW_DIRECTORY_NAME = "raw_api_responses"
@@ -30,6 +30,10 @@ ROSTER_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json"
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
+PARENT_FAILURE_RELATIVE = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json"
+)
+PARENT_FAILURE_SHA256 = "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
 PRODUCER_RELATIVE = "gpuopt/candidates/solution_state_condition_catalog.py"
 API_BASE = "https://api.bmrb.io/v2"
 APPLICATION_HEADER = "AtypEmu solution-condition-catalog-v1"
@@ -141,6 +145,7 @@ RECEIPT_BASE_FIELDS = frozenset(
         "ended_at_utc",
         "response_count",
         "response_manifest",
+        "recovery_parent_failure",
         "entity_count",
         "condition_feasible_entity_count",
         "all_entities_condition_feasible",
@@ -648,6 +653,38 @@ def _load_roster(root: Path, receipt: Dict[str, Any]) -> Dict[str, Dict[str, Any
     return _validate_roster(_decode_json(raw, "bound entity roster"))
 
 
+def _validate_recovery_parent(root: Path, receipt: Dict[str, Any]) -> None:
+    binding = receipt["recovery_parent_failure"]
+    if not isinstance(binding, dict) or set(binding) != {"path", "sha256"}:
+        raise ValueError("recovery-parent binding schema drifted")
+    if (
+        binding["path"] != PARENT_FAILURE_RELATIVE.as_posix()
+        or binding["sha256"] != PARENT_FAILURE_SHA256
+    ):
+        raise ValueError("recovery-parent binding identity drifted")
+    raw = _read_bound(root, binding["path"], "recovery parent failure receipt")
+    if _sha256(raw) != PARENT_FAILURE_SHA256:
+        raise ValueError("recovery parent failure receipt hash drifted")
+    parent = _decode_json(raw, "recovery parent failure receipt")
+    if (
+        parent.get("artifact_kind")
+        != "target_unread_condition_catalog_failure_receipt"
+        or parent.get("response_count_written") != 39
+        or parent.get("source_producer_git_commit")
+        != "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+        or any(
+            parent.get(field) is not False
+            for field in (
+                "target_values_read",
+                "source_scores_read",
+                "science_executed",
+                "authorization_consumed",
+            )
+        )
+    ):
+        raise ValueError("recovery parent failure receipt semantics drifted")
+
+
 def _provenance_fields(receipt: Dict[str, Any]) -> Tuple[str, str, str]:
     fields = set(receipt) - set(RECEIPT_BASE_FIELDS)
     if fields != set(PROVENANCE_FIELDS):
@@ -821,6 +858,8 @@ def validate_receipt(
     if not isinstance(receipt["response_manifest"], list) or len(receipt["response_manifest"]) != 3 * ENTITY_COUNT:
         raise ValueError("receipt response manifest is not exactly 405 rows")
     checks.count += 2
+    _validate_recovery_parent(root, receipt)
+    checks.count += 1
     _validate_provenance(root, receipt)
 
     roster_order = sorted(roster_by_uid)
