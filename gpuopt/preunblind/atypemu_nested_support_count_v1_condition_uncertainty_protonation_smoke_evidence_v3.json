@@ -18,10 +18,16 @@
   },
   "independent_checker": {
     "checks": 53,
+    "repository_path": "gpuopt/candidates/check_condition_uncertainty_protonation_smoke.py",
+    "sha256": "c59c1799fc00cf4afbfb6e34c92586b69127fc1b825908d0e353adb463ddf752",
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "stderr_size": 0,
     "stdout_sha256": "80f978a2d8c8056b7fb35bcd7751630acdcaf6d9ef37f5bad4c1df9a76bf3732",
     "stdout_size": 368
+  },
+  "frozen_plan": {
+    "repository_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1.json",
+    "sha256": "6233c980be2d490878588fad78a237d06ce86f89adf65d22d17b8dbf5efba5d5"
   },
   "interpretation": "The hash-frozen OpenMM 8.6 environment generated deterministic, repeat-byte-identical, assigned-proton-preserving and broadly physical protonation states for one observed-pH entity and all five frozen state_missing pH regimes of one second entity. This is bounded environment/condition/sequence/parent-heavy integration evidence only.",
   "limitations": [
@@ -35,6 +41,9 @@
     "size": 2013,
     "state_count": 6
   },
-  "source_commitment_sha256": "d14140f75eff5af1878934d902867d7091cb0b49da5e53c3e53d043d4f2a6918",
+  "source_commitment": {
+    "repository_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_source_commitment_v3.json",
+    "sha256": "d14140f75eff5af1878934d902867d7091cb0b49da5e53c3e53d043d4f2a6918"
+  },
   "status": "HOLD_BOUNDED_PROTONATION_SMOKE_PASSED_NOT_ALL_SUPPORT_EVIDENCE"
 }
