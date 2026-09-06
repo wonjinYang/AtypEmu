@@ -205,6 +205,18 @@
     "openmm86_deposited_ph_catalog_recovery_v3_checker": {
       "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
       "sha256": "ecb5cc73bfc09be99ab3891fbd0d67d091925c0b8be13abe4f720ec11a64bf7d"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v3_failed_intent": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.failed_run126.json",
+      "sha256": "c75986bea0ce11684fec2d0aae6aa594ec65527a9814cd89525083f1bd9d7a54"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v4_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v4_plan.json",
+      "sha256": "079f426a454cbfaacc8bdc86dd1e7a5b577fd0cfec6ae90f725dd6158738bff3"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v4_producer": {
+      "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v4.py",
+      "sha256": "3242f79ffff689ce8b6c10a9d69c53dde31f5f004c44931b47f8068d3cc07a9a"
     }
   },
   "fixed_protocol": {

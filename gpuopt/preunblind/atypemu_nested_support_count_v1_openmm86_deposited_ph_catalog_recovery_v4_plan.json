@@ -1,0 +1,298 @@
+{
+  "api_collection": {
+    "api_base": "https://api.bmrb.io/v2",
+    "category": "Assigned_chem_shift_list",
+    "category_tags_exact": [
+      "Entry_ID",
+      "ID",
+      "Sample_condition_list_ID"
+    ],
+    "failure_policy": "no in-place retry: the first transport, schema, or bound-input failure is sealed in a no-clobber failure receipt; this separately named recovery uses a fresh output only",
+    "new_request_count": 135,
+    "response_retention": "retain each schema-qualified target-unread raw response byte-for-byte with SHA-256, requested URL, and redirect/final URL; reject target-bearing or malformed responses before persistence"
+  },
+  "artifact_kind": "hold_only_target_unread_deposited_ph_catalog_recovery_plan_not_authorization",
+  "bound_inputs": {
+    "canonical_condition_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70",
+      "v4_raw_response_prefix": "atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery/raw_api_responses"
+    },
+    "prior_categories_read_only": [
+      "Chem_shift_experiment",
+      "Experiment",
+      "Sample_condition_variable"
+    ],
+    "roster": {
+      "entity_count": 135,
+      "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
+      "sha256": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
+    }
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v4",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v4_plan",
+  "deposited_ph_validation": {
+    "contradictory_values": "HOLD",
+    "numeric_range_inclusive": [
+      0.0,
+      14.0
+    ],
+    "pD": "HOLD",
+    "ranges": "HOLD",
+    "type_normalization": "case-insensitive after removing whitespace; only pH is a pH record",
+    "units_allowed_after_trim_and_casefold": [
+      "",
+      "ph",
+      "p.h."
+    ],
+    "value": "finite scalar only; invalid or missing values HOLD"
+  },
+  "evidence_trust_boundary": "the producer receipt, raw-response manifest, sealed v1 tree, active v2 launch intent, failed v3 launch intent, and Run 122/Run 126 log records are local consistency evidence only; neither PASS nor HOLD is immutable until a separately named archive and execution receipt are exact-hash-bound by the parent plan and replayed by an independently committed checker",
+  "future_consumer_declaration": {
+    "declarative_only": true,
+    "force_field_xml": "amber14/protein.ff14SB.xml",
+    "method": "OpenMM 8.6 Modeller.addHydrogens using the deposited pH selected by this catalog",
+    "openmm_official_documentation": "https://docs.openmm.org/latest/userguide/application/03_model_building_editing.html",
+    "preconditions": [
+      "a separately authorized source-construction plan",
+      "a complete feasible pH catalog for all 135 entities",
+      "independent coordinate, physicality, provenance, and exact-nesting gates"
+    ]
+  },
+  "linkage_policy": {
+    "dictionary_fact": "_Assigned_chem_shift_list.Sample_condition_list_ID points to _Sample_condition_list.ID",
+    "dictionary_official_reference": "https://bmrb.io/dictionary/tag.php?tagcat=Assigned_chem_shift_list",
+    "direct_fallback": "only when Chem_shift_experiment has no rows or every row has both Experiment_ID and Assigned_chem_shift_list_ID missing; require exactly one valid Assigned_chem_shift_list ID and condition pointer",
+    "exact_route": "Chem_shift_experiment.Experiment_ID to Experiment.ID; all complete links must resolve through Experiment.Sample_condition_list_ID to exactly one Assigned_chem_shift_list ID, one condition-list pointer, and one deposited pH; the fetched assigned-list category must contain exactly one selected-list row with the same valid condition pointer",
+    "malformed_partial_link": "a Chem_shift_experiment row with only one valid Experiment_ID or Assigned_chem_shift_list_ID is HOLD",
+    "missing_or_ambiguous_entity": "semantic metadata absence or ambiguity is per-entity HOLD; malformed response schema, transport failure, or bound-input drift is a whole-run failure"
+  },
+  "metadata_scope": "target-unread metadata feasibility only; no coordinate construction, target inspection, score inspection, authorization consumption, or OpenMM execution",
+  "output": {
+    "fresh_directory": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v4_recovery",
+    "receipt": "receipt.json"
+  },
+  "plan_mutability": "IMMUTABLE_RAW_BYTES_BOUND_BY_PRODUCER",
+  "pre_output_gates": {
+    "active_v2_launch_intent": {
+      "exact_fields": {
+        "artifact_kind": "target_unread_metadata_fetch_launch_intent_not_authorization",
+        "authorization_consumed": false,
+        "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v2",
+        "checker": {
+          "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v2.py",
+          "sha256": "d43093869b37f29a521cdc102008a10ab87da933a12cc9417d5d8160ab79842f"
+        },
+        "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v2_launch_v1",
+        "git_commit": "7ce913df82b8d9a2b32ecac7c4bebcd2f72d9041",
+        "output": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v2_recovery",
+        "plan": {
+          "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v2_plan.json",
+          "sha256": "5d6547c21cdf4c1dc6380340375084c53de0e137f10cee47f74f6683150227e3"
+        },
+        "producer": {
+          "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v2.py",
+          "sha256": "aad9a1b2f20a46853b2b78dfcf46f85b2912ac8b67540dec8492764e74d1e4ae"
+        },
+        "science_executed": false,
+        "source_construction_executed": false,
+        "source_scores_read": false,
+        "target_atom_identities_read": false,
+        "target_values_read": false,
+        "v1_failure_receipt_sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5"
+      },
+      "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v2_launch_intent.json",
+      "sha256": "ffdcebcaa4cf73d1e6b3d0834c8775836ba2c0f14edcd1bd10f21c2e5ab7aa9f"
+    },
+    "actual_v1_failure_tree": {
+      "failure_directory": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v1",
+      "failure_inventory": {
+        "directories": [
+          {
+            "inventory": [],
+            "path": "raw_api_responses"
+          }
+        ],
+        "regular_files": [
+          "failure_receipt.json",
+          "started_at_utc.txt"
+        ]
+      },
+      "failure_receipt": {
+        "exact_fields": {
+          "artifact_kind": "target_unread_openmm86_deposited_ph_catalog_failure_receipt",
+          "authorization_consumed": false,
+          "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_v1",
+          "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_v1",
+          "error": "ValueError: bound roster raw SHA-256 drifted",
+          "new_response_count_written": 0,
+          "new_response_manifest": [],
+          "outer_or_formal_metrics_opened": false,
+          "plan": {
+            "git_commit": "3d3eb017106729bbbf7539436cf1a799b99b9328",
+            "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1.json",
+            "sha256": "e3bc877da2c3a0c3cac90399a99aac93817bd16646f29abc15ed575b0a95d913"
+          },
+          "science_executed": false,
+          "source_construction_executed": false,
+          "source_producer_git_commit": "3d3eb017106729bbbf7539436cf1a799b99b9328",
+          "source_producer_relative_path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog.py",
+          "source_producer_sha256": "1a449a2e966347d5bd607dcb22c5b52a59cfb2034aa6db49ae295232ed38f0ef",
+          "source_scores_read": false,
+          "started_at_utc": "2026-09-06T04:46:51.599115Z",
+          "target_atom_identities_read": false,
+          "target_values_read": false
+        },
+        "path": "failure_receipt.json",
+        "sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5"
+      },
+      "started_at_utc": {
+        "path": "started_at_utc.txt",
+        "sha256": "d741789e11f995c3c034152fd7e1594a34faecdf6dd970ce4bc73309fee29141",
+        "value": "2026-09-06T04:46:51.599115Z"
+      }
+    },
+    "failed_v3_launch_intent": {
+      "exact_fields": {
+        "artifact_kind": "target_unread_metadata_fetch_launch_intent_not_authorization",
+        "authorization_consumed": false,
+        "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3",
+        "checker": {
+          "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
+          "sha256": "ecb5cc73bfc09be99ab3891fbd0d67d091925c0b8be13abe4f720ec11a64bf7d"
+        },
+        "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_v1",
+        "git_commit": "44d636dbf5374e4596290e05015ab0bd145c87d5",
+        "output": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v3_recovery",
+        "plan": {
+          "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v3_plan.json",
+          "sha256": "f8eadb6a4dde415d1af016c2843f867ee32e9546a7e4a272ff211fbfe531ba1e"
+        },
+        "producer": {
+          "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
+          "sha256": "8c2549c18b60e6eb69812102a14f40e063458540ef0abf9191bdf7c3f4a59a49"
+        },
+        "run_122_raw_line_sha256": "df01b57177613b0779b6b3519e43112ae021c29c58b5f8ac83a929c695402389",
+        "science_executed": false,
+        "source_construction_executed": false,
+        "source_scores_read": false,
+        "target_atom_identities_read": false,
+        "target_values_read": false,
+        "v1_failure_receipt_sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5",
+        "v2_launch_intent_sha256": "ffdcebcaa4cf73d1e6b3d0834c8775836ba2c0f14edcd1bd10f21c2e5ab7aa9f"
+      },
+      "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.failed_run126.json",
+      "sha256": "c75986bea0ce11684fec2d0aae6aa594ec65527a9814cd89525083f1bd9d7a54"
+    },
+    "run_122_log_record": {
+      "path": ".auto/log.jsonl",
+      "raw_line_sha256": "df01b57177613b0779b6b3519e43112ae021c29c58b5f8ac83a929c695402389",
+      "semantic_subset": {
+        "asi_required_fields": [
+          "error",
+          "root_cause",
+          "failure_stage",
+          "observed_controls"
+        ],
+        "commit": "7ce913d",
+        "description": "Run 122: recovery-v2 launch failed closed on omitted empty raw-response directory",
+        "metric": 0,
+        "observed_controls": "all leaves are false or integer zero",
+        "run": 122,
+        "status": "crash"
+      }
+    },
+    "run_126_log_record": {
+      "path": ".auto/log.jsonl",
+      "raw_line_sha256": "0fe712c190d65653ff0521f3bb8c3518fef96296c80354be4a1b1c9c8cfdd15a",
+      "semantic_subset": {
+        "asi_required_fields": [
+          "error",
+          "failure_stage",
+          "observed_controls",
+          "rollback_reason"
+        ],
+        "commit": "44d636d",
+        "description": "Run 126: recovery-v3 launch failed closed on incorrect full commit binding",
+        "metric": 0,
+        "observed_controls": "all leaves are false or integer zero",
+        "run": 126,
+        "status": "crash"
+      }
+    },
+    "v2_output_must_be_absent": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v2_recovery",
+    "v3_output_must_be_absent": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v3_recovery"
+  },
+  "recovery_change_declaration": {
+    "declared_operational_correction": "recovery-v3 launch failed closed before its producer because its launch intent bound erroneous full commit 44d636dbf5374e4596290e05015ab0bd145c87d5; v4 binds the sealed failed intent and its exact Run 126 record before using a fresh output",
+    "in_place_v1_v2_or_v3_retry": false,
+    "metadata_selection_or_semantic_changes": "none; corrected roster SHA-256 and canonical archive are unchanged, and category allowlists, exact/fallback linkage, pH-only rules, URL/TLS/schema limits, no-clobber writes, and local-only trust boundary are unchanged",
+    "new_recovery_evidence_and_identities": "separately named recovery-v4 candidate, plan, producer contract, fresh output, fixed active recovery-v2 launch intent, failed recovery-v3 launch intent, and append-only Run 122 and Run 126 failure records"
+  },
+  "recovery_of": {
+    "failure_directory": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v1",
+    "failure_inventory": {
+      "directories": [
+        {
+          "inventory": [],
+          "path": "raw_api_responses"
+        }
+      ],
+      "regular_files": [
+        "failure_receipt.json",
+        "started_at_utc.txt"
+      ]
+    },
+    "failure_receipt": {
+      "exact_fields": {
+        "artifact_kind": "target_unread_openmm86_deposited_ph_catalog_failure_receipt",
+        "authorization_consumed": false,
+        "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_v1",
+        "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_v1",
+        "error": "ValueError: bound roster raw SHA-256 drifted",
+        "new_response_count_written": 0,
+        "new_response_manifest": [],
+        "outer_or_formal_metrics_opened": false,
+        "plan": {
+          "git_commit": "3d3eb017106729bbbf7539436cf1a799b99b9328",
+          "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1.json",
+          "sha256": "e3bc877da2c3a0c3cac90399a99aac93817bd16646f29abc15ed575b0a95d913"
+        },
+        "science_executed": false,
+        "source_construction_executed": false,
+        "source_producer_git_commit": "3d3eb017106729bbbf7539436cf1a799b99b9328",
+        "source_producer_relative_path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog.py",
+        "source_producer_sha256": "1a449a2e966347d5bd607dcb22c5b52a59cfb2034aa6db49ae295232ed38f0ef",
+        "source_scores_read": false,
+        "started_at_utc": "2026-09-06T04:46:51.599115Z",
+        "target_atom_identities_read": false,
+        "target_values_read": false
+      },
+      "path": "failure_receipt.json",
+      "sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5"
+    },
+    "started_at_utc": {
+      "path": "started_at_utc.txt",
+      "sha256": "d741789e11f995c3c034152fd7e1594a34faecdf6dd970ce4bc73309fee29141",
+      "value": "2026-09-06T04:46:51.599115Z"
+    }
+  },
+  "schema_version": 4,
+  "state": "HOLD_PENDING_TARGET_UNREAD_DEPOSITED_PH_CATALOG_RECOVERY",
+  "study_id": "atypemu_nested_support_count_v1",
+  "temperature_and_ionic_strength": "may be retained as non-gating diagnostics only",
+  "warnings": [
+    "This heuristic is not a pKa calculation.",
+    "This heuristic is not a protonation ensemble calculation.",
+    "This heuristic does not establish temperature or ionic physicality."
+  ]
+}
