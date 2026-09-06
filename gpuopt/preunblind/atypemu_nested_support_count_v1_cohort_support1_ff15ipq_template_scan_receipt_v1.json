@@ -1,0 +1,18 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1",
+  "condition_manifest_sha256": "ac51d7a40259f3a61e5fec0b521964d85a86d54aa2b91b78d051f9a0cca22618",
+  "failed_state_count": 0,
+  "ff15ipq_sha256": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622",
+  "openmm_exact_version": "8.6.0.dev-c6173db",
+  "parent_ff14sb_hold_receipt_sha256": "fc3944ce67e8af1f173ef84c6b1a3f0e3ded21b612aba0fc307398b62800d957",
+  "parent_heavy_manifest_sha256": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
+  "passed_state_count": 199,
+  "platform": "Reference",
+  "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+  "scan_operation": "for each frozen cohort support-1 condition branch, delete input hydrogens, run Modeller.addHydrogens with amber14/protein.ff15ipq.xml, and require ForceField.createSystem",
+  "scope": "target-unread HOLD-only template-coverage diagnostic; not physicality, support, science, score, authorization, or CCC evidence",
+  "state_count": 199,
+  "status": "PASS_TEMPLATE_COVERAGE_DIAGNOSTIC",
+  "support1_inventory_sha256": "9f6ae4f5e1f4ab6b8dbafddc22278f31676d997c326975f2b82e765ee8f0cb62",
+  "target_or_score_read_count": 0
+}
