@@ -31,7 +31,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "bb61d99e2008cdfca387c4cb2cceb9ee33cc951820775ee2547b4e49720e9577"
+    "18a9422d6b51f789648b766c94ad95e758a581c703d774146cdebfa5a2af0d25"
 )
 OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
@@ -204,6 +204,22 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v5_if_intent.py",
         "sha256": "6471b9fc28e90989fc87febcee64f75e81ac08c309ae009fd8ce0aa3520fb8ac",
     },
+    "openmm86_deposited_ph_catalog_recovery_v6_plan": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v6_plan.json",
+        "sha256": "c12873f74e56db94d0a44d14b1edb339331d8cf4870c1361bcb353bfc538a81f",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_producer": {
+        "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v6.py",
+        "sha256": "6a7fff25f6cfb520511b269ca0c06e80b092eed35107b7e8cd740c8122e0d623",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_checker": {
+        "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v6.py",
+        "sha256": "e841d7c81fb823b1939dd0b74e5ae0f610dd387fd17c4456d286fc9a2aaa99c5",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v6_handler": {
+        "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v6_if_intent.py",
+        "sha256": "c077226516b3b0aa97029d9ac453b57134e7fc04ece69805305460d09caf4034",
+    },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
@@ -336,6 +352,10 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_recovery_v5_handler",
     "openmm86_deposited_ph_catalog_recovery_v5_plan",
     "openmm86_deposited_ph_catalog_recovery_v5_producer",
+    "openmm86_deposited_ph_catalog_recovery_v6_plan",
+    "openmm86_deposited_ph_catalog_recovery_v6_producer",
+    "openmm86_deposited_ph_catalog_recovery_v6_checker",
+    "openmm86_deposited_ph_catalog_recovery_v6_handler",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -1353,6 +1373,15 @@ def main() -> int:
     from run_openmm86_deposited_ph_recovery_v5_if_intent import (
         self_test as openmm86_deposited_ph_catalog_recovery_v5_handler_self_test,
     )
+    from solution_state_openmm86_deposited_ph_catalog_recovery_v6 import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v6_self_test,
+    )
+    from check_solution_state_openmm86_deposited_ph_catalog_recovery_v6 import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v6_checker_self_test,
+    )
+    from run_openmm86_deposited_ph_recovery_v6_if_intent import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v6_handler_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1421,6 +1450,19 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_deposited_ph_catalog_recovery_v6_checks = (
+        openmm86_deposited_ph_catalog_recovery_v6_self_test() if args.self_test else 0
+    )
+    openmm86_deposited_ph_catalog_recovery_v6_checker_checks = (
+        openmm86_deposited_ph_catalog_recovery_v6_checker_self_test()
+        if args.self_test
+        else 0
+    )
+    openmm86_deposited_ph_catalog_recovery_v6_handler_checks = (
+        openmm86_deposited_ph_catalog_recovery_v6_handler_self_test()
+        if args.self_test
+        else 0
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1437,7 +1479,7 @@ def main() -> int:
     )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
