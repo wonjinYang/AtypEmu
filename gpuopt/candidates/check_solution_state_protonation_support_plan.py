@@ -38,8 +38,12 @@ CATALOG_RECEIPT_ARCHIVE_NAME = (
 CATALOG_RECEIPT_SHA256 = (
     "dbb40e3dc7452cae9df5d36e878f1b3021779bcecb8fa8b9037eeebc15ca9a2e"
 )
-PLAN_SHA256 = "fdcbf5dcf60be47c35aa35226e9a5f16f0fe252de66dc001355e8881ea347ab6"
-PLAN_RAW_SHA256 = "f6443dee60c0b7bec024420726adf8d7fdce56d6ee0ce056c9c593f547a0335a"
+RECOVERY_V3_RECEIPT_RELATIVE = Path(".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json")
+RECOVERY_V3_RECEIPT_SHA256 = "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b"
+RECOVERY_V3_CHECKER_RELATIVE = Path("gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py")
+RECOVERY_V3_CHECKER_SHA256 = "7f3a574a72a8413449c205fef5624b710e3fff2ab18623dae64fb0f3fa38bea8"
+PLAN_SHA256 = "26fb4c3ffafdc30ea03f401019cb60b6ee02155498ad0e029eb66ea0a198fb0f"
+PLAN_RAW_SHA256 = "597086a617935f458b25be52190616b291ee3d6f6d8b92eaefc053a05cf8d67d"
 TOP_LEVEL_FIELDS = {
     "artifact_kind",
     "authorization",
@@ -118,13 +122,22 @@ EXPECTED_CONDITION_MANIFEST = {
         "result": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS",
         "sha256": CATALOG_SEAL_RAW_SHA256,
     },
+    "recovery_v3": {
+        "independent_checker_path": RECOVERY_V3_CHECKER_RELATIVE.as_posix(),
+        "independent_checker_sha256": RECOVERY_V3_CHECKER_SHA256,
+        "metadata_resolved_entity_count": 119,
+        "receipt_path": RECOVERY_V3_RECEIPT_RELATIVE.as_posix(),
+        "receipt_sha256": RECOVERY_V3_RECEIPT_SHA256,
+        "result": "HOLD_DEPOSITED_PH_METADATA_INCOMPLETE_OR_AMBIGUOUS",
+        "state_missing_or_ambiguous_entity_count": 16,
+    },
     "sha256": "ABSENT_UNQUALIFIED",
     "state": "QUALIFICATION_FAILED_BLOCKS_SOURCE_CONSTRUCTION",
 }
 EXPECTED_BLOCKERS = [
     (
-        "condition manifest is incomplete or ambiguous for 44 of 135 entities "
-        "under the frozen no-fallback policy"
+        "condition manifest is incomplete or ambiguous for 16 of 135 entities "
+        "after independently replayed recovery-v3"
     ),
     "protonation algorithm force field version pruning and seed absent",
     "parent input manifests absent",
@@ -368,12 +381,14 @@ def self_test(plan: dict[str, Any]) -> int:
     return len(cases) + 2
 
 
-def _bound_paths() -> tuple[Path, Path, Path, Path]:
+def _bound_paths() -> tuple[Path, Path, Path, Path, Path, Path]:
     checker = Path(__file__).absolute()
     root = checker.parents[2]
     plan = root / PLAN_RELATIVE
     catalog_seal = root / CATALOG_SEAL_RELATIVE
     catalog_archive = root / CATALOG_ARCHIVE_RELATIVE
+    recovery_v3_receipt = root / RECOVERY_V3_RECEIPT_RELATIVE
+    recovery_v3_checker = root / RECOVERY_V3_CHECKER_RELATIVE
     if not (
         checker == root / CHECKER_RELATIVE
         and checker.is_file()
@@ -388,15 +403,21 @@ def _bound_paths() -> tuple[Path, Path, Path, Path]:
         and catalog_archive.is_file()
         and not catalog_archive.is_symlink()
         and catalog_archive.resolve(strict=True) == catalog_archive
+        and recovery_v3_receipt.is_file()
+        and not recovery_v3_receipt.is_symlink()
+        and recovery_v3_receipt.resolve(strict=True) == recovery_v3_receipt
+        and recovery_v3_checker.is_file()
+        and not recovery_v3_checker.is_symlink()
+        and recovery_v3_checker.resolve(strict=True) == recovery_v3_checker
     ):
         raise ValueError(
             "checker, plan, or catalog-seal path is indirect, noncanonical, or misplaced"
         )
-    return root, plan, catalog_seal, catalog_archive
+    return root, plan, catalog_seal, catalog_archive, recovery_v3_receipt, recovery_v3_checker
 
 
 def verify(*, run_self_test: bool) -> int:
-    _, path, catalog_seal, catalog_archive = _bound_paths()
+    _, path, catalog_seal, catalog_archive, recovery_v3_receipt, recovery_v3_checker = _bound_paths()
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != PLAN_RAW_SHA256:
         raise ValueError("plan raw-byte hash drifted")
@@ -430,6 +451,22 @@ def verify(*, run_self_test: bool) -> int:
         ):
             raise ValueError("condition-catalog canonical archive inventory drifted")
     checks.append("condition_catalog_archive_inventory_and_receipt")
+    if hashlib.sha256(recovery_v3_receipt.read_bytes()).hexdigest() != RECOVERY_V3_RECEIPT_SHA256:
+        raise ValueError("recovery-v3 receipt raw-byte hash drifted")
+    if hashlib.sha256(recovery_v3_checker.read_bytes()).hexdigest() != RECOVERY_V3_CHECKER_SHA256:
+        raise ValueError("recovery-v3 independent checker raw-byte hash drifted")
+    recovery = json.loads(recovery_v3_receipt.read_bytes(), object_pairs_hook=_reject_duplicate_keys)
+    if not (
+        recovery["entity_count"] == 135
+        and recovery["recovery_v6_metadata_resolved_entity_count"] == 115
+        and recovery["recovery_v6_hold_entity_count"] == 20
+        and recovery["fallback_metadata_resolved_entity_count"] == 4
+        and recovery["combined_metadata_resolved_entity_count"] == 119
+        and recovery["status"] == "HOLD_METADATA_REINTERPRETATION_ONLY"
+        and not any(recovery["closed_capabilities"].values())
+    ):
+        raise ValueError("recovery-v3 HOLD receipt semantics drifted")
+    checks.extend(["recovery_v3_receipt_raw_binding", "recovery_v3_independent_checker_raw_binding", "recovery_v3_hold_semantics"])
     negative = self_test(plan) if run_self_test else 0
     return len(checks) + negative + 2
 

@@ -49,6 +49,15 @@
       "result": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS",
       "sha256": "3f8056aba2d5efaed0a42baf6b67411f50cd6849f4a78103cea853bd862ceca8"
     },
+    "recovery_v3": {
+      "independent_checker_path": "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py",
+      "independent_checker_sha256": "7f3a574a72a8413449c205fef5624b710e3fff2ab18623dae64fb0f3fa38bea8",
+      "metadata_resolved_entity_count": 119,
+      "receipt_path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json",
+      "receipt_sha256": "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b",
+      "result": "HOLD_DEPOSITED_PH_METADATA_INCOMPLETE_OR_AMBIGUOUS",
+      "state_missing_or_ambiguous_entity_count": 16
+    },
     "sha256": "ABSENT_UNQUALIFIED",
     "state": "QUALIFICATION_FAILED_BLOCKS_SOURCE_CONSTRUCTION"
   },
@@ -121,7 +130,7 @@
   "state": "HOLD_CONDITION_MANIFEST_INCOMPLETE",
   "study_id": "atypemu_nested_support_count_v1",
   "unresolved_blockers": [
-    "condition manifest is incomplete or ambiguous for 44 of 135 entities under the frozen no-fallback policy",
+    "condition manifest is incomplete or ambiguous for 16 of 135 entities after independently replayed recovery-v3",
     "protonation algorithm force field version pruning and seed absent",
     "parent input manifests absent",
     "support ordering and diversity thresholds absent",

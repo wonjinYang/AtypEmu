@@ -31,7 +31,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "22d91380baf6032cc708216781cee62060b0518c235066a91f7c37dc0c31e085"
+    "bf5c41c401f06da6844598ec8dbdcd4d524bbb6276be90634322684b078f948d"
 )
 OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
@@ -262,11 +262,19 @@ SAFE_EVIDENCE = {
     },
     "solution_state_protonation_support_plan": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
-        "sha256": "f6443dee60c0b7bec024420726adf8d7fdce56d6ee0ce056c9c593f547a0335a",
+        "sha256": "597086a617935f458b25be52190616b291ee3d6f6d8b92eaefc053a05cf8d67d",
     },
     "solution_state_protonation_support_checker": {
         "path": "gpuopt/candidates/check_solution_state_protonation_support_plan.py",
-        "sha256": "415f7883507e929712b1ce122d31ad061703367c81e8ee8872a2770592d06031",
+        "sha256": "80f002875c9e6fd070bb4e3fe04581fb0a3f81a88588eb3a50b37a92549543d8",
+    },
+    "solution_state_protonation_recovery_v3_receipt": {
+        "path": ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json",
+        "sha256": "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b",
+    },
+    "solution_state_protonation_recovery_v3_independent_checker": {
+        "path": "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py",
+        "sha256": "7f3a574a72a8413449c205fef5624b710e3fff2ab18623dae64fb0f3fa38bea8",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -373,6 +381,8 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_recovery_v6_semantic_checker",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
+    "solution_state_protonation_recovery_v3_receipt",
+    "solution_state_protonation_recovery_v3_independent_checker",
     "all_atom_raw_replay_correction_receipt",
     "all_atom_recount_receipt",
     "catalog_feasibility_receipt",
@@ -483,7 +493,7 @@ EXPECTED_PROVENANCE = {
 EXPECTED_BLOCKERS = [
     "K1536 exceeds the only currently evidenced BioEmu index namespace",
     "K32, K128, and K768 are all-atom count-infeasible under the frozen policy because bmr50238 has zero compliant supports: assigned GLU:HE2 is unavailable across all 1000 catalog supports",
-    "uniform deposited-pH support construction remains blocked because recovery-v6 resolves exactly one pH for only 115/135 entities and holds the other 20 on missing or ambiguous metadata",
+    "uniform deposited-pH support construction remains blocked because independently replayed recovery-v3 resolves exactly one pH for only 119/135 entities and preserves 16 as missing or ambiguous state metadata",
     "K32 original structural-source provenance replay is not established for this study",
     "support construction and diversity thresholds are not frozen",
     "primary and replicate ladder roots are not committed",
