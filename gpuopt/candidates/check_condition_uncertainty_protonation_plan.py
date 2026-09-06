@@ -30,9 +30,9 @@ RECEIPT_RELATIVE = Path(
 INDEPENDENT_CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_openmm86_unique_assigned_ph_recovery_v3_independent.py"
 )
-PLAN_RAW_SHA256 = "37d1cb52c2bd904d3dde8104c8ee3b5194da6c31d42c36c0a78e6b72cc93b7a1"
+PLAN_RAW_SHA256 = "37af7bd203fbe105178657663879f1737c905aebb12d4d9115d61773dc1e8843"
 PLAN_CANONICAL_SHA256 = (
-    "e0ec8761a2031979521017f0a49275207c949ec5ccd62b345097befb0290ebe6"
+    "838ac5744d6b6ec357e0b0f697bf86c69116fe341816f1d4903941fdd268657e"
 )
 V1_PLAN_RAW_SHA256 = "597086a617935f458b25be52190616b291ee3d6f6d8b92eaefc053a05cf8d67d"
 RECEIPT_RAW_SHA256 = "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b"
@@ -333,7 +333,10 @@ def validate_plan(plan: dict[str, Any], *, enforce_hash: bool = True) -> list[st
     environment = openmm["environment"]
     _require(
         openmm["add_hydrogens_call"]
-        == "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Reference)"
+        == (
+            "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, "
+            "platform=Platform.getPlatformByName('Reference'))"
+        )
         and openmm["variants_argument"] is None
         and openmm["existing_atom_positions_must_remain_exact"] is True
         and openmm["standard_residue_policy"]

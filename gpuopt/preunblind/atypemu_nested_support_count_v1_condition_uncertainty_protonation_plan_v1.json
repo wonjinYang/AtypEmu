@@ -58,7 +58,7 @@
     "sampling_sufficiency_established": false
   },
   "openmm_policy": {
-    "add_hydrogens_call": "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Reference)",
+    "add_hydrogens_call": "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Platform.getPlatformByName('Reference'))",
     "environment": {
       "container_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
       "force_field_relative_path": "amber14/protein.ff14SB.xml",
