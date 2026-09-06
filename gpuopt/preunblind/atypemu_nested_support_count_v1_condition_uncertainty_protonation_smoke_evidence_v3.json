@@ -29,7 +29,7 @@
     "repository_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1.json",
     "sha256": "6233c980be2d490878588fad78a237d06ce86f89adf65d22d17b8dbf5efba5d5"
   },
-  "interpretation": "The hash-frozen OpenMM 8.6 environment generated deterministic, repeat-byte-identical, assigned-proton-preserving and broadly physical protonation states for one observed-pH entity and all five frozen state_missing pH regimes of one second entity. This is bounded environment/condition/sequence/parent-heavy integration evidence only.",
+  "interpretation": "The hash-frozen OpenMM 8.6 environment generated deterministic, repeat-byte-identical, hydrogen-parent-bond-valid and broadly physical protonation states for one observed-pH entity and all five frozen state_missing pH regimes of one second entity. This is bounded environment/condition/sequence/parent-heavy integration evidence only; assigned-proton coverage was not read or tested.",
   "limitations": [
     "two parent supports do not establish all-support or all-entity protonation feasibility",
     "no support diversity, exact high-K nesting, source-gate, shared-q diagnostic, formal metric, or CCC claim is opened",
