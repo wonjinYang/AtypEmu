@@ -1,0 +1,40 @@
+{
+  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_evidence",
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v3",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "execution_git_head": "54f5a1b2bc4a825f69bc9caee5d24fd08da7dd96",
+  "execution_receipt": {
+    "local_path": ".auto/staging/condition_uncertainty_protonation_smoke_recovery_execution_v3/launch_receipt.json",
+    "sha256": "0e1e6410cdf8cbd9e982f6a0566d8c6d7dc3c6b5f7b43d9c0825a13c637a0758",
+    "size": 11249
+  },
+  "independent_checker": {
+    "checks": 53,
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_size": 0,
+    "stdout_sha256": "80f978a2d8c8056b7fb35bcd7751630acdcaf6d9ef37f5bad4c1df9a76bf3732",
+    "stdout_size": 368
+  },
+  "interpretation": "The hash-frozen OpenMM 8.6 environment generated deterministic, repeat-byte-identical, assigned-proton-preserving and broadly physical protonation states for one observed-pH entity and all five frozen state_missing pH regimes of one second entity. This is bounded environment/condition/sequence/parent-heavy integration evidence only.",
+  "limitations": [
+    "two parent supports do not establish all-support or all-entity protonation feasibility",
+    "no support diversity, exact high-K nesting, source-gate, shared-q diagnostic, formal metric, or CCC claim is opened",
+    "the full 135-entity support ladder remains HOLD pending separately frozen all-support qualification"
+  ],
+  "result": {
+    "local_path": ".auto/staging/condition_uncertainty_protonation_smoke_recovery_execution_v3/results/condition_uncertainty_protonation_smoke_recovery_v3/result.json",
+    "sha256": "d2ca3f703487b75be2c90a97748b53801288546b59f31b375164985d16e01731",
+    "size": 2013,
+    "state_count": 6
+  },
+  "source_commitment_sha256": "d14140f75eff5af1878934d902867d7091cb0b49da5e53c3e53d043d4f2a6918",
+  "status": "HOLD_BOUNDED_PROTONATION_SMOKE_PASSED_NOT_ALL_SUPPORT_EVIDENCE"
+}
