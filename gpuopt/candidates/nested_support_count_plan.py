@@ -31,7 +31,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "9539d7a71b250ba3f2a001b2a5d9c21e2d0f378c81109163d3158f52103a4f24"
+    "bb61d99e2008cdfca387c4cb2cceb9ee33cc951820775ee2547b4e49720e9577"
 )
 OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
@@ -202,7 +202,7 @@ SAFE_EVIDENCE = {
     },
     "openmm86_deposited_ph_catalog_recovery_v5_handler": {
         "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v5_if_intent.py",
-        "sha256": "f5c72b30b45cf41dcb7bb634d5d7f764a395afe472c40890cddd7d3e675459a3",
+        "sha256": "6471b9fc28e90989fc87febcee64f75e81ac08c309ae009fd8ce0aa3520fb8ac",
     },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),

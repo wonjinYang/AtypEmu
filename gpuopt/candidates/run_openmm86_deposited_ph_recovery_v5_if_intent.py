@@ -48,17 +48,32 @@ PARENT_VALIDATOR_RELATIVE = Path("gpuopt/candidates/nested_support_count_plan.py
 ACTIVE_INTENT_RELATIVE = Path(
     ".auto/staging/"
     "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
-    "launch_intent.json"
+    "launch_intent_v2.json"
 )
 CONSUMED_INTENT_RELATIVE = Path(
     ".auto/staging/"
     "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
-    "launch_intent.consumed.json"
+    "launch_intent_v2.consumed.json"
 )
 EXECUTION_RECEIPT_RELATIVE = Path(
     ".auto/staging/"
     "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
-    "execution_receipt.json"
+    "execution_receipt_v2.json"
+)
+EXECUTION_FALLBACK_RECEIPT_RELATIVE = Path(
+    ".auto/staging/"
+    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
+    "execution_receipt_v2_fallback.json"
+)
+FAILED_V1_INTENT_RELATIVE = Path(
+    ".auto/staging/"
+    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
+    "launch_intent.failed_preexecution_review.json"
+)
+V1_ACTIVE_INTENT_RELATIVE = Path(
+    ".auto/staging/"
+    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_"
+    "launch_intent.json"
 )
 OUTPUT_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_"
@@ -68,10 +83,10 @@ OUTPUT_RECEIPT_RELATIVE = OUTPUT_RELATIVE / "receipt.json"
 
 CANDIDATE_ID = "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5"
 INTENT_CONTRACT = (
-    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_launch_v1"
+    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_launch_v2"
 )
 EXECUTION_CONTRACT = (
-    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_execution_v1"
+    "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v5_execution_v2"
 )
 
 PLAN_RAW_SHA256 = "194b77cd92a4c81a19ccffb2a2bcc397de85116639107feb4eb62d5afe749d1d"
@@ -85,6 +100,9 @@ V4_FAILURE_RECEIPT_RAW_SHA256 = (
 )
 RUN131_RAW_LINE_SHA256 = (
     "4e06e334dbb873b9c87e9df91c59df3d1c2cde1f623bb9b388d1f83694355451"
+)
+FAILED_V1_INTENT_RAW_SHA256 = (
+    "d03fe45a2be38e248f9356710248c98e50428a8dff0e4e158e0bc880012d8b1c"
 )
 OUTPUT_FAILURE_RECEIPT_RELATIVE = OUTPUT_RELATIVE / "failure_receipt.json"
 
@@ -101,6 +119,8 @@ EXPECTED_HOLD_STATUS = (
     "HOLD_LOCAL_ONLY_PENDING_SEPARATELY_EXACT_BOUND_"
     "IMMUTABLE_ARCHIVE_AND_EXECUTION_RECEIPT"
 )
+PRODUCER_PASS_STATUS = "PASS_DEPOSITED_PH_METADATA_COMPLETE"
+PRODUCER_HOLD_STATUS = "HOLD_DEPOSITED_PH_METADATA_INCOMPLETE_OR_AMBIGUOUS"
 MAX_INTENT_BYTES = 65_536
 MAX_SOURCE_BYTES = 2_000_000
 MAX_OUTPUT_RECEIPT_BYTES = 10_000_000
@@ -415,6 +435,7 @@ def _expected_intent(
         "v4_consumed_intent_sha256": V4_CONSUMED_INTENT_RAW_SHA256,
         "v4_failure_receipt_sha256": V4_FAILURE_RECEIPT_RAW_SHA256,
         "run_131_raw_line_sha256": RUN131_RAW_LINE_SHA256,
+        "failed_preexecution_v1_intent_sha256": FAILED_V1_INTENT_RAW_SHA256,
         "handler": sources["handler"],
         "output": OUTPUT_RELATIVE.as_posix(),
         "parent_plan": sources["parent_plan"],
@@ -442,9 +463,22 @@ def _validate_intent(
 
 
 def _reject_prior_artifacts(root: Path) -> None:
+    failed_v1 = _read_regular(
+        root / FAILED_V1_INTENT_RELATIVE,
+        "failed preexecution recovery-v5 launch-v1 intent",
+        MAX_INTENT_BYTES,
+    )
+    if _sha256(failed_v1) != FAILED_V1_INTENT_RAW_SHA256:
+        raise ValueError("failed preexecution recovery-v5 launch-v1 intent drifted")
+    if os.path.lexists(root / V1_ACTIVE_INTENT_RELATIVE):
+        raise ValueError("superseded recovery-v5 launch-v1 intent is still active")
     for relative, label in (
         (CONSUMED_INTENT_RELATIVE, "consumed recovery-v5 launch intent"),
         (EXECUTION_RECEIPT_RELATIVE, "recovery-v5 execution receipt"),
+        (
+            EXECUTION_FALLBACK_RECEIPT_RELATIVE,
+            "recovery-v5 fallback execution receipt",
+        ),
         (OUTPUT_RELATIVE, "recovery-v5 output"),
     ):
         if os.path.lexists(root / relative):
@@ -571,6 +605,19 @@ def _captured_has_expected_terminal_status(result: Dict[str, Any]) -> bool:
     )
 
 
+def _producer_completed_with_declared_status(result: Dict[str, Any]) -> bool:
+    statuses = {
+        line.removeprefix("STATUS ")
+        for line in result["stdout"]["captured_text"].splitlines()
+        if line.startswith("STATUS ")
+    }
+    return (
+        result["returncode"] == 0 and statuses == {PRODUCER_PASS_STATUS}
+    ) or (
+        result["returncode"] == 4 and statuses == {PRODUCER_HOLD_STATUS}
+    )
+
+
 def _failure_receipt(
     root: Path,
     head: str,
@@ -580,10 +627,12 @@ def _failure_receipt(
     error: str,
     producer: Optional[Dict[str, Any]],
     checker: Optional[Dict[str, Any]],
+    output_binding: Optional[Dict[str, Optional[str]]] = None,
 ) -> int:
     """Seal every consumed-intent failure without ever demanding receipt.json."""
     try:
-        output_binding = _producer_failure_receipt_binding(root)
+        if output_binding is None:
+            output_binding = _producer_failure_receipt_binding(root)
         _write_execution_receipt(
             root,
             _receipt_payload(
@@ -602,6 +651,17 @@ def _failure_receipt(
         return 1
     print("STATUS HOLD_LOCAL_ONLY_EXECUTION_FAILED")
     return 1
+
+
+def _source_recheck_error(
+    root: Path, head: str, sources: Dict[str, SourceRecord]
+) -> Optional[str]:
+    try:
+        if _head_commit(root) != head or _verify_sources(root, head) != sources:
+            return "HEAD or execution sources changed"
+    except Exception as error:
+        return "source recheck raised %s: %s" % (type(error).__name__, error)
+    return None
 
 
 def run_handler(root: Path, runner: Runner = _run_bounded) -> int:
@@ -636,46 +696,60 @@ def run_handler(root: Path, runner: Runner = _run_bounded) -> int:
             None,
         )
 
-    if _head_commit(root) != head or _verify_sources(root, head) != sources:
+    source_error = _source_recheck_error(root, head, sources)
+    if source_error is not None:
         return _failure_receipt(
             root, head, intent_sha256, sources, "source_recheck_failed",
-            "HEAD or execution sources changed before producer", None, None,
+            source_error + " before producer", None, None,
         )
-    producer = runner(
-        [
-            sys.executable,
-            PRODUCER_RELATIVE.as_posix(),
-            "fetch",
-            "--acknowledge-target-unread-metadata-only",
-        ],
-        root,
-    )
-    if producer["returncode"] != 0:
+    try:
+        producer = runner(
+            [
+                sys.executable,
+                PRODUCER_RELATIVE.as_posix(),
+                "fetch",
+                "--acknowledge-target-unread-metadata-only",
+            ],
+            root,
+        )
+    except Exception as error:
+        return _failure_receipt(
+            root, head, intent_sha256, sources, "producer_runner_failed",
+            "%s: %s" % (type(error).__name__, error), None, None,
+        )
+    if not _producer_completed_with_declared_status(producer):
         return _failure_receipt(
             root,
             head,
             intent_sha256,
             sources,
             "producer_failed",
-            "producer return code was %r" % producer["returncode"],
+            "producer return code/status was not a declared PASS or HOLD outcome",
             producer,
             None,
         )
 
-    if _head_commit(root) != head or _verify_sources(root, head) != sources:
+    source_error = _source_recheck_error(root, head, sources)
+    if source_error is not None:
         return _failure_receipt(
             root, head, intent_sha256, sources, "source_recheck_failed",
-            "HEAD or execution sources changed before checker", producer, None,
+            source_error + " before checker", producer, None,
         )
-    checker = runner(
-        [
-            sys.executable,
-            CHECKER_RELATIVE.as_posix(),
-            "verify-local-consistency",
-            "--acknowledge-target-unread-metadata-only",
-        ],
-        root,
-    )
+    try:
+        checker = runner(
+            [
+                sys.executable,
+                CHECKER_RELATIVE.as_posix(),
+                "verify-local-consistency",
+                "--acknowledge-target-unread-metadata-only",
+            ],
+            root,
+        )
+    except Exception as error:
+        return _failure_receipt(
+            root, head, intent_sha256, sources, "checker_runner_failed",
+            "%s: %s" % (type(error).__name__, error), producer, None,
+        )
     if (
         checker["returncode"] != 4
         or not _captured_has_expected_terminal_status(checker)
@@ -693,21 +767,44 @@ def run_handler(root: Path, runner: Runner = _run_bounded) -> int:
 
     try:
         output_binding = _success_receipt_binding(root)
-        _write_execution_receipt(
-            root,
-            _receipt_payload(
-                head,
-                intent_sha256,
-                sources,
-                "local_hold_verified",
-                None,
-                producer,
-                checker,
-                output_binding,
+    except Exception as error:
+        return _failure_receipt(
+            root, head, intent_sha256, sources, "success_binding_failed",
+            "%s: %s" % (type(error).__name__, error), producer, checker,
+            _artifact_receipt_binding(
+                root, OUTPUT_RECEIPT_RELATIVE, "success_receipt",
+                "recovery-v5 output receipt",
             ),
         )
+    payload = _receipt_payload(
+        head, intent_sha256, sources, "local_hold_verified", None,
+        producer, checker, output_binding,
+    )
+    try:
+        _write_execution_receipt(root, payload)
     except Exception as error:
-        print("REFUSAL could not seal local HOLD execution: %s" % error)
+        fallback = dict(payload)
+        fallback.update(
+            {
+                "error": "primary execution-receipt write failed: %s: %s"
+                % (type(error).__name__, error),
+                "outcome": "execution_receipt_sealing_failed",
+                "status": "HOLD_LOCAL_ONLY_EXECUTION_FAILED",
+            }
+        )
+        try:
+            _write_new(
+                root / EXECUTION_FALLBACK_RECEIPT_RELATIVE,
+                (json.dumps(fallback, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+                0o600,
+            )
+        except Exception as fallback_error:
+            print(
+                "REFUSAL could not seal fallback execution failure: %s"
+                % fallback_error
+            )
+            return 1
+        print("STATUS HOLD_LOCAL_ONLY_EXECUTION_FAILED")
         return 1
     print("STATUS %s" % EXPECTED_HOLD_STATUS)
     return 0
@@ -771,11 +868,42 @@ def self_test() -> int:
     assert expected["v4_consumed_intent_sha256"] == V4_CONSUMED_INTENT_RAW_SHA256
     assert expected["v4_failure_receipt_sha256"] == V4_FAILURE_RECEIPT_RAW_SHA256
     assert expected["run_131_raw_line_sha256"] == RUN131_RAW_LINE_SHA256
+    assert (
+        expected["failed_preexecution_v1_intent_sha256"]
+        == FAILED_V1_INTENT_RAW_SHA256
+    )
     checks += 1
+
+    def producer_result(returncode: int, status: str) -> Dict[str, Any]:
+        return {
+            "returncode": returncode,
+            "stdout": {"captured_text": "STATUS %s\n" % status},
+        }
+
+    assert _producer_completed_with_declared_status(
+        producer_result(0, PRODUCER_PASS_STATUS)
+    )
+    assert _producer_completed_with_declared_status(
+        producer_result(4, PRODUCER_HOLD_STATUS)
+    )
+    assert not _producer_completed_with_declared_status(
+        producer_result(4, PRODUCER_PASS_STATUS)
+    )
+    checks += 3
 
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         assert run_handler(root) == 0
+        checks += 1
+
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        failed = root / FAILED_V1_INTENT_RELATIVE
+        failed.parent.mkdir(parents=True)
+        failed.write_bytes(b"wrong failed-v1 bytes")
+        _expect_value_error(
+            lambda: _reject_prior_artifacts(root), "failed-v1 intent hash drift"
+        )
         checks += 1
 
     for relative, label, directory in (
