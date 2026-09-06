@@ -8,6 +8,7 @@ and child-process replay.  It never imports the generator.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import math
@@ -40,12 +41,13 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v5.json"
+    "source_commitment_v6.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v5"
+    "source_commitment_v6"
 )
+MAX_PARALLEL_WORKERS = 8
 AA = {
     "ALA": "A",
     "ARG": "R",
@@ -1089,6 +1091,7 @@ def check(inputs: Path, generated: Path, output: Path) -> None:
     ):
         raise ValueError("generator output inventory or quota failed")
     os.mkdir(output, 0o700)
+    tasks: list[tuple[list[str], dict[str, str]]] = []
     for state in states:
         p0, m0 = generated_metadata(generated, state, 0)
         p1, m1 = generated_metadata(generated, state, 1)
@@ -1120,7 +1123,20 @@ def check(inputs: Path, generated: Path, output: Path) -> None:
             "--branch-id",
             state.branch,
         ]
-        subprocess.run(command, check=True, env=environment)
+        tasks.append((command, environment))
+    for offset in range(0, len(tasks), MAX_PARALLEL_WORKERS):
+        batch = tasks[offset : offset + MAX_PARALLEL_WORKERS]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(batch)) as pool:
+            futures = [
+                pool.submit(subprocess.run, command, check=True, env=environment)
+                for command, environment in batch
+            ]
+            for future in futures:
+                future.result()
+    for state in states:
+        p0, m0 = generated_metadata(generated, state, 0)
+        compare0 = dict(m0)
+        compare0.pop("repeat")
         replay_dir = f"{token(state.uid)}--{state.branch}"
         replay_pdb = regular(output, f"{replay_dir}/replay.pdb")
         replay = object_json(

@@ -9,6 +9,7 @@ OpenMM nor the frozen manifests.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import math
@@ -42,12 +43,13 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v5.json"
+    "source_commitment_v6.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v5"
+    "source_commitment_v6"
 )
+MAX_PARALLEL_WORKERS = 8
 AA3_TO_1 = {
     "ALA": "A",
     "ARG": "R",
@@ -1047,6 +1049,7 @@ def _run(inputs: Path, output: Path) -> None:
     _require_frozen_source(inputs)
     states = _load_roster(inputs)
     os.mkdir(output, 0o700)  # O_EXCL equivalent for the single run root.
+    tasks: list[tuple[list[str], dict[str, str]]] = []
     for state in states:
         for repeat in (0, 1):
             role = f"generation-repeat-{repeat}"
@@ -1073,7 +1076,16 @@ def _run(inputs: Path, output: Path) -> None:
                 "--repeat",
                 str(repeat),
             ]
-            subprocess.run(command, check=True, env=environment)
+            tasks.append((command, environment))
+    for offset in range(0, len(tasks), MAX_PARALLEL_WORKERS):
+        batch = tasks[offset : offset + MAX_PARALLEL_WORKERS]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(batch)) as pool:
+            futures = [
+                pool.submit(subprocess.run, command, check=True, env=environment)
+                for command, environment in batch
+            ]
+            for future in futures:
+                future.result()
     expected = {
         _state_dir(output, state, repeat).name for state in states for repeat in (0, 1)
     }
