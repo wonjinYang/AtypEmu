@@ -1,0 +1,33 @@
+{
+  "artifact_kind": "hold_target_unread_cohort_support1_preflight_precontainer_failure_receipt",
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v2_failure_receipt",
+  "executed_git_head": "691cebc06ddb15ae33532706860e7729cfaaa384",
+  "failure": "launcher passed repository-relative stage and output paths to Singularity while setting cwd=/tmp; the container image path therefore resolved under /tmp and failed before container startup",
+  "failure_class": "PRE_CONTAINER_PATH_RESOLUTION_CRASH",
+  "local_failed_stage": {
+    "byte_count": 97660823,
+    "file_count": 148,
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v2",
+    "tree_sha256": "329763962731dc03c4a02d3cd99e03fb99b516c68b8e6eb74dfef7e30c5ac4c3"
+  },
+  "local_output": {
+    "file_count": 0,
+    "path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v1"
+  },
+  "next_route": "separately bound source_commitment_v3 with absolute canonical launch paths; v2 stage/output remain immutable and ineligible",
+  "source_commitment_v2": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v2.json",
+    "sha256": "fc71cfb4aeb2dd744f21b68c1031a1fb0e4efc9277c87520b17f7bcf2fa94ebe"
+  },
+  "status": "HOLD_PRE_CONTAINER_FAILURE_NO_GENERATION"
+}
