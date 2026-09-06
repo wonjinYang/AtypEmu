@@ -42,11 +42,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v2.json"
+    "source_commitment_v3.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v2"
+    "source_commitment_v3"
 )
 AA3_TO_1 = {
     "ALA": "A",
