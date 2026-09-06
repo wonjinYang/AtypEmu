@@ -40,11 +40,11 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v4.json"
+    "source_commitment_v5.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v4"
+    "source_commitment_v5"
 )
 AA = {
     "ALA": "A",
@@ -648,7 +648,7 @@ def pdb_records(
 
 
 def heavy_hashes(atoms: list[dict[str, Any]]) -> tuple[str, str, list[dict[str, Any]]]:
-    heavy = [atom for atom in atoms if atom["element"] not in {"H", "D", "T"}]
+    parsed_heavy = [atom for atom in atoms if atom["element"] not in {"H", "D", "T"}]
     identity_names = (
         "atom_name",
         "chain_id",
@@ -658,7 +658,7 @@ def heavy_hashes(atoms: list[dict[str, Any]]) -> tuple[str, str, list[dict[str, 
         "residue_name",
     )
     topology = hashlib.sha256()
-    for atom in heavy:
+    for atom in parsed_heavy:
         identity = (
             atom["_record_type"],
             atom["atom_name"].upper(),
@@ -671,9 +671,13 @@ def heavy_hashes(atoms: list[dict[str, Any]]) -> tuple[str, str, list[dict[str, 
         )
         topology.update(json.dumps(identity, separators=(",", ":")).encode())
         topology.update(b"\n")
+    heavy = [
+        {name: atom[name] for name in (*identity_names, "x", "y", "z")}
+        for atom in parsed_heavy
+    ]
     coordinates = [
         {name: atom[name] for name in (*identity_names, "x", "y", "z")}
-        for atom in heavy
+        for atom in parsed_heavy
     ]
     return topology.hexdigest(), digest(canonical(coordinates)), heavy
 

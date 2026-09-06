@@ -49,8 +49,8 @@
     "platform": "Reference"
   },
   "output_contract": {
-    "canonical_output_path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v3",
-    "canonical_stage_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v4",
+    "canonical_output_path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v4",
+    "canonical_stage_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v5",
     "checker_result_count": 199,
     "generator_repeat_count": 2,
     "immutable_no_clobber": true,
@@ -85,7 +85,7 @@
     "repeat_equality": "repeat0 equals repeat1; checker replay equals repeat0"
   },
   "source_commitment": {
-    "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4.json",
+    "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v5.json",
     "prior_v1_failure_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1_failure_receipt.json",
       "sha256": "a3472da3e9c7b7ae69a4233ce1d387db5b127b4192983ab9662a5f770f358037"
@@ -97,6 +97,10 @@
     "prior_v3_launch_failure_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v3_failure_receipt.json",
       "sha256": "0b9cbc316eea4dcf8612060a1091b4994a90b9e5858954e2016f3fc77117707b"
+    },
+    "prior_v4_launch_failure_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v4_failure_receipt.json",
+      "sha256": "de53a1880a9f1ab6c20615b9c026ea62c8dafc6e6799e84eb449f87502c3e6e3"
     },
     "status": "FROZEN_COMMITTED"
   },

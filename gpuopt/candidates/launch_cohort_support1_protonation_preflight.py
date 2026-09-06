@@ -33,7 +33,7 @@ CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v5.json"
 )
 V1_FAILURE_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
@@ -50,13 +50,18 @@ V3_FAILURE_RELATIVE = Path(
     "protonation_preflight_launch_v3_failure_receipt.json"
 )
 V3_FAILURE_SHA256 = "0b9cbc316eea4dcf8612060a1091b4994a90b9e5858954e2016f3fc77117707b"
+V4_FAILURE_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+    "protonation_preflight_launch_v4_failure_receipt.json"
+)
+V4_FAILURE_SHA256 = "de53a1880a9f1ab6c20615b9c026ea62c8dafc6e6799e84eb449f87502c3e6e3"
 STAGE_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_stage_v4"
+    "protonation_preflight_stage_v5"
 )
 OUTPUT_RELATIVE = Path(
     ".auto/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_output_v3"
+    "protonation_preflight_output_v4"
 )
 INPUTS = {
     "environment.json": (
@@ -286,6 +291,11 @@ def validate_plan(plan: dict[str, Any]) -> None:
             "path": V3_FAILURE_RELATIVE.as_posix(),
             "sha256": V3_FAILURE_SHA256,
         }
+        and plan["source_commitment"].get("prior_v4_launch_failure_receipt")
+        == {
+            "path": V4_FAILURE_RELATIVE.as_posix(),
+            "sha256": V4_FAILURE_SHA256,
+        }
         and plan["output_contract"].get("canonical_stage_path")
         == STAGE_RELATIVE.as_posix()
         and plan["output_contract"].get("canonical_output_path")
@@ -343,7 +353,7 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4"
+        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v5"
         or commitment["status"] != "FROZEN_COMMITTED"
         or not isinstance(commitment["git_commit"], str)
         or GIT_SHA.fullmatch(commitment["git_commit"]) is None
@@ -355,6 +365,8 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
         raise ValueError("v2 pre-container failure receipt binding mismatch")
     if digest(repo_regular(root, V3_FAILURE_RELATIVE)) != V3_FAILURE_SHA256:
         raise ValueError("v3 pre-generation failure receipt binding mismatch")
+    if digest(repo_regular(root, V4_FAILURE_RELATIVE)) != V4_FAILURE_SHA256:
+        raise ValueError("v4 first-worker failure receipt binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),

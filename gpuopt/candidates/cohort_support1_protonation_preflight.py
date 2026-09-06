@@ -42,11 +42,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v4.json"
+    "source_commitment_v5.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v4"
+    "source_commitment_v5"
 )
 AA3_TO_1 = {
     "ALA": "A",
@@ -666,13 +666,17 @@ def _pdb_records(
 
 
 def _heavy_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [row for row in records if row["element"] not in {"H", "D", "T"}]
+    return [
+        {key: value for key, value in row.items() if not key.startswith("_")}
+        for row in records
+        if row["element"] not in {"H", "D", "T"}
+    ]
 
 
 def _heavy_hashes(records: list[dict[str, Any]]) -> tuple[str, str]:
-    heavy = _heavy_records(records)
+    parsed_heavy = [row for row in records if row["element"] not in {"H", "D", "T"}]
     topology = hashlib.sha256()
-    for row in heavy:
+    for row in parsed_heavy:
         identity = (
             row["_record_type"],
             row["atom_name"].upper(),
@@ -700,7 +704,7 @@ def _heavy_hashes(records: list[dict[str, Any]]) -> tuple[str, str]:
                 "z",
             )
         }
-        for row in heavy
+        for row in parsed_heavy
     ]
     return topology.hexdigest(), sha256(canonical_bytes(coordinates))
 
