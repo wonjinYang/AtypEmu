@@ -14,14 +14,14 @@ import sys
 from typing import Any, Dict, Iterable, List, Mapping, Sequence, Tuple
 
 
-CANDIDATE_ID = "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2"
+CANDIDATE_ID = "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v3"
 PLAN_CONTRACT = (
     "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
-    "recovery_plan_v2"
+    "recovery_plan_v3"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_"
-    "recovery_source_commitment_v2"
+    "recovery_source_commitment_v3"
 )
 PLAN_PATH = Path("/work/plan.json")
 COMMITMENT_PATH = Path("/work/source_commitment.json")
@@ -30,7 +30,7 @@ CHECKER_PATH = Path("/work/checker.py")
 LAUNCHER_PATH = Path("/work/launcher.py")
 FAILURE_EVIDENCE_PATH = Path("/work/failure_evidence.json")
 OUTPUT_PARENT = Path("/out")
-OUTPUT_NAME = "condition_uncertainty_protonation_smoke_recovery_v2"
+OUTPUT_NAME = "condition_uncertainty_protonation_smoke_recovery_v3"
 STANDARD_RESIDUES = frozenset(
     (
         "ALA",
@@ -197,7 +197,7 @@ def _validate_plan(plan: Mapping[str, Any]) -> List[Dict[str, Any]]:
         != "hold_only_target_unread_bounded_protonation_smoke_recovery_plan_not_support_not_authorization"
         or plan["candidate_id"] != CANDIDATE_ID
         or plan["contract"] != PLAN_CONTRACT
-        or plan["state"] != "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN"
+        or plan["state"] != "HOLD_SMOKE_RECOVERY_V3_SOURCE_FROZEN_UNRUN"
     ):
         raise SmokeError("smoke plan identity/state drifted")
     _closed(plan["closed_capabilities"], "smoke plan capabilities")
@@ -391,11 +391,11 @@ def _validate_plan(plan: Mapping[str, Any]) -> List[Dict[str, Any]]:
     }:
         raise SmokeError("parent policy binding drifted")
     if plan["failed_predecessor"] != {
-        "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
-        "failure_evidence_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_failure_evidence_v1.json",
-        "failure_evidence_sha256": "14fdc1a1229b1b32b61af8aaf07c7fe11740cc172f163acb5f55c0567f3b8fa2",
+        "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2",
+        "failure_evidence_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_failure_evidence_v2.json",
+        "failure_evidence_sha256": "6080541d6e9806ee15921944e3d4494a6b5c2347e1102a18f18d13503d169c9a",
         "isolated_path": "/work/failure_evidence.json",
-        "repair": "compare openmm.version.full_version rather than openmm.__version__",
+        "repair": "use a broad 1.1 to 1.5 angstrom S-H bound that admits the exact 1.336 angstrom frozen ff14SB equilibrium length",
     }:
         raise SmokeError("failed predecessor binding drifted")
     if plan["source_commitment"] != {
@@ -421,7 +421,7 @@ def _validate_plan(plan: Mapping[str, Any]) -> List[Dict[str, Any]]:
     }:
         raise SmokeError("output contract drifted")
     if plan["unresolved_blockers"] != [
-        "the bounded smoke recovery has not yet run",
+        "the bounded smoke recovery v3 has not yet run",
         "this smoke cannot qualify any support beyond its two exact parent examples",
         "production protonation generator source commitment and all-support independent checker are absent",
         "all-support deterministic replay physicality and effective-distinct-state audits are absent",
@@ -461,7 +461,7 @@ def _validate_commitment(
             "bounded target-unread smoke source only; not all-support, science, score, "
             "feasibility, or authorization evidence"
         )
-        or commitment["state"] != "HOLD_SMOKE_RECOVERY_SOURCE_FROZEN_UNRUN"
+        or commitment["state"] != "HOLD_SMOKE_RECOVERY_V3_SOURCE_FROZEN_UNRUN"
     ):
         raise SmokeError("source commitment identity drifted")
     commit = commitment["source_git_commit"]
@@ -606,15 +606,13 @@ def _physicality(
         neighbors[left.index].append(right)
         neighbors[right.index].append(left)
         length = float(np.linalg.norm(xyz[left.index] - xyz[right.index]))
-        lower, upper = (
-            (0.7, 1.3)
-            if 1
-            in {
-                left.element.atomic_number,
-                right.element.atomic_number,
-            }
-            else (1.0, 2.3)
-        )
+        elements = {left.element.atomic_number, right.element.atomic_number}
+        if elements == {1, 16}:
+            lower, upper = 1.1, 1.5
+        elif 1 in elements:
+            lower, upper = 0.7, 1.3
+        else:
+            lower, upper = 1.0, 2.3
         if not lower <= length <= upper:
             raise SmokeError("covalent bond length is outside the broad physical range")
         bond_lengths.append(length)
