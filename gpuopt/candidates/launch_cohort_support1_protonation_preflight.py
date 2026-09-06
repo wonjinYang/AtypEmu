@@ -33,7 +33,7 @@ CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v3.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4.json"
 )
 V1_FAILURE_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
@@ -45,13 +45,18 @@ V2_FAILURE_RELATIVE = Path(
     "protonation_preflight_launch_v2_failure_receipt.json"
 )
 V2_FAILURE_SHA256 = "81af40765dc4e70d501e115c0f834d2fed88930822d07ad6e17de82e19d0633b"
+V3_FAILURE_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+    "protonation_preflight_launch_v3_failure_receipt.json"
+)
+V3_FAILURE_SHA256 = "0b9cbc316eea4dcf8612060a1091b4994a90b9e5858954e2016f3fc77117707b"
 STAGE_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_stage_v3"
+    "protonation_preflight_stage_v4"
 )
 OUTPUT_RELATIVE = Path(
     ".auto/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_output_v2"
+    "protonation_preflight_output_v3"
 )
 INPUTS = {
     "environment.json": (
@@ -276,6 +281,11 @@ def validate_plan(plan: dict[str, Any]) -> None:
             "path": V2_FAILURE_RELATIVE.as_posix(),
             "sha256": V2_FAILURE_SHA256,
         }
+        and plan["source_commitment"].get("prior_v3_launch_failure_receipt")
+        == {
+            "path": V3_FAILURE_RELATIVE.as_posix(),
+            "sha256": V3_FAILURE_SHA256,
+        }
         and plan["output_contract"].get("canonical_stage_path")
         == STAGE_RELATIVE.as_posix()
         and plan["output_contract"].get("canonical_output_path")
@@ -333,7 +343,7 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v3"
+        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v4"
         or commitment["status"] != "FROZEN_COMMITTED"
         or not isinstance(commitment["git_commit"], str)
         or GIT_SHA.fullmatch(commitment["git_commit"]) is None
@@ -343,6 +353,8 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
         raise ValueError("v1 pre-data failure receipt binding mismatch")
     if digest(repo_regular(root, V2_FAILURE_RELATIVE)) != V2_FAILURE_SHA256:
         raise ValueError("v2 pre-container failure receipt binding mismatch")
+    if digest(repo_regular(root, V3_FAILURE_RELATIVE)) != V3_FAILURE_SHA256:
+        raise ValueError("v3 pre-generation failure receipt binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),
@@ -406,10 +418,15 @@ def require_clean_committed_tree(root: Path, commitment: dict[str, Any]) -> None
 
 def staged_pdb_records(raw: bytes) -> tuple[str, str]:
     """Return canonical parsed heavy topology/coordinate hashes for staging only."""
-    topology: list[dict[str, str]] = []
+    topology = hashlib.sha256()
+    heavy_count = 0
     coordinates: list[dict[str, str]] = []
     identities: set[tuple[str, ...]] = set()
+    segment = 0
     for number, line in enumerate(raw.splitlines(), 1):
+        if line.startswith(b"TER"):
+            segment += 1
+            continue
         if line[:6] not in {b"ATOM  ", b"HETATM"}:
             continue
         if line[:6] != b"ATOM  " or len(line) < 78 or line[16:17] != b" ":
@@ -445,23 +462,25 @@ def staged_pdb_records(raw: bytes) -> tuple[str, str]:
             raise ValueError("duplicate support PDB atom")
         identities.add(identity)
         if row["element"] not in {"H", "D", "T"}:
-            topology.append(
-                {
-                    name: row[name]
-                    for name in (
-                        "atom_name",
-                        "chain_id",
-                        "element",
-                        "insertion_code",
-                        "residue_id",
-                        "residue_name",
-                    )
-                }
+            catalog_identity = (
+                line[:6].decode("ascii").strip(),
+                row["atom_name"].upper(),
+                row["residue_name"].upper(),
+                segment,
+                row["chain_id"].strip() or "_",
+                int(row["residue_id"]),
+                row["insertion_code"].strip(),
+                row["element"],
             )
+            topology.update(
+                json.dumps(catalog_identity, separators=(",", ":")).encode()
+            )
+            topology.update(b"\n")
+            heavy_count += 1
             coordinates.append(row)
-    if not topology:
+    if not heavy_count:
         raise ValueError("support PDB has no heavy atoms")
-    return digest(canonical(topology)), digest(canonical(coordinates))
+    return topology.hexdigest(), digest(canonical(coordinates))
 
 
 def stage(root: Path, stage_dir: Path, runtime_sif: Path) -> None:

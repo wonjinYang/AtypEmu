@@ -40,11 +40,11 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v3.json"
+    "source_commitment_v4.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v3"
+    "source_commitment_v4"
 )
 AA = {
     "ALA": "A",
@@ -583,7 +583,11 @@ def pdb_records(
     atoms: list[dict[str, str]] = []
     chain_residues: list[tuple[str, str, str, str]] = []
     seen_residues: set[tuple[str, str, str, str]] = set()
+    segment = 0
     for line_number, line in enumerate(raw.splitlines(), 1):
+        if line.startswith(b"TER"):
+            segment += 1
+            continue
         if line[:6] not in {b"ATOM  ", b"HETATM"}:
             continue
         if line[:6] != b"ATOM  " or len(line) < 78 or line[16:17] != b" ":
@@ -594,6 +598,8 @@ def pdb_records(
                 for start, stop in ((30, 38), (38, 46), (46, 54))
             ]
             atom = {
+                "_record_type": line[:6].decode().strip(),
+                "_segment": segment,
                 "atom_name": line[12:16].decode().strip(),
                 "chain_id": line[21:22].decode(),
                 "element": line[76:78].decode().strip().upper(),
@@ -641,7 +647,7 @@ def pdb_records(
     return atoms, tuple(chain_residues), "".join(AA[item[3]] for item in chain_residues)
 
 
-def heavy_hashes(atoms: list[dict[str, str]]) -> tuple[str, str, list[dict[str, str]]]:
+def heavy_hashes(atoms: list[dict[str, Any]]) -> tuple[str, str, list[dict[str, Any]]]:
     heavy = [atom for atom in atoms if atom["element"] not in {"H", "D", "T"}]
     identity_names = (
         "atom_name",
@@ -651,12 +657,25 @@ def heavy_hashes(atoms: list[dict[str, str]]) -> tuple[str, str, list[dict[str, 
         "residue_id",
         "residue_name",
     )
-    topology = [{name: atom[name] for name in identity_names} for atom in heavy]
+    topology = hashlib.sha256()
+    for atom in heavy:
+        identity = (
+            atom["_record_type"],
+            atom["atom_name"].upper(),
+            atom["residue_name"].upper(),
+            atom["_segment"],
+            atom["chain_id"].strip() or "_",
+            int(atom["residue_id"]),
+            atom["insertion_code"].strip(),
+            atom["element"],
+        )
+        topology.update(json.dumps(identity, separators=(",", ":")).encode())
+        topology.update(b"\n")
     coordinates = [
         {name: atom[name] for name in (*identity_names, "x", "y", "z")}
         for atom in heavy
     ]
-    return digest(canonical(topology)), digest(canonical(coordinates)), heavy
+    return topology.hexdigest(), digest(canonical(coordinates)), heavy
 
 
 def require_runtime(openmm: Any, app: Any) -> None:

@@ -42,11 +42,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v3.json"
+    "source_commitment_v4.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v3"
+    "source_commitment_v4"
 )
 AA3_TO_1 = {
     "ALA": "A",
@@ -597,13 +597,19 @@ def _pdb_records(
     records: list[dict[str, Any]] = []
     residues: list[tuple[str, str, str, str]] = []
     residue_seen: set[tuple[str, str, str, str]] = set()
+    segment = 0
     for number, line in enumerate(raw.splitlines(), 1):
+        if line.startswith(b"TER"):
+            segment += 1
+            continue
         if line[:6] not in {b"ATOM  ", b"HETATM"}:
             continue
         if line[:6] != b"ATOM  " or len(line) < 78 or line[16:17] != b" ":
             raise ValueError(f"unsupported PDB atom record at line {number}")
         try:
             identity = {
+                "_record_type": line[:6].decode("ascii").strip(),
+                "_segment": segment,
                 "atom_name": line[12:16].decode("ascii").strip(),
                 "chain_id": line[21:22].decode("ascii"),
                 "element": line[76:78].decode("ascii").strip().upper(),
@@ -665,20 +671,20 @@ def _heavy_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _heavy_hashes(records: list[dict[str, Any]]) -> tuple[str, str]:
     heavy = _heavy_records(records)
-    topology = [
-        {
-            key: row[key]
-            for key in (
-                "atom_name",
-                "chain_id",
-                "element",
-                "insertion_code",
-                "residue_id",
-                "residue_name",
-            )
-        }
-        for row in heavy
-    ]
+    topology = hashlib.sha256()
+    for row in heavy:
+        identity = (
+            row["_record_type"],
+            row["atom_name"].upper(),
+            row["residue_name"].upper(),
+            row["_segment"],
+            row["chain_id"].strip() or "_",
+            int(row["residue_id"]),
+            row["insertion_code"].strip(),
+            row["element"],
+        )
+        topology.update(json.dumps(identity, separators=(",", ":")).encode())
+        topology.update(b"\n")
     coordinates = [
         {
             key: row[key]
@@ -696,7 +702,7 @@ def _heavy_hashes(records: list[dict[str, Any]]) -> tuple[str, str]:
         }
         for row in heavy
     ]
-    return sha256(canonical_bytes(topology)), sha256(canonical_bytes(coordinates))
+    return topology.hexdigest(), sha256(canonical_bytes(coordinates))
 
 
 def _require_runtime(openmm: Any, app: Any) -> None:
