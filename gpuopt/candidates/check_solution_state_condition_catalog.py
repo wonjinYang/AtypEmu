@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 ARTIFACT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery"
 )
 RECEIPT_RELATIVE = ARTIFACT_RELATIVE / "receipt.json"
 RAW_DIRECTORY_NAME = "raw_api_responses"
@@ -31,9 +31,12 @@ ROSTER_RELATIVE = Path(
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
 PARENT_FAILURE_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json"
 )
-PARENT_FAILURE_SHA256 = "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
+PARENT_FAILURE_SHA256 = "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
+GRANDPARENT_FAILURE_SHA256 = (
+    "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
+)
 PRODUCER_RELATIVE = "gpuopt/candidates/solution_state_condition_catalog.py"
 API_BASE = "https://api.bmrb.io/v2"
 APPLICATION_HEADER = "AtypEmu solution-condition-catalog-v1"
@@ -464,23 +467,32 @@ def _rows(payload: bytes, entry_id: str, loop: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def _condition_lists(rows: Iterable[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+def _condition_lists(
+    rows: Iterable[Dict[str, Any]],
+) -> Tuple[Dict[str, Dict[str, float]], List[str]]:
     result: Dict[str, Dict[str, float]] = {}
+    invalid_condition_ids: set = set()
     for row in rows:
         condition_list_id = _valid_id(
             row["Sample_condition_list_ID"], "Sample_condition_list_ID"
         )
+        name = " ".join(str(row["Type"]).strip().lower().replace("_", " ").split())
+        if name not in {"ph", "temperature", "ionic strength", "pressure"}:
+            raise ValueError("nonallowlisted sample-condition type: %s" % name)
+        values = result.setdefault(condition_list_id, {})
         try:
             field, value = _normalize_condition(row["Type"], row["Val"], row["Val_units"])
         except KeyError:
             # Non-condition variables are intentionally irrelevant, but their
             # list identity is still checked above.
             continue
-        values = result.setdefault(condition_list_id, {})
+        except ValueError:
+            invalid_condition_ids.add(condition_list_id)
+            continue
         if field in values and values[field] != value:
             raise ValueError("contradictory duplicate condition value")
         values[field] = value
-    return result
+    return result, sorted(invalid_condition_ids)
 
 
 def _signature(values: Dict[str, float]) -> Optional[Tuple[float, float, float]]:
@@ -512,7 +524,7 @@ def summarize_entity(entity_uid: str, bmrb_id: str, responses: Dict[str, bytes])
         if experiment_id in experiments:
             raise ValueError("duplicate Experiment.ID")
         experiments[experiment_id] = row
-    conditions = _condition_lists(condition_rows)
+    conditions, invalid_condition_ids = _condition_lists(condition_rows)
 
     by_shift_list: Dict[str, set] = {}
     unresolved: List[str] = []
@@ -577,6 +589,8 @@ def summarize_entity(entity_uid: str, bmrb_id: str, responses: Dict[str, bytes])
         reasons.append("no Chem_shift_experiment rows")
     if unresolved:
         reasons.append("unresolved experiment-to-condition linkage")
+    if invalid_condition_ids:
+        reasons.append("invalid numeric condition value or units")
     if not shift_lists:
         reasons.append("no linked assigned-shift-list condition")
     if len(shift_lists) != 1:
@@ -669,9 +683,14 @@ def _validate_recovery_parent(root: Path, receipt: Dict[str, Any]) -> None:
     if (
         parent.get("artifact_kind")
         != "target_unread_condition_catalog_failure_receipt"
-        or parent.get("response_count_written") != 39
+        or parent.get("response_count_written") != 261
         or parent.get("source_producer_git_commit")
-        != "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+        != "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
+        or parent.get("recovery_parent_failure")
+        != {
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "sha256": GRANDPARENT_FAILURE_SHA256,
+        }
         or any(
             parent.get(field) is not False
             for field in (
@@ -959,6 +978,7 @@ def _fixture_responses(
     ambiguous: bool = False,
     celsius: bool = False,
     multiple_shift_lists: bool = False,
+    invalid_ionic_units: bool = False,
 ) -> Dict[str, bytes]:
     entry_id = "42"
 
@@ -981,7 +1001,15 @@ def _fixture_responses(
         ["temperature", "26.85" if celsius else "300", "C" if celsius else "K", entry_id, "1"],
     ]
     if not missing_ionic:
-        conditions.append(["ionic strength", "0.15", "M", entry_id, "1"])
+        conditions.append(
+            [
+                "ionic strength",
+                "0.15",
+                "Not defined" if invalid_ionic_units else "M",
+                entry_id,
+                "1",
+            ]
+        )
     if ambiguous:
         conditions.extend(
             [
@@ -1056,6 +1084,15 @@ def self_test() -> int:
         "bmrb:42:entity:1", "bmr42", _fixture_responses(missing_ionic=True)
     )
     assert missing["condition_feasible"] is False
+    checks += 1
+
+    invalid_units = summarize_entity(
+        "bmrb:42:entity:1",
+        "bmr42",
+        _fixture_responses(invalid_ionic_units=True),
+    )
+    assert invalid_units["condition_feasible"] is False
+    assert "invalid numeric condition value or units" in invalid_units["hold_reasons"]
     checks += 1
 
     ambiguous = summarize_entity(

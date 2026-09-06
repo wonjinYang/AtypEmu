@@ -24,12 +24,15 @@ ROSTER_RELATIVE = Path(
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
 OUTPUT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery"
 )
 PARENT_FAILURE_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json"
 )
 PARENT_FAILURE_SHA256 = (
+    "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
+)
+GRANDPARENT_FAILURE_SHA256 = (
     "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
 )
 PRODUCER_RELATIVE = Path("gpuopt/candidates/solution_state_condition_catalog.py")
@@ -152,6 +155,7 @@ PARENT_FAILURE_FIELDS = {
     "artifact_kind",
     "authorization_consumed",
     "error",
+    "recovery_parent_failure",
     "response_count_written",
     "science_executed",
     "source_producer_git_commit",
@@ -318,21 +322,30 @@ def _normalize_condition(kind: Any, value: Any, units: Any) -> tuple[str, float]
     raise AssertionError("unreachable condition type")
 
 
-def _condition_lists(rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
+def _condition_lists(
+    rows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, float]], list[str]]:
     result: dict[str, dict[str, float]] = {}
+    invalid_condition_ids: set[str] = set()
     for row in rows:
         list_id = _id(row["Sample_condition_list_ID"], "sample-condition-list ID")
+        name = " ".join(str(row["Type"]).strip().lower().replace("_", " ").split())
+        if name not in {"ph", "temperature", "ionic strength", "pressure"}:
+            raise ValueError(f"nonallowlisted sample-condition type: {name}")
+        values = result.setdefault(list_id, {})
         try:
             field, value = _normalize_condition(
                 row["Type"], row["Val"], row["Val_units"]
             )
         except KeyError:
             continue
-        values = result.setdefault(list_id, {})
+        except ValueError:
+            invalid_condition_ids.add(list_id)
+            continue
         if field in values and values[field] != value:
             raise ValueError("condition list has contradictory duplicate values")
         values[field] = value
-    return result
+    return result, sorted(invalid_condition_ids)
 
 
 def _signature(values: dict[str, float]) -> Optional[tuple[float, float, float]]:
@@ -364,7 +377,7 @@ def summarize_entity(
         if experiment_id in experiments:
             raise ValueError("duplicate Experiment.ID")
         experiments[experiment_id] = row
-    condition_lists = _condition_lists(condition_rows)
+    condition_lists, invalid_condition_ids = _condition_lists(condition_rows)
     by_shift_list: dict[str, set[str]] = {}
     unresolved_experiments: list[str] = []
     experiment_links: list[dict[str, str]] = []
@@ -425,6 +438,8 @@ def summarize_entity(
         reasons.append("no Chem_shift_experiment rows")
     if unresolved_experiments:
         reasons.append("unresolved experiment-to-condition linkage")
+    if invalid_condition_ids:
+        reasons.append("invalid numeric condition value or units")
     if not shift_lists:
         reasons.append("no linked assigned-shift-list condition")
     if len(shift_lists) != 1:
@@ -561,9 +576,14 @@ def _validate_parent_failure(parent_raw: bytes, expected_sha256: str) -> dict[st
         set(parent) != PARENT_FAILURE_FIELDS
         or parent.get("artifact_kind")
         != "target_unread_condition_catalog_failure_receipt"
-        or parent.get("response_count_written") != 39
+        or parent.get("response_count_written") != 261
         or parent.get("source_producer_git_commit")
-        != "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+        != "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
+        or parent.get("recovery_parent_failure")
+        != {
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "sha256": GRANDPARENT_FAILURE_SHA256,
+        }
         or parent.get("target_values_read") is not False
         or parent.get("source_scores_read") is not False
         or parent.get("science_executed") is not False
@@ -803,14 +823,11 @@ def self_test() -> int:
         responses=_fixture(ambiguous=True),
     )["condition_feasible"] is False
     bad_units = _fixture(ionic_units="kg")
-    try:
-        summarize_entity(
-            entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=bad_units
-        )
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("bad condition unit was accepted")
+    bad_unit_result = summarize_entity(
+        entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=bad_units
+    )
+    assert bad_unit_result["condition_feasible"] is False
+    assert "invalid numeric condition value or units" in bad_unit_result["hold_reasons"]
     target_loop = _fixture()
     parsed = _loads(target_loop["Experiment"])
     parsed["42"]["Experiment"][0]["tags"].append("Atom_ID")
@@ -851,10 +868,14 @@ def self_test() -> int:
         "artifact_kind": "target_unread_condition_catalog_failure_receipt",
         "authorization_consumed": False,
         "error": "URLError: synthetic DNS failure",
-        "response_count_written": 39,
+        "recovery_parent_failure": {
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "sha256": GRANDPARENT_FAILURE_SHA256,
+        },
+        "response_count_written": 261,
         "science_executed": False,
         "source_producer_git_commit": (
-            "4a57b8c4efb5ddbbfa62a960113f1881d7239a84"
+            "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
         ),
         "source_producer_relative_path": PRODUCER_RELATIVE.as_posix(),
         "source_producer_sha256": "0" * 64,
@@ -870,7 +891,19 @@ def self_test() -> int:
         pass
     else:
         raise AssertionError("tampered recovery parent was accepted")
-    return 16
+    semantic_tamper = dict(parent_fixture)
+    semantic_tamper["recovery_parent_failure"] = dict(
+        parent_fixture["recovery_parent_failure"]
+    )
+    semantic_tamper["recovery_parent_failure"]["sha256"] = "0" * 64
+    semantic_raw = (json.dumps(semantic_tamper, sort_keys=True) + "\n").encode()
+    try:
+        _validate_parent_failure(semantic_raw, _sha256(semantic_raw))
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("semantic recovery-parent tamper was accepted")
+    return 17
 
 
 def main() -> int:
