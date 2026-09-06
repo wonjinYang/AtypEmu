@@ -6,6 +6,10 @@ import argparse
 import copy
 import hashlib
 import json
+import os
+import re
+import stat
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -29,6 +33,43 @@ FALSE_CAPABILITIES = {
 PLAN_CANONICAL_SHA256 = (
     "6f14a7bd6e9eb0cdf6e2bde20b9b85609324df21b30293720a5bd157e5ef5bcf"
 )
+OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
+)
+OPENMM86_DEPOSITED_PH_RECOVERY_V3_CONSUMED_INTENT = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.consumed.json"
+)
+OPENMM86_DEPOSITED_PH_RECOVERY_V3_OUTPUT = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v3_recovery"
+)
+OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_FIELDS = {
+    "artifact_kind": "target_unread_metadata_fetch_launch_intent_not_authorization",
+    "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3",
+    "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_v1",
+    "git_commit": None,
+    "plan": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v3_plan.json",
+        "sha256": "f8eadb6a4dde415d1af016c2843f867ee32e9546a7e4a272ff211fbfe531ba1e",
+    },
+    "producer": {
+        "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
+        "sha256": "8c2549c18b60e6eb69812102a14f40e063458540ef0abf9191bdf7c3f4a59a49",
+    },
+    "checker": {
+        "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
+        "sha256": "ecb5cc73bfc09be99ab3891fbd0d67d091925c0b8be13abe4f720ec11a64bf7d",
+    },
+    "v1_failure_receipt_sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5",
+    "v2_launch_intent_sha256": "ffdcebcaa4cf73d1e6b3d0834c8775836ba2c0f14edcd1bd10f21c2e5ab7aa9f",
+    "run_122_raw_line_sha256": "df01b57177613b0779b6b3519e43112ae021c29c58b5f8ac83a929c695402389",
+    "output": OPENMM86_DEPOSITED_PH_RECOVERY_V3_OUTPUT.as_posix(),
+    "target_values_read": False,
+    "target_atom_identities_read": False,
+    "source_scores_read": False,
+    "science_executed": False,
+    "source_construction_executed": False,
+    "authorization_consumed": False,
+}
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
 )
@@ -1017,6 +1058,190 @@ def _bound_root_and_plan() -> tuple[Path, Path]:
     return root, plan_path
 
 
+def _decode_recovery_v3_launch(raw: bytes) -> dict[str, Any]:
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate recovery-v3 launch-intent key")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=unique)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("invalid recovery-v3 launch intent") from error
+    if not isinstance(value, dict):
+        raise ValueError("recovery-v3 launch intent is not an object")
+    commit = value.get("git_commit")
+    expected = copy.deepcopy(OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_FIELDS)
+    expected["git_commit"] = commit
+    if (
+        not isinstance(commit, str)
+        or re.fullmatch(r"[0-9a-f]{40}", commit) is None
+        or value != expected
+    ):
+        raise ValueError("recovery-v3 launch intent drifted")
+    return value
+
+
+def _read_recovery_v3_launch_marker(path: Path, label: str) -> bytes:
+    try:
+        before = os.lstat(path)
+    except OSError as error:
+        raise ValueError(f"missing {label}") from error
+    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"{label} is indirect or non-regular")
+    if before.st_size > 65_536:
+        raise ValueError(f"{label} exceeds the byte limit")
+    descriptor = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        current = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or current.st_dev != before.st_dev
+            or current.st_ino != before.st_ino
+            or current.st_size != before.st_size
+        ):
+            raise ValueError(f"{label} changed before reading")
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            raw = handle.read(before.st_size + 1)
+        if len(raw) != before.st_size:
+            raise ValueError(f"{label} changed while reading")
+        return raw
+    finally:
+        os.close(descriptor)
+
+
+def _require_committed_recovery_v3_launcher(root: Path) -> None:
+    current = _read_recovery_v3_launch_marker(
+        root / VALIDATOR_RELATIVE, "recovery-v3 launcher source"
+    )
+    process = subprocess.Popen(
+        ["git", "show", f"HEAD:{VALIDATOR_RELATIVE.as_posix()}"],
+        cwd=root,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    )
+    assert process.stdout is not None
+    committed = process.stdout.read(2_000_001)
+    if len(committed) > 2_000_000:
+        process.kill()
+        process.wait(timeout=30)
+        raise ValueError("committed recovery-v3 launcher exceeds the byte limit")
+    if process.wait(timeout=30) != 0 or committed != current:
+        raise ValueError("recovery-v3 launcher bytes do not match committed HEAD")
+
+
+def _run_openmm86_deposited_ph_recovery_v3(root: Path) -> int:
+    """Consume one local metadata-fetch intent through the benchmark gateway."""
+    intent = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT
+    consumed = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_CONSUMED_INTENT
+    output_receipt = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_OUTPUT / "receipt.json"
+    active_exists = os.path.lexists(intent)
+    consumed_exists = os.path.lexists(consumed)
+    if active_exists and consumed_exists:
+        active_stat = os.lstat(intent)
+        consumed_stat = os.lstat(consumed)
+        if (
+            not stat.S_ISREG(active_stat.st_mode)
+            or not stat.S_ISREG(consumed_stat.st_mode)
+            or (active_stat.st_dev, active_stat.st_ino)
+            != (consumed_stat.st_dev, consumed_stat.st_ino)
+        ):
+            raise ValueError("different active and consumed recovery-v3 intents coexist")
+        _decode_recovery_v3_launch(
+            _read_recovery_v3_launch_marker(intent, "active recovery-v3 launch intent")
+        )
+        os.unlink(intent)
+        active_exists = False
+    if consumed_exists:
+        _decode_recovery_v3_launch(
+            _read_recovery_v3_launch_marker(
+                consumed, "consumed recovery-v3 launch intent"
+            )
+        )
+        if output_receipt.is_symlink() or not output_receipt.is_file():
+            raise ValueError("consumed recovery-v3 launch lacks its sealed receipt")
+        return 0
+    if not active_exists:
+        return 0
+    launch = _decode_recovery_v3_launch(
+        _read_recovery_v3_launch_marker(intent, "active recovery-v3 launch intent")
+    )
+    _require_committed_recovery_v3_launcher(root)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    if head != launch["git_commit"]:
+        raise ValueError("recovery-v3 launch intent is not bound to current HEAD")
+    from solution_state_openmm86_deposited_ph_catalog_recovery_v3 import (
+        fetch_catalog as fetch_recovery_v3_catalog,
+    )
+    from check_solution_state_openmm86_deposited_ph_catalog_recovery_v3 import (
+        verify_artifact as verify_recovery_v3_artifact,
+    )
+
+    output = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_OUTPUT
+    if not os.path.lexists(output):
+        fetch_recovery_v3_catalog()
+    replay_checks, replay_status = verify_recovery_v3_artifact()
+    os.link(intent, consumed, follow_symlinks=False)
+    os.unlink(intent)
+    print(
+        "METRIC openmm86_deposited_ph_recovery_v3_execution_checks="
+        f"{replay_checks}"
+    )
+    print(f"OPENMM86_DEPOSITED_PH_RECOVERY_V3_LOCAL_STATUS {replay_status}")
+    return 1
+
+
+def _recovery_v3_launch_self_test() -> int:
+    checks = 0
+    valid = copy.deepcopy(OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_FIELDS)
+    valid["git_commit"] = "1" * 40
+    raw = (json.dumps(valid, sort_keys=True) + "\n").encode()
+    assert _decode_recovery_v3_launch(raw) == valid
+    checks += 1
+    try:
+        _decode_recovery_v3_launch(b'{"git_commit":"' + b"1" * 40 + b'","git_commit":"' + b"1" * 40 + b'"}')
+    except ValueError:
+        checks += 1
+    else:
+        raise AssertionError("duplicate recovery-v3 launch key was accepted")
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        path = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT
+        path.parent.mkdir(parents=True)
+        path.symlink_to("absent.json")
+        try:
+            _run_openmm86_deposited_ph_recovery_v3(root)
+        except ValueError:
+            checks += 1
+        else:
+            raise AssertionError("dangling recovery-v3 launch symlink was accepted")
+    with tempfile.TemporaryDirectory() as temporary:
+        root = Path(temporary)
+        active = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT
+        consumed = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_CONSUMED_INTENT
+        active.parent.mkdir(parents=True)
+        active.write_bytes(raw)
+        os.link(active, consumed)
+        receipt = root / OPENMM86_DEPOSITED_PH_RECOVERY_V3_OUTPUT / "receipt.json"
+        receipt.parent.mkdir(parents=True)
+        receipt.write_bytes(b"{}\n")
+        assert _run_openmm86_deposited_ph_recovery_v3(root) == 0
+        assert not os.path.lexists(active) and consumed.is_file()
+        checks += 1
+    return checks
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true")
@@ -1026,7 +1251,11 @@ def main() -> int:
     plan = json.loads(path.read_text())
     checks = validate_plan(plan, root)
     checks.append("validator_and_plan_exact_paths")
-    negative_checks = self_test(plan, root) if args.self_test else 0
+    negative_checks = (
+        self_test(plan, root) + _recovery_v3_launch_self_test()
+        if args.self_test
+        else 0
+    )
     from check_nested_support_all_atom_recount import (
         self_test as recount_checker_self_test,
         verify as verify_recount,
@@ -1110,9 +1339,12 @@ def main() -> int:
         print("STATUS HOLD_FEASIBILITY_BLOCKED")
         print("REFUSAL this artifact is not science or authorization clearance")
         return 3
+    openmm86_deposited_ph_recovery_v3_execution_checks = (
+        _run_openmm86_deposited_ph_recovery_v3(root) if args.self_test else 0
+    )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
