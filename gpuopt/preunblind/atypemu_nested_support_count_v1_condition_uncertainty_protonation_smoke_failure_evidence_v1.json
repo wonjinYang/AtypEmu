@@ -1,0 +1,29 @@
+{
+  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_failure_evidence",
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "failure": {
+    "class": "pre_parent_pdb_runtime_version_api_mismatch",
+    "generator_stderr_sha256": "bb70e9c5f9ef15004c92433049f3d072cfe8e8f18d5c0b26594507d777fe220e",
+    "generator_stderr_size": 265,
+    "local_failure_receipt_path": ".auto/staging/condition_uncertainty_protonation_smoke_execution_v1/failure_receipt.json",
+    "local_failure_receipt_sha256": "2e82f2af41c83915256ea5b2a4d8b49430619dc25a2c826f54eec521818193ab",
+    "local_failure_receipt_size": 3709,
+    "message": "openmm.__version__ was 8.6 while the frozen full build version was 8.6.0.dev-c6173db",
+    "parent_pdb_opened": false,
+    "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "source_commitment_sha256": "13bd1e59100141c7a27129405794ce5ea44c5dc5c150c72bdd3c755cd11b7233"
+  },
+  "failed_execution_git_head": "0016929027ac891d124e08ed1432841c1c5098f3",
+  "interpretation": "infrastructure-contract failure before parent PDB deserialization; not protonation, physicality, support-feasibility, science, score, or authorization evidence",
+  "recovery_requirement": "a separately named recovery must bind this evidence and compare openmm.version.full_version rather than openmm.__version__",
+  "status": "HOLD_SMOKE_V1_FAILED_CLOSED_RECOVERY_REQUIRED"
+}
