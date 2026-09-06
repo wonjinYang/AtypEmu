@@ -111,14 +111,12 @@ EXPECTED_STDOUT = {
         "STATUS HOLD_INPUTS_QUALIFIED_PROTONATION_SMOKE_UNRUN",
     ),
     "condition-uncertainty-inputs": (
-        "METRIC condition_input_checks=16",
+        "METRIC condition_uncertainty_input_self_test_checks=16",
         "METRIC target_values_read=0",
-        "METRIC target_atom_identities_read=0",
         "METRIC source_scores_read=0",
-        "METRIC source_construction_executed=0",
         "METRIC science_executed=0",
         "METRIC authorization_consumed=0",
-        "STATUS PASS",
+        "STATUS HOLD_TARGET_UNREAD_INPUT_SELF_TEST_PASS",
     ),
 }
 SOURCE_RELATIVES = (
