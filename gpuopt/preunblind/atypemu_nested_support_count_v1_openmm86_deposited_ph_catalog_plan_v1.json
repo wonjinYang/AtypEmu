@@ -1,0 +1,93 @@
+{
+  "api_collection": {
+    "api_base": "https://api.bmrb.io/v2",
+    "category": "Assigned_chem_shift_list",
+    "category_tags_exact": [
+      "Entry_ID",
+      "ID",
+      "Sample_condition_list_ID"
+    ],
+    "new_request_count": 135,
+    "response_retention": "retain each schema-qualified target-unread raw response byte-for-byte with SHA-256, requested URL, and redirect/final URL; reject target-bearing or malformed responses before persistence",
+    "failure_policy": "no in-place retry: the first transport, schema, or bound-input failure is sealed in a no-clobber failure receipt; any recovery requires a separately named plan and output"
+  },
+  "artifact_kind": "hold_only_target_unread_deposited_ph_catalog_plan_not_authorization",
+  "bound_inputs": {
+    "canonical_condition_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70",
+      "v4_raw_response_prefix": "atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery/raw_api_responses"
+    },
+    "prior_categories_read_only": [
+      "Chem_shift_experiment",
+      "Experiment",
+      "Sample_condition_variable"
+    ],
+    "roster": {
+      "entity_count": 135,
+      "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
+      "sha256": "1a2d71529c20179f06977105a573539132feb25a13adc6e1d7dc0e0e1b4c1cb9"
+    }
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_openmm86_deposited_ph_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1",
+  "deposited_ph_validation": {
+    "contradictory_values": "HOLD",
+    "numeric_range_inclusive": [
+      0.0,
+      14.0
+    ],
+    "pD": "HOLD",
+    "ranges": "HOLD",
+    "type_normalization": "case-insensitive after removing whitespace; only pH is a pH record",
+    "units_allowed_after_trim_and_casefold": [
+      "",
+      "ph",
+      "p.h."
+    ],
+    "value": "finite scalar only; invalid or missing values HOLD"
+  },
+  "future_consumer_declaration": {
+    "declarative_only": true,
+    "force_field_xml": "amber14/protein.ff14SB.xml",
+    "method": "OpenMM 8.6 Modeller.addHydrogens using the deposited pH selected by this catalog",
+    "openmm_official_documentation": "https://docs.openmm.org/latest/userguide/application/03_model_building_editing.html",
+    "preconditions": [
+      "a separately authorized source-construction plan",
+      "a complete feasible pH catalog for all 135 entities",
+      "independent coordinate, physicality, provenance, and exact-nesting gates"
+    ]
+  },
+  "linkage_policy": {
+    "dictionary_fact": "_Assigned_chem_shift_list.Sample_condition_list_ID points to _Sample_condition_list.ID",
+    "dictionary_official_reference": "https://bmrb.io/dictionary/tag.php?tagcat=Assigned_chem_shift_list",
+    "direct_fallback": "only when Chem_shift_experiment has no rows or every row has both Experiment_ID and Assigned_chem_shift_list_ID missing; require exactly one valid Assigned_chem_shift_list ID and condition pointer",
+    "exact_route": "Chem_shift_experiment.Experiment_ID to Experiment.ID; all complete links must resolve through Experiment.Sample_condition_list_ID to exactly one Assigned_chem_shift_list ID, one condition-list pointer, and one deposited pH; the fetched assigned-list category must contain exactly one selected-list row with the same valid condition pointer",
+    "malformed_partial_link": "a Chem_shift_experiment row with only one valid Experiment_ID or Assigned_chem_shift_list_ID is HOLD",
+    "missing_or_ambiguous_entity": "semantic metadata absence or ambiguity is per-entity HOLD; malformed response schema, transport failure, or bound-input drift is a whole-run failure"
+  },
+  "metadata_scope": "target-unread metadata feasibility only; no coordinate construction, target inspection, score inspection, authorization consumption, or OpenMM execution",
+  "output": {
+    "fresh_directory": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v1",
+    "receipt": "receipt.json"
+  },
+  "plan_mutability": "IMMUTABLE_RAW_BYTES_BOUND_BY_PRODUCER",
+  "schema_version": 1,
+  "state": "HOLD_PENDING_TARGET_UNREAD_DEPOSITED_PH_CATALOG",
+  "study_id": "atypemu_nested_support_count_v1",
+  "temperature_and_ionic_strength": "may be retained as non-gating diagnostics only",
+  "warnings": [
+    "This heuristic is not a pKa calculation.",
+    "This heuristic is not a protonation ensemble calculation.",
+    "This heuristic does not establish temperature or ionic physicality."
+  ]
+}

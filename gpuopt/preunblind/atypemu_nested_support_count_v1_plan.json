@@ -157,6 +157,14 @@
     "solution_state_condition_catalog_evidence_archive": {
       "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
       "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70"
+    },
+    "openmm86_deposited_ph_catalog_plan": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_plan_v1.json",
+      "sha256": "caefd2517fe2a133204432f20e799e56504e8ebfa103aeaa1a715c1a8992ed15"
+    },
+    "openmm86_deposited_ph_catalog_producer": {
+      "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog.py",
+      "sha256": "ddd5d621bbf2d434836d311833b29598e6cd11543cde31e2e28ee1b7f36a6cc2"
     }
   },
   "fixed_protocol": {
