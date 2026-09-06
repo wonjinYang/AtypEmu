@@ -1,9 +1,5 @@
 # ruff: noqa: TRY004
-"""Stage and later launch the HOLD support-1 preflight, fail-closed until frozen.
-
-No invocation is currently possible: the plan deliberately records an absent source
-commitment.  The static self-test does not inspect frozen cohort data or OpenMM.
-"""
+"""Stage and launch the source-frozen HOLD support-1 ff15ipq preflight."""
 
 from __future__ import annotations
 
@@ -19,61 +15,38 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-CANDIDATE_ID = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1"
-)
+CANDIDATE_ID = "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1"
 SCRIPT_RELATIVE = Path(
     "gpuopt/candidates/launch_cohort_support1_protonation_preflight.py"
 )
 PLAN_RELATIVE = Path(
-    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json"
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_plan_v1.json"
 )
 GENERATOR_RELATIVE = Path("gpuopt/candidates/cohort_support1_protonation_preflight.py")
 CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v7.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v1.json"
 )
-V1_FAILURE_RELATIVE = Path(
+PARENT_FF14SB_HOLD_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_source_commitment_v1_failure_receipt.json"
+    "protonation_preflight_launch_v7_failure_receipt.json"
 )
-V1_FAILURE_SHA256 = "a3472da3e9c7b7ae69a4233ce1d387db5b127b4192983ab9662a5f770f358037"
-V2_FAILURE_RELATIVE = Path(
+PARENT_FF14SB_HOLD_SHA256 = (
+    "fc3944ce67e8af1f173ef84c6b1a3f0e3ded21b612aba0fc307398b62800d957"
+)
+FF15IPQ_SCAN_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_launch_v2_failure_receipt.json"
+    "ff15ipq_template_scan_receipt_v1.json"
 )
-V2_FAILURE_SHA256 = "81af40765dc4e70d501e115c0f834d2fed88930822d07ad6e17de82e19d0633b"
-V3_FAILURE_RELATIVE = Path(
-    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_launch_v3_failure_receipt.json"
-)
-V3_FAILURE_SHA256 = "0b9cbc316eea4dcf8612060a1091b4994a90b9e5858954e2016f3fc77117707b"
-V4_FAILURE_RELATIVE = Path(
-    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_launch_v4_failure_receipt.json"
-)
-V4_FAILURE_SHA256 = "de53a1880a9f1ab6c20615b9c026ea62c8dafc6e6799e84eb449f87502c3e6e3"
-V5_INTERRUPTION_RELATIVE = Path(
-    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_launch_v5_interruption_receipt.json"
-)
-V5_INTERRUPTION_SHA256 = (
-    "b9c6f73d87d64b2b6f888e6436c8a61db64657ea1bf3beda4517a178aa3d276a"
-)
-V6_FAILURE_RELATIVE = Path(
-    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_launch_v6_failure_receipt.json"
-)
-V6_FAILURE_SHA256 = "55a4f7e678aaa171ebeaab67e70962f095c51db4022f90e37789198350095109"
+FF15IPQ_SCAN_SHA256 = "a106871b1fc0504f90d92e412ff5242f0f2db995e384650b0befe8b6c0fc9bb5"
 STAGE_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_stage_v7"
+    "ff15ipq_preflight_stage_v1"
 )
 OUTPUT_RELATIVE = Path(
-    ".auto/atypemu_nested_support_count_v1_cohort_support1_"
-    "protonation_preflight_output_v6"
+    ".auto/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_output_v1"
 )
 INPUTS = {
     "environment.json": (
@@ -282,41 +255,22 @@ def validate_plan(plan: dict[str, Any]) -> None:
         == {
             "add_hydrogens_call": "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Reference)",
             "container_sif_sha256": RUNTIME_SHA256,
-            "forcefield": "amber14/protein.ff14SB.xml",
+            "forcefield": "amber14/protein.ff15ipq.xml",
+            "forcefield_sha256": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622",
             "openmm_exact_version": "8.6.0.dev-c6173db",
             "platform": "Reference",
         }
         and plan["source_commitment"].get("canonical_relative_path")
         == COMMITMENT_RELATIVE.as_posix()
-        and plan["source_commitment"].get("prior_v1_failure_receipt")
+        and plan["frozen_inputs"].get("parent_ff14sb_hold_receipt")
         == {
-            "path": V1_FAILURE_RELATIVE.as_posix(),
-            "sha256": V1_FAILURE_SHA256,
+            "path": PARENT_FF14SB_HOLD_RELATIVE.as_posix(),
+            "sha256": PARENT_FF14SB_HOLD_SHA256,
         }
-        and plan["source_commitment"].get("prior_v2_launch_failure_receipt")
+        and plan["frozen_inputs"].get("ff15ipq_template_scan_receipt")
         == {
-            "path": V2_FAILURE_RELATIVE.as_posix(),
-            "sha256": V2_FAILURE_SHA256,
-        }
-        and plan["source_commitment"].get("prior_v3_launch_failure_receipt")
-        == {
-            "path": V3_FAILURE_RELATIVE.as_posix(),
-            "sha256": V3_FAILURE_SHA256,
-        }
-        and plan["source_commitment"].get("prior_v4_launch_failure_receipt")
-        == {
-            "path": V4_FAILURE_RELATIVE.as_posix(),
-            "sha256": V4_FAILURE_SHA256,
-        }
-        and plan["source_commitment"].get("prior_v5_interruption_receipt")
-        == {
-            "path": V5_INTERRUPTION_RELATIVE.as_posix(),
-            "sha256": V5_INTERRUPTION_SHA256,
-        }
-        and plan["source_commitment"].get("prior_v6_launch_failure_receipt")
-        == {
-            "path": V6_FAILURE_RELATIVE.as_posix(),
-            "sha256": V6_FAILURE_SHA256,
+            "path": FF15IPQ_SCAN_RELATIVE.as_posix(),
+            "sha256": FF15IPQ_SCAN_SHA256,
         }
         and plan["run_contract"].get("max_parallel_workers") == 8
         and plan["run_contract"].get("parallel_schedule")
@@ -378,24 +332,19 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v7"
+        != "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v1"
         or commitment["status"] != "FROZEN_COMMITTED"
         or not isinstance(commitment["git_commit"], str)
         or GIT_SHA.fullmatch(commitment["git_commit"]) is None
     ):
         raise ValueError("source commitment identity mismatch")
-    if digest(repo_regular(root, V1_FAILURE_RELATIVE)) != V1_FAILURE_SHA256:
-        raise ValueError("v1 pre-data failure receipt binding mismatch")
-    if digest(repo_regular(root, V2_FAILURE_RELATIVE)) != V2_FAILURE_SHA256:
-        raise ValueError("v2 pre-container failure receipt binding mismatch")
-    if digest(repo_regular(root, V3_FAILURE_RELATIVE)) != V3_FAILURE_SHA256:
-        raise ValueError("v3 pre-generation failure receipt binding mismatch")
-    if digest(repo_regular(root, V4_FAILURE_RELATIVE)) != V4_FAILURE_SHA256:
-        raise ValueError("v4 first-worker failure receipt binding mismatch")
-    if digest(repo_regular(root, V5_INTERRUPTION_RELATIVE)) != V5_INTERRUPTION_SHA256:
-        raise ValueError("v5 serial-interruption receipt binding mismatch")
-    if digest(repo_regular(root, V6_FAILURE_RELATIVE)) != V6_FAILURE_SHA256:
-        raise ValueError("v6 signed-zero failure receipt binding mismatch")
+    if (
+        digest(repo_regular(root, PARENT_FF14SB_HOLD_RELATIVE))
+        != PARENT_FF14SB_HOLD_SHA256
+    ):
+        raise ValueError("parent ff14SB HOLD receipt binding mismatch")
+    if digest(repo_regular(root, FF15IPQ_SCAN_RELATIVE)) != FF15IPQ_SCAN_SHA256:
+        raise ValueError("ff15ipq template-scan receipt binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),

@@ -24,9 +24,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-CANDIDATE_ID = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1"
-)
+CANDIDATE_ID = "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1"
 SUPPORT_INDEX = 1
 MIDPOINTS = ("2.2", "5.45", "7.5", "9.25", "12.0")
 ENTITY_COUNT, STATE_COUNT = 135, 199
@@ -37,15 +35,15 @@ INPUT_HASHES = {
     "parent.json": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
 }
 FROZEN_PLAN_FILE = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_plan_v1.json"
 )
 FROZEN_COMMITMENT_FILE = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v7.json"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
+    "source_commitment_v1.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v7"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
+    "source_commitment_v1"
 )
 MAX_PARALLEL_WORKERS = 8
 AA = {
@@ -83,7 +81,7 @@ CLOSED_CAPABILITIES = {
     "target_values_read": False,
 }
 RUNTIME_FILE_HASHES = {
-    "data/amber14/protein.ff14SB.xml": "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8",
+    "data/amber14/protein.ff15ipq.xml": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622",
     "data/hydrogens.xml": "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d",
     "modeller.py": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
 }
@@ -177,7 +175,7 @@ def require_committed_sources(inputs: Path) -> None:
             "launch_cohort_support1_protonation_preflight.py"
         ),
         "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-        "protonation_preflight_plan_v1.json": FROZEN_PLAN_FILE,
+        "ff15ipq_preflight_plan_v1.json": FROZEN_PLAN_FILE,
     }
     hashes = receipt["files"]
     if not isinstance(hashes, dict) or set(hashes) != set(staged):
@@ -975,7 +973,7 @@ def replay_worker(
         mm_heavy(modeller.topology, modeller.positions, unit), heavy
     ):
         raise ValueError("independent hydrogen removal changed heavy coordinates")
-    ff = app.ForceField("amber14/protein.ff14SB.xml")
+    ff = app.ForceField("amber14/protein.ff15ipq.xml")
     reference = Platform.getPlatformByName("Reference")
     variants = modeller.addHydrogens(
         ff, pH=float(state.ph), variants=None, platform=reference

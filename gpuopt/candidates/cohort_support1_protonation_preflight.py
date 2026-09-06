@@ -25,9 +25,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-CANDIDATE_ID = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1"
-)
+CANDIDATE_ID = "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1"
 SUPPORT_INDEX = 1
 MIDPOINTS = ("2.2", "5.45", "7.5", "9.25", "12.0")
 ENTITY_COUNT = 135
@@ -39,15 +37,15 @@ INPUT_HASHES = {
     "parent.json": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
 }
 PLAN_NAME = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_plan_v1.json"
 )
 COMMITMENT_NAME = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v7.json"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
+    "source_commitment_v1.json"
 )
 COMMITMENT_CONTRACT = (
-    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v7"
+    "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
+    "source_commitment_v1"
 )
 MAX_PARALLEL_WORKERS = 8
 AA3_TO_1 = {
@@ -85,7 +83,7 @@ CLOSED_CAPABILITIES = {
     "target_values_read": False,
 }
 RUNTIME_FILE_HASHES = {
-    "data/amber14/protein.ff14SB.xml": "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8",
+    "data/amber14/protein.ff15ipq.xml": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622",
     "data/hydrogens.xml": "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d",
     "modeller.py": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
 }
@@ -184,7 +182,7 @@ def _require_frozen_source(inputs: Path) -> None:
             "launch_cohort_support1_protonation_preflight.py"
         ),
         "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
-        "protonation_preflight_plan_v1.json": PLAN_NAME,
+        "ff15ipq_preflight_plan_v1.json": PLAN_NAME,
     }
     files = commitment["files"]
     if not isinstance(files, dict) or set(files) != set(expected):
@@ -1011,7 +1009,7 @@ def _worker(
         source_heavy,
     ):
         raise ValueError("heavy records changed while removing input hydrogens")
-    forcefield = app.ForceField("amber14/protein.ff14SB.xml")
+    forcefield = app.ForceField("amber14/protein.ff15ipq.xml")
     platform = Platform.getPlatformByName("Reference")
     variants = modeller.addHydrogens(
         forcefield, pH=float(state.ph), variants=None, platform=platform

@@ -1,0 +1,112 @@
+{
+  "artifact_kind": "hold_target_unread_cohort_support1_ff15ipq_protonation_preflight_plan_not_support_not_authorization",
+  "authorization": {
+    "consumption_allowed": false,
+    "request_allowed_by_this_plan": false
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_plan_v1",
+  "frozen_inputs": {
+    "condition_manifest": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_manifest_v1.json",
+      "sha256": "ac51d7a40259f3a61e5fec0b521964d85a86d54aa2b91b78d051f9a0cca22618"
+    },
+    "environment_manifest": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_environment_manifest_v1.json",
+      "sha256": "6a5f3ff4a041d0fc055ee0a3b855ef2715a826812d11d6b2fdf1744a56fecd88"
+    },
+    "ff15ipq_template_scan_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_template_scan_receipt_v1.json",
+      "sha256": "a106871b1fc0504f90d92e412ff5242f0f2db995e384650b0befe8b6c0fc9bb5"
+    },
+    "input_check_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_inputs_check_receipt_v1.json",
+      "sha256": "3a95bb683385079a46d921b0e17aa56cd684578b25b34ee13e9e1fd541356f8e"
+    },
+    "parent_ff14sb_hold_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v7_failure_receipt.json",
+      "sha256": "fc3944ce67e8af1f173ef84c6b1a3f0e3ded21b612aba0fc307398b62800d957"
+    },
+    "parent_heavy_coordinate_manifest": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_parent_heavy_coordinate_manifest_v1.json",
+      "sha256": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3"
+    },
+    "protein_sequence_manifest": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_protein_sequence_manifest_v1.json",
+      "sha256": "4faf799877e0387a90c9f00c641e958bd02585dde6b1b99bbdcaeb9f2e82012b"
+    }
+  },
+  "openmm": {
+    "add_hydrogens_call": "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, platform=Reference)",
+    "container_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "forcefield": "amber14/protein.ff15ipq.xml",
+    "forcefield_sha256": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622",
+    "openmm_exact_version": "8.6.0.dev-c6173db",
+    "platform": "Reference"
+  },
+  "output_contract": {
+    "canonical_output_path": ".auto/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_output_v1",
+    "canonical_stage_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_stage_v1",
+    "checker_result_count": 199,
+    "generator_repeat_count": 2,
+    "immutable_no_clobber": true,
+    "per_repeat_records": ["protonated.pdb", "metadata.json"],
+    "state_count": 199
+  },
+  "physicality_scope": {
+    "all_distinct_atoms_min_distance_angstrom": "0.5",
+    "backbone_continuity": true,
+    "finite_energy": true,
+    "heavy_heavy_distance_angstrom": ["1.0", "2.3"],
+    "hydrogen_angle": true,
+    "non_sulfur_hydrogen_heavy_distance_angstrom": ["0.7", "1.3"],
+    "representative_support_index": 1,
+    "sulfur_hydrogen_distance_angstrom": ["1.1", "1.5"],
+    "valence": true
+  },
+  "roster": {
+    "entity_count": 135,
+    "observed_entity_count": 119,
+    "observed_state_rule": "one exact deposited_pH branch",
+    "state_count": 199,
+    "unresolved_entity_count": 16,
+    "unresolved_states": ["state_missing", "state_ambiguous"],
+    "unresolved_state_rule": "all five frozen regime midpoints",
+    "unresolved_regime_midpoints": ["2.2", "5.45", "7.5", "9.25", "12.0"]
+  },
+  "run_contract": {
+    "checker_fresh_process_replays_per_state": 1,
+    "generator_fresh_process_repeats_per_state": 2,
+    "max_parallel_workers": 8,
+    "parallel_schedule": "fixed contiguous state-repeat batches in canonical roster order",
+    "per_state_pythonhashseed_and_rng_seed": "RNG seed is first 64 bits SHA256(candidate_id NUL entity_uid NUL support_index NUL branch_id), identical across process roles; PYTHONHASHSEED is that seed modulo 2^32",
+    "repeat_equality": "repeat0 equals repeat1; checker replay equals repeat0"
+  },
+  "source_commitment": {
+    "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v1.json",
+    "status": "FROZEN_COMMITTED"
+  },
+  "state": "HOLD_PREFLIGHT_SOURCE_FROZEN_UNRUN",
+  "study_id": "atypemu_nested_support_count_v1",
+  "limitations": [
+    "representative support-1 only",
+    "not all-support coverage",
+    "not assigned-proton coverage",
+    "not support feasibility evidence",
+    "not diversity evidence",
+    "not nesting evidence",
+    "not science evidence",
+    "not score evidence",
+    "not authorization evidence",
+    "not CCC evidence"
+  ]
+}
