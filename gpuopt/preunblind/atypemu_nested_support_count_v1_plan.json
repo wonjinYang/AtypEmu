@@ -221,6 +221,10 @@
     "openmm86_deposited_ph_catalog_recovery_v4_checker": {
       "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v4.py",
       "sha256": "d417cdd32608bc1cfdf3a37d3fc4c7fae70a553fcdf896278e09f8dae42d145c"
+    },
+    "openmm86_deposited_ph_catalog_recovery_v4_handler": {
+      "path": "gpuopt/candidates/run_openmm86_deposited_ph_recovery_v4_if_intent.py",
+      "sha256": "9d89c21b6babdca0ba1fd45c78103829a26fcf49723557e6a6d1c543975a03b2"
     }
   },
   "fixed_protocol": {
