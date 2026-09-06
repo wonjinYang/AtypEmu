@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "a35d74348431e49cedad21add0e0557e94544a1a4c13a3b0952141cc64d9b62f"
+    "9330526c064caebf90cd3d0c5f708747fad26a1d470669d7dbb0de5d40d7c6db"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -83,9 +83,13 @@ SAFE_EVIDENCE = {
         "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz",
         "sha256": "e0df66a4046b9aef255f0d4992a732fdc2c7ebb4e1e5dccb7132a0ba511584f2",
     },
+    "all_atom_raw_evidence_archive_v3": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v3.tar.gz",
+        "sha256": "57500a316e2e9036ecf3414244e36419013e801977f9fad60e1a3294796fc20d",
+    },
     "all_atom_raw_evidence_checker": {
         "path": "gpuopt/candidates/check_nested_support_all_atom_raw_evidence.py",
-        "sha256": "21672070fe2ad47bfce9b8eb2716ed737bf318445e903ecb154c5365838b286c",
+        "sha256": "528c05193f66848dea042fcbf7a062496d529cbee6e41ee3ba83e6323dc57792",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -156,6 +160,7 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_recount_checker",
     "all_atom_raw_replay_v3_candidate",
     "all_atom_raw_evidence_archive",
+    "all_atom_raw_evidence_archive_v3",
     "all_atom_raw_evidence_checker",
     "all_atom_raw_replay_correction_receipt",
     "all_atom_recount_receipt",

@@ -16,6 +16,10 @@ ARCHIVE_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v2.tar.gz"
 )
 ARCHIVE_SHA256 = "e0df66a4046b9aef255f0d4992a732fdc2c7ebb4e1e5dccb7132a0ba511584f2"
+ARCHIVE_V3_RELATIVE = Path(
+    ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_evidence_v3.tar.gz"
+)
+ARCHIVE_V3_SHA256 = "57500a316e2e9036ecf3414244e36419013e801977f9fad60e1a3294796fc20d"
 CORRECTION_RELATIVE = Path(
     "gpuopt/preunblind/"
     "atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json"
@@ -28,6 +32,12 @@ RAW_CHECKER_V1_SHA256 = "f9ae6413ef41dfe508c2e9b4bc386c93b0193f3bc099d104d061ff7
 CORRECT_COMMIT = "7021381b80f11521e0b6c701a142a6afdd15c783"
 INVALID_COMMIT = "7021381c2c76aa630a0b7f800900e7d22b6bb850"
 RAW_CHECKER_GIT_BLOB = "87b54968722ecfda8c0c49ba80d6b99c95ff31be"
+RAW_CHECKER_V3_RELATIVE = Path(
+    "gpuopt/candidates/check_nested_support_all_atom_recount_raw_v3.py"
+)
+RAW_CHECKER_V3_SHA256 = "080258250c1d15950b7f9a4dad3e00391b1d644bae005882f56f4f7b3feda19d"
+RAW_CHECKER_V3_COMMIT = "043351bcb792e5dd37cbec1fc5cd072545646fc0"
+RAW_CHECKER_V3_GIT_BLOB = "bf6ec836107a13fc5dc9694c73860c2354d78742"
 EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
 SENTINELS = (
     "authorization_consumed",
@@ -65,6 +75,8 @@ EXPECTED_LEVELS = {
 V1 = ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_launch_v1"
 V2 = ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_launch_v2"
 RAW = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v2"
+V3 = ".auto/staging/atypemu_nested_support_count_v1_all_atom_raw_launch_v3"
+RAW_V3 = ".auto/staging/atypemu_nested_support_count_v1_all_atom_recount_raw_v3"
 
 
 def _sha256(data: bytes) -> str:
@@ -112,9 +124,32 @@ def _expected_files() -> set[str]:
     return files
 
 
-def _open_archive(archive: Path) -> dict[str, bytes]:
+def _expected_v3_files() -> set[str]:
+    files = {
+        RAW_CHECKER_V3_RELATIVE.as_posix(),
+        *(f"{V3}/{name}" for name in (
+            "started_at_utc.txt", "started_epoch.txt", "ended_at_utc.txt",
+            "ended_epoch.txt", "shard_execution_receipt.json",
+            "aggregate_started_at_utc.txt", "aggregate_started_epoch.txt",
+            "aggregate_ended_at_utc.txt", "aggregate_ended_epoch.txt",
+            "aggregate.pid", "aggregate.stdout", "aggregate.stderr",
+            "aggregate.rc", "nohup.stdout", "nohup.stderr",
+            "complete_execution_receipt.json",
+        )),
+        f"{RAW_V3}/aggregate_receipt.json",
+    }
+    for shard in range(27):
+        for suffix in ("rc", "stdout", "stderr"):
+            files.add(f"{V3}/shard_{shard}.{suffix}")
+        files.add(f"{RAW_V3}/o_excl_shard_receipts/shard_{shard}.json")
+    return files
+
+
+def _open_archive(
+    archive: Path, expected_sha256: str, expected_files: set[str],
+) -> dict[str, bytes]:
     assert archive.is_file() and not archive.is_symlink()
-    assert _sha256(archive.read_bytes()) == ARCHIVE_SHA256
+    assert _sha256(archive.read_bytes()) == expected_sha256
     files: dict[str, bytes] = {}
     with tarfile.open(archive, "r:gz") as handle:
         for member in handle.getmembers():
@@ -128,7 +163,7 @@ def _open_archive(archive: Path) -> dict[str, bytes]:
             stream = handle.extractfile(member)
             assert isinstance(stream, io.BufferedReader)
             files[member.name] = stream.read()
-    assert set(files) == _expected_files()
+    assert set(files) == expected_files
     return files
 
 
@@ -278,10 +313,111 @@ def _check_aggregate(files: dict[str, bytes]) -> None:
     assert files[f"{V2}/aggregate.stderr"] == b""
 
 
+def _check_v3_git_binding(root: Path) -> None:
+    source = subprocess.check_output(
+        ["git", "show", f"{RAW_CHECKER_V3_COMMIT}:"
+         f"{RAW_CHECKER_V3_RELATIVE.as_posix()}"], cwd=root,
+    )
+    assert _sha256(source) == RAW_CHECKER_V3_SHA256
+    blob = subprocess.check_output(
+        ["git", "hash-object", "--stdin"], cwd=root, input=source, text=False,
+    ).decode().strip()
+    assert blob == RAW_CHECKER_V3_GIT_BLOB
+
+
+def _check_v3(files: dict[str, bytes]) -> int:
+    assert _sha256(files[RAW_CHECKER_V3_RELATIVE.as_posix()]) == (
+        RAW_CHECKER_V3_SHA256
+    )
+    launch_bytes = files[f"{V3}/shard_execution_receipt.json"]
+    launch = _load_json(launch_bytes, "v3 launch")
+    assert launch["contract"] == (
+        "atypemu_nested_support_count_v1_all_atom_raw_launch_receipt_v3"
+    )
+    assert launch["source_git_commit"] == RAW_CHECKER_V3_COMMIT
+    assert launch["checker_sha256"] == RAW_CHECKER_V3_SHA256
+    assert launch["shard_count"] == launch["successful_shard_count"] == 27
+    assert launch["raw_replay_entity_count"] == 135
+    _check_no_science(launch)
+    assert len(launch["shards"]) == 27
+    total = 0
+    for shard, observed in enumerate(launch["shards"]):
+        prefix = f"{V3}/shard_{shard}"
+        receipt_name = f"{RAW_V3}/o_excl_shard_receipts/shard_{shard}.json"
+        receipt_bytes = files[receipt_name]
+        receipt = _load_json(receipt_bytes, f"v3 raw shard {shard}")
+        assert observed["shard_index"] == receipt["shard_index"] == shard
+        assert observed["rc"] == 0
+        assert observed["receipt_sha256"] == _sha256(receipt_bytes)
+        assert observed["stdout_sha256"] == _sha256(files[f"{prefix}.stdout"])
+        assert observed["stderr_sha256"] == EMPTY_SHA256
+        assert files[f"{prefix}.stderr"] == b""
+        assert files[f"{prefix}.rc"] == b"0\n"
+        assert receipt["contract"] == (
+            "atypemu_nested_support_count_v1_raw_replay_shard_receipt_v3"
+        )
+        assert receipt["checker_source_sha256"] == RAW_CHECKER_V3_SHA256
+        assert receipt["shard_count"] == 27
+        assert receipt["raw_replay_entity_count"] == (
+            receipt["sealed_result_entity_count"]
+        )
+        assert receipt["raw_replay_entities_sha256"] == (
+            receipt["sealed_result_entities_sha256"]
+        )
+        assert receipt["exact_raw_replay_equals_sealed_result"] is True
+        _check_no_science(receipt)
+        total += receipt["raw_replay_entity_count"]
+    assert total == 135
+
+    aggregate_bytes = files[f"{RAW_V3}/aggregate_receipt.json"]
+    aggregate = _load_json(aggregate_bytes, "v3 aggregate")
+    assert aggregate["contract"] == (
+        "atypemu_nested_support_count_v1_raw_replay_aggregate_receipt_v3"
+    )
+    assert aggregate["checker_source_sha256"] == RAW_CHECKER_V3_SHA256
+    assert aggregate["raw_replay_entity_count"] == (
+        aggregate["sealed_result_entity_count"]
+    ) == 135
+    assert aggregate["raw_replay_entities_sha256"] == (
+        aggregate["sealed_result_entities_sha256"]
+    )
+    assert aggregate["catalog_support_count"] == 134850
+    assert aggregate["exact_raw_replay_equals_sealed_result"] is True
+    assert aggregate["level_count_feasibility"] == EXPECTED_LEVELS
+    _check_no_science(aggregate)
+
+    complete = _load_json(files[f"{V3}/complete_execution_receipt.json"], "v3 complete")
+    assert complete["contract"] == (
+        "atypemu_nested_support_count_v1_all_atom_raw_complete_execution_receipt_v3"
+    )
+    assert complete["source_git_commit"] == RAW_CHECKER_V3_COMMIT
+    assert complete["checker_sha256"] == RAW_CHECKER_V3_SHA256
+    assert complete["status"] == (
+        "PASS_TOPOLOGY_AND_MASK_INDEPENDENT_RAW_REPLAY_ALL_LEVELS_REMAIN_HOLD"
+    )
+    assert complete["v2_mask_replay_evidence_archive"] == {
+        "path": ARCHIVE_RELATIVE.as_posix(), "sha256": ARCHIVE_SHA256,
+    }
+    assert complete["v3_aggregate_receipt"]["sha256"] == _sha256(aggregate_bytes)
+    assert complete["v3_shard_execution_receipt"]["sha256"] == _sha256(launch_bytes)
+    assert complete["raw_replay_entity_count"] == 135
+    assert complete["raw_replay_catalog_support_count"] == 134850
+    assert complete["level_count_feasibility"] == EXPECTED_LEVELS
+    assert complete["exact_raw_replay_equals_sealed_result"] is True
+    assert complete["topology_sha256_recomputed_from_raw_pdb_atoms"] is True
+    assert complete["aggregate_wall_seconds"] == 2672
+    _check_no_science(complete)
+    assert files[f"{V3}/aggregate.rc"] == b"0\n"
+    assert files[f"{V3}/aggregate.stdout"] == b"RAW_REPLAY_AGGREGATE_OK 135\n"
+    for name in ("aggregate.stderr", "nohup.stderr", "nohup.stdout"):
+        assert files[f"{V3}/{name}"] == b""
+    return total
+
+
 def verify(root: Path) -> int:
     root = root.resolve()
     archive = root / ARCHIVE_RELATIVE
-    files = _open_archive(archive)
+    files = _open_archive(archive, ARCHIVE_SHA256, _expected_files())
     assert _sha256(files[RAW_CHECKER_RELATIVE.as_posix()]) == RAW_CHECKER_SHA256
     assert _sha256(files[
         "gpuopt/candidates/check_nested_support_all_atom_recount_raw."
@@ -292,7 +428,15 @@ def verify(root: Path) -> int:
     _check_failed_v1(files)
     entity_count = _check_v2(files)
     _check_aggregate(files)
-    return 134850 + entity_count + len(_expected_files())
+    v3_files = _open_archive(
+        root / ARCHIVE_V3_RELATIVE, ARCHIVE_V3_SHA256, _expected_v3_files(),
+    )
+    _check_v3_git_binding(root)
+    v3_entity_count = _check_v3(v3_files)
+    return (
+        2 * 134850 + entity_count + v3_entity_count
+        + len(_expected_files()) + len(_expected_v3_files())
+    )
 
 
 def main() -> int:
