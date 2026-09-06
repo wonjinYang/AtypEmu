@@ -84,9 +84,9 @@
   },
   "source_commitment": {
     "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1.json",
-    "status": "ABSENT_UNFROZEN"
+    "status": "FROZEN_COMMITTED"
   },
-  "state": "HOLD_PREFLIGHT_SOURCE_UNFROZEN_UNRUN",
+  "state": "HOLD_PREFLIGHT_SOURCE_FROZEN_UNRUN",
   "study_id": "atypemu_nested_support_count_v1",
   "limitations": [
     "not all-support coverage",
