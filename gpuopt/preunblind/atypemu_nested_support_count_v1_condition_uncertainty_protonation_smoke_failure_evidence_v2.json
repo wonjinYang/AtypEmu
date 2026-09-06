@@ -1,0 +1,30 @@
+{
+  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_failure_evidence",
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_recovery_v2",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "failure": {
+    "class": "post_protonation_pre_output_physicality_threshold_misspecification",
+    "diagnosis": "the generic hydrogen-heavy upper bound 1.3 angstrom rejected a 1.339222819181861 angstrom CYS S-H bond while the exact frozen ff14SB equilibrium S-H length is 1.336 angstrom",
+    "generator_stderr_sha256": "9e88e95a12f2ad7f64f7e9b9d4862cef15a2813d385c1f4b661c50c5e960d672",
+    "generator_stderr_size": 308,
+    "local_failure_receipt_path": ".auto/staging/condition_uncertainty_protonation_smoke_recovery_execution_v2/failure_receipt.json",
+    "local_failure_receipt_sha256": "8be0d2dbf3d26062ea71778bee51455cb049c70e4fee6bb5f0d63fcbcabfb3a9",
+    "local_failure_receipt_size": 4138,
+    "output_state_written": false,
+    "parent_pdb_opened": true,
+    "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "source_commitment_sha256": "0f5ba2be90a9a51f9c3bc7d083bb7f2c721f92cd1a841aeb689fb7bff660c398"
+  },
+  "failed_execution_git_head": "2171bdd7e52ac4df1a4e6214c7de54045c5e647d",
+  "interpretation": "validation-threshold failure before any state output; not support-feasibility, science, score, or authorization evidence",
+  "recovery_requirement": "a separately named recovery must bind this evidence and use an element-specific broad S-H bound that admits the exact frozen force-field equilibrium length",
+  "status": "HOLD_SMOKE_RECOVERY_V2_FAILED_CLOSED_RECOVERY_REQUIRED"
+}
