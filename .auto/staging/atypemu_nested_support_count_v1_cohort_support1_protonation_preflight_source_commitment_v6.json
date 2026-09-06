@@ -1,0 +1,12 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v6",
+  "files": {
+    "gpuopt/candidates/check_cohort_support1_protonation_preflight.py": "c707e530a1b90be11f598211dbcbce7353b3ad9bb5e56e100bbcb62e0082a283",
+    "gpuopt/candidates/cohort_support1_protonation_preflight.py": "88038581c819acb7529293b98c718b8aed90668a3bb02f119e764bf1b91db7de",
+    "gpuopt/candidates/launch_cohort_support1_protonation_preflight.py": "e91f3fe20737e5d12c4790ad8ce3615f71a474ab9a4cf4e810503b505836667e",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json": "5efff3904191acfbd2ed65dc716cc178d572ee55d991e4d92f178dc391ecc540"
+  },
+  "git_commit": "3cab29ae3fb0012c9d5b8da2a3dc985279d8732b",
+  "status": "FROZEN_COMMITTED"
+}
