@@ -9,6 +9,7 @@ import math
 import os
 import re
 import stat
+import subprocess
 import tempfile
 import time
 import urllib.request
@@ -25,6 +26,7 @@ ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb
 OUTPUT_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1"
 )
+PRODUCER_RELATIVE = Path("gpuopt/candidates/solution_state_condition_catalog.py")
 LOOPS = (
     "Chem_shift_experiment",
     "Experiment",
@@ -262,8 +264,10 @@ def _id(value: Any, name: str) -> str:
 
 def _normalize_condition(kind: Any, value: Any, units: Any) -> tuple[str, float]:
     name = " ".join(str(kind).strip().lower().replace("_", " ").split())
-    if name not in {"ph", "temperature", "ionic strength"}:
+    if name == "pressure":
         raise KeyError(name)
+    if name not in {"ph", "temperature", "ionic strength"}:
+        raise ValueError(f"nonallowlisted sample-condition type: {name}")
     unit = "" if units in MISSING else str(units).strip().lower()
     number = _number(value)
     if number is None:
@@ -345,11 +349,16 @@ def summarize_entity(
     by_shift_list: dict[str, set[str]] = {}
     unresolved_experiments: list[str] = []
     experiment_links: list[dict[str, str]] = []
+    seen_chem_links: set[tuple[str, str]] = set()
     for row in chem_rows:
         experiment_id = _id(row["Experiment_ID"], "Chem_shift_experiment ID")
         shift_list_id = _id(
             row["Assigned_chem_shift_list_ID"], "assigned-shift-list ID"
         )
+        raw_link = (shift_list_id, experiment_id)
+        if raw_link in seen_chem_links:
+            raise ValueError("duplicate Chem_shift_experiment linkage")
+        seen_chem_links.add(raw_link)
         if experiment_id not in experiments:
             unresolved_experiments.append(experiment_id)
             continue
@@ -399,6 +408,8 @@ def summarize_entity(
         reasons.append("unresolved experiment-to-condition linkage")
     if not shift_lists:
         reasons.append("no linked assigned-shift-list condition")
+    if len(shift_lists) != 1:
+        reasons.append("entry does not have exactly one assigned shift list")
     if any(not item["complete_unique_condition_signature"] for item in shift_lists):
         reasons.append("shift list lacks one complete condition signature")
     if len(signatures) != 1:
@@ -443,6 +454,35 @@ def _bound_root() -> Path:
     if source.resolve(strict=True) != source or source.is_symlink():
         raise ValueError("producer source path is indirect")
     return root
+
+
+def _producer_provenance(root: Path) -> dict[str, str]:
+    source = root / PRODUCER_RELATIVE
+    source_raw = _read_newline_safe(source)
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    ).stdout.strip()
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise ValueError("producer Git revision is not a full commit")
+    committed = subprocess.run(
+        ["git", "show", f"{revision}:{PRODUCER_RELATIVE.as_posix()}"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+        timeout=30,
+    ).stdout
+    if committed != source_raw:
+        raise ValueError("producer bytes are not identical to committed HEAD")
+    return {
+        "source_producer_relative_path": PRODUCER_RELATIVE.as_posix(),
+        "source_producer_sha256": _sha256(source_raw),
+        "source_producer_git_commit": revision,
+    }
 
 
 def _validate_roster(roster: Any, roster_raw: bytes) -> list[dict[str, Any]]:
@@ -496,6 +536,7 @@ def _validate_roster(roster: Any, roster_raw: bytes) -> list[dict[str, Any]]:
 
 def fetch_catalog() -> dict[str, Any]:
     root = _bound_root()
+    producer_provenance = _producer_provenance(root)
     roster_path = root / ROSTER_RELATIVE
     output = root / OUTPUT_RELATIVE
     _require_safe_parents(roster_path, root)
@@ -555,6 +596,7 @@ def fetch_catalog() -> dict[str, Any]:
             "source_scores_read": False,
             "science_executed": False,
             "authorization_consumed": False,
+            **producer_provenance,
         }
         _write_new(
             output / "failure_receipt.json",
@@ -594,6 +636,7 @@ def fetch_catalog() -> dict[str, Any]:
         "science_executed": False,
         "authorization_consumed": False,
         "source_construction_executed": False,
+        **producer_provenance,
     }
     _write_new(
         output / "receipt.json",
@@ -603,7 +646,11 @@ def fetch_catalog() -> dict[str, Any]:
 
 
 def _fixture(
-    *, ionic_units: str = "M", ambiguous: bool = False, linked: bool = True
+    *,
+    ionic_units: str = "M",
+    ambiguous: bool = False,
+    linked: bool = True,
+    multiple_shift_lists: bool = False,
 ) -> dict[str, bytes]:
     entry_id = "42"
 
@@ -617,7 +664,7 @@ def _fixture(
 
     chem = [
         ["1", entry_id, "7"],
-        ["2", entry_id, "7"],
+        ["2", entry_id, "8" if multiple_shift_lists else "7"],
     ]
     experiment = [
         ["1", "10", "1", entry_id],
@@ -666,6 +713,11 @@ def self_test() -> int:
         bmrb_id="bmr42",
         responses=_fixture(linked=False),
     )["condition_feasible"] is False
+    assert summarize_entity(
+        entity_uid="bmrb:42:entity:1",
+        bmrb_id="bmr42",
+        responses=_fixture(multiple_shift_lists=True),
+    )["condition_feasible"] is False
     partial = _fixture(ambiguous=True)
     parsed_partial = _loads(partial["Sample_condition_variable"])
     parsed_partial["42"]["Sample_condition_variable"][0]["data"].pop()
@@ -673,15 +725,29 @@ def self_test() -> int:
     assert summarize_entity(
         entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=partial
     )["condition_feasible"] is False
+    pressure = _fixture()
+    parsed_unsupported = _loads(pressure["Sample_condition_variable"])
+    parsed_unsupported["42"]["Sample_condition_variable"][0]["data"].append(
+        ["pressure", "1", "bar", "42", "1"]
+    )
+    pressure["Sample_condition_variable"] = json.dumps(parsed_unsupported).encode()
+    assert summarize_entity(
+        entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=pressure
+    )["condition_feasible"] is True
     unsupported = _fixture()
     parsed_unsupported = _loads(unsupported["Sample_condition_variable"])
     parsed_unsupported["42"]["Sample_condition_variable"][0]["data"].append(
         ["buffer", "Tris", ".", "42", "1"]
     )
     unsupported["Sample_condition_variable"] = json.dumps(parsed_unsupported).encode()
-    assert summarize_entity(
-        entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=unsupported
-    )["condition_feasible"] is True
+    try:
+        summarize_entity(
+            entity_uid="bmrb:42:entity:1", bmrb_id="bmr42", responses=unsupported
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("nonallowlisted condition type was accepted")
     assert summarize_entity(
         entity_uid="bmrb:42:entity:1",
         bmrb_id="bmr42",
@@ -732,7 +798,7 @@ def self_test() -> int:
             pass
         else:
             raise AssertionError("dangling symlink parent was accepted")
-    return 13
+    return 15
 
 
 def main() -> int:
@@ -753,7 +819,7 @@ def main() -> int:
     result = fetch_catalog()
     print(f"STATUS {result['status']}")
     print(f"CONDITION_FEASIBLE_ENTITIES {result['condition_feasible_entity_count']}/135")
-    return 0
+    return 0 if result["all_entities_condition_feasible"] else 4
 
 
 if __name__ == "__main__":

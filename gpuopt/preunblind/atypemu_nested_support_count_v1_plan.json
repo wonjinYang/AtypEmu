@@ -60,7 +60,11 @@
   "evidence": {
     "solution_state_condition_catalog_producer": {
       "path": "gpuopt/candidates/solution_state_condition_catalog.py",
-      "sha256": "0085d9bcbe72a2bd01200209c12a1d65aeab3a7baaaa07f7a4f628edf939e47c"
+      "sha256": "f885b8a53fa5f43e151bb9bcbfa36364006349fce198950251242e0f76345cc9"
+    },
+    "solution_state_condition_catalog_checker": {
+      "path": "gpuopt/candidates/check_solution_state_condition_catalog.py",
+      "sha256": "77ad91732888e76cd09d6365e3e2af547f9d2d04682200d28547cfd7d3a2371d"
     },
     "all_atom_recount_policy": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_policy.json",

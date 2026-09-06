@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "7dab830fd128b88109eeb14fa47192c75e28b2fce2b257048854b980cd684e44"
+    "da60bdefdafebb12a4944f2f198264ec881b745a1ed263bd633dbe0137d6c3ee"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -65,7 +65,11 @@ TOP_LEVEL_FIELDS = {
 SAFE_EVIDENCE = {
     "solution_state_condition_catalog_producer": {
         "path": "gpuopt/candidates/solution_state_condition_catalog.py",
-        "sha256": "0085d9bcbe72a2bd01200209c12a1d65aeab3a7baaaa07f7a4f628edf939e47c",
+        "sha256": "f885b8a53fa5f43e151bb9bcbfa36364006349fce198950251242e0f76345cc9",
+    },
+    "solution_state_condition_catalog_checker": {
+        "path": "gpuopt/candidates/check_solution_state_condition_catalog.py",
+        "sha256": "77ad91732888e76cd09d6365e3e2af547f9d2d04682200d28547cfd7d3a2371d",
     },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
@@ -964,6 +968,9 @@ def main() -> int:
     from solution_state_condition_catalog import (
         self_test as solution_state_condition_catalog_self_test,
     )
+    from check_solution_state_condition_catalog import (
+        self_test as solution_state_condition_catalog_checker_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -974,6 +981,9 @@ def main() -> int:
     )
     solution_state_condition_catalog_checks = (
         solution_state_condition_catalog_self_test() if args.self_test else 0
+    )
+    solution_state_condition_catalog_checker_checks = (
+        solution_state_condition_catalog_checker_self_test() if args.self_test else 0
     )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
@@ -988,7 +998,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
