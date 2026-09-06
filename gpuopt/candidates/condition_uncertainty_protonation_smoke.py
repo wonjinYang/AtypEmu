@@ -474,7 +474,13 @@ def _validate_commitment(
     _closed(commitment["closed_capabilities"], "source commitment capabilities")
     _schema(
         commitment["sources"],
-        {"checker", "generator", "launcher", "plan"},
+        {
+            "checker",
+            "generator",
+            "launcher",
+            "plan",
+            "predecessor_failure_evidence",
+        },
         "committed sources",
     )
     mounted = {
