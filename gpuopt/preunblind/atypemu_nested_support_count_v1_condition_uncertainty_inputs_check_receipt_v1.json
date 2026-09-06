@@ -1,0 +1,35 @@
+{
+  "artifact_kind": "target_unread_condition_uncertainty_inputs_check_receipt_not_authorization",
+  "checker": {
+    "path": "gpuopt/candidates/check_condition_uncertainty_inputs.py",
+    "sha256": "bc657d843c15ffc05cf482cb38401e425511a283760ef05a4aba9a3430ff9aee"
+  },
+  "closed_capability_counters": {
+    "authorization_consumed": 0,
+    "science_executed": 0,
+    "source_scores_read": 0,
+    "target_values_read": 0
+  },
+  "contract": "atypemu_nested_support_count_v1_condition_uncertainty_inputs_check_receipt_v1",
+  "git_head": "69ac889acec9e94329822b87fd31e1b7aac03315",
+  "manifest_hashes": {
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_manifest_v1.json": "ac51d7a40259f3a61e5fec0b521964d85a86d54aa2b91b78d051f9a0cca22618",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_environment_manifest_v1.json": "6a5f3ff4a041d0fc055ee0a3b855ef2715a826812d11d6b2fdf1744a56fecd88",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_parent_heavy_coordinate_manifest_v1.json": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_protein_sequence_manifest_v1.json": "4faf799877e0387a90c9f00c641e958bd02585dde6b1b99bbdcaeb9f2e82012b"
+  },
+  "runtime_hashes": {
+    "docker_archive": "e2a1532d6fc4435b6940f38b6197287395015f2df8bb17c0a76683c624d9b0a3",
+    "runtime_sif": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
+  },
+  "source_hashes": {
+    "catalog_archive": "69fee89d20588cbeb2a15cc1c4a4f002f63a50928f2028f5835c5b3b871061c2",
+    "dockerfile": "007e877565ca25883bcfdc083513b240d94e93c0416514e62cc791f3414836cc",
+    "freezer": "062858e6bb1f9994cdc135a66670fa793682d5b9f8fcf49413b85e79cae74874",
+    "recovery_v3": "2d8a255add821950e0e381401afc8c27a97d37cffb8ead827f5d8bd500bc3b8b",
+    "recovery_v6_archive": "cc962fef0297aad433979372020343abfb593715690a39dda114c016f4ee0c36",
+    "roster": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9",
+    "source_commitment": "af8ae50e7b704181471be6d86794cc45d99562136d50152e65c9fbe8df5b1ca8"
+  },
+  "status": "HOLD_TARGET_UNREAD_INPUT_IDENTITY_QUALIFIED_NOT_AUTHORIZATION"
+}
