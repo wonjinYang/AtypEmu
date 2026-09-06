@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "71cfc0238019e0abe5a1795eed940b257abec334180d30307e2ce9b92e7b484c"
+    "e8bd2a9a3041124d1010a135d1291f2d12770fc15f6df6be7ebf9c0edf2da9d0"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -90,6 +90,22 @@ SAFE_EVIDENCE = {
     "openmm86_deposited_ph_catalog_checker": {
         "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog.py",
         "sha256": "dcbd457f33d66f2fe51367db42fe760b614196ba81d5a8fdb3f0990320387ff7",
+    },
+    "openmm86_deposited_ph_catalog_v1_failure_receipt": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v1/failure_receipt.json",
+        "sha256": "a8cbd988789c6bde3e774d625ab4e6583476dfd7ae1a1f4a641b9548edbda8c5",
+    },
+    "openmm86_deposited_ph_catalog_v1_start_marker": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_api_v1/started_at_utc.txt",
+        "sha256": "d741789e11f995c3c034152fd7e1594a34faecdf6dd970ce4bc73309fee29141",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v2_plan": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v2_plan.json",
+        "sha256": "5d6547c21cdf4c1dc6380340375084c53de0e137f10cee47f74f6683150227e3",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v2_producer": {
+        "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v2.py",
+        "sha256": "fb764735f3ac539ef84310af653d97f110d9608f38f5ff49bd575c72c806407f",
     },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
@@ -205,6 +221,10 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_plan",
     "openmm86_deposited_ph_catalog_producer",
     "openmm86_deposited_ph_catalog_checker",
+    "openmm86_deposited_ph_catalog_v1_failure_receipt",
+    "openmm86_deposited_ph_catalog_v1_start_marker",
+    "openmm86_deposited_ph_catalog_recovery_v2_plan",
+    "openmm86_deposited_ph_catalog_recovery_v2_producer",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -1004,6 +1024,9 @@ def main() -> int:
     from check_solution_state_openmm86_deposited_ph_catalog import (
         self_test as openmm86_deposited_ph_catalog_checker_self_test,
     )
+    from solution_state_openmm86_deposited_ph_catalog_recovery_v2 import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v2_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1024,6 +1047,9 @@ def main() -> int:
     openmm86_deposited_ph_catalog_checker_checks = (
         openmm86_deposited_ph_catalog_checker_self_test() if args.self_test else 0
     )
+    openmm86_deposited_ph_catalog_recovery_v2_checks = (
+        openmm86_deposited_ph_catalog_recovery_v2_self_test() if args.self_test else 0
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1037,7 +1063,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
