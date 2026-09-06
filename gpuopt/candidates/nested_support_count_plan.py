@@ -1415,6 +1415,9 @@ def main() -> int:
         self_test as openmm86_unique_assigned_ph_v1_recovery_v2_self_test,
     )
     from openmm86_unique_assigned_ph_v1_recovery_v3 import (
+        CANDIDATE_ID as openmm86_unique_assigned_ph_v1_recovery_v3_candidate_id,
+        CLOSED_CAPABILITIES as openmm86_unique_assigned_ph_v1_recovery_v3_closed_capabilities,
+        execute as execute_openmm86_unique_assigned_ph_v1_recovery_v3,
         self_test as openmm86_unique_assigned_ph_v1_recovery_v3_self_test,
     )
 
@@ -1529,6 +1532,89 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_unique_assigned_ph_v1_recovery_v3_output = (
+        root
+        / ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json"
+    )
+    openmm86_unique_assigned_ph_v1_recovery_v3_intent = (
+        root
+        / ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3_execution_intent.json"
+    )
+    if openmm86_unique_assigned_ph_v1_recovery_v3_output.is_file():
+        with openmm86_unique_assigned_ph_v1_recovery_v3_output.open(
+            "r", encoding="utf-8"
+        ) as handle:
+            openmm86_unique_assigned_ph_v1_recovery_v3_payload = json.load(handle)
+    elif openmm86_unique_assigned_ph_v1_recovery_v3_intent.is_file():
+        openmm86_unique_assigned_ph_v1_recovery_v3_payload = (
+            execute_openmm86_unique_assigned_ph_v1_recovery_v3(root)
+        )
+    else:
+        openmm86_unique_assigned_ph_v1_recovery_v3_payload = None
+    if openmm86_unique_assigned_ph_v1_recovery_v3_payload is not None:
+        recovered = openmm86_unique_assigned_ph_v1_recovery_v3_payload.get(
+            "fallback_metadata_resolved_entity_count"
+        )
+        entities = openmm86_unique_assigned_ph_v1_recovery_v3_payload.get("entities")
+        _require(
+            openmm86_unique_assigned_ph_v1_recovery_v3_payload.get("candidate_id")
+            == openmm86_unique_assigned_ph_v1_recovery_v3_candidate_id,
+            "unique Assigned-list recovery-v3 receipt candidate drifted",
+            checks,
+            "unique Assigned-list recovery-v3 candidate identity",
+        )
+        _require(
+            openmm86_unique_assigned_ph_v1_recovery_v3_payload.get("status")
+            == "HOLD_METADATA_REINTERPRETATION_ONLY"
+            and openmm86_unique_assigned_ph_v1_recovery_v3_payload.get(
+                "closed_capabilities"
+            )
+            == openmm86_unique_assigned_ph_v1_recovery_v3_closed_capabilities,
+            "unique Assigned-list recovery-v3 escaped HOLD",
+            checks,
+            "unique Assigned-list recovery-v3 HOLD boundary",
+        )
+        _require(
+            openmm86_unique_assigned_ph_v1_recovery_v3_payload.get("entity_count")
+            == 135
+            and openmm86_unique_assigned_ph_v1_recovery_v3_payload.get(
+                "recovery_v6_metadata_resolved_entity_count"
+            )
+            == 115
+            and openmm86_unique_assigned_ph_v1_recovery_v3_payload.get(
+                "recovery_v6_hold_entity_count"
+            )
+            == 20,
+            "unique Assigned-list recovery-v3 base roster drifted",
+            checks,
+            "unique Assigned-list recovery-v3 base roster",
+        )
+        _require(
+            type(recovered) is int
+            and 0 <= recovered <= 20
+            and openmm86_unique_assigned_ph_v1_recovery_v3_payload.get(
+                "combined_metadata_resolved_entity_count"
+            )
+            == 115 + recovered,
+            "unique Assigned-list recovery-v3 arithmetic drifted",
+            checks,
+            "unique Assigned-list recovery-v3 arithmetic",
+        )
+        _require(
+            isinstance(entities, list)
+            and len(entities) == 20
+            and len(
+                {
+                    item.get("entity_uid")
+                    for item in entities
+                    if isinstance(item, dict)
+                }
+            )
+            == 20,
+            "unique Assigned-list recovery-v3 identity surface drifted",
+            checks,
+            "unique Assigned-list recovery-v3 identity surface",
+        )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
