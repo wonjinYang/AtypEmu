@@ -1420,6 +1420,10 @@ def main() -> int:
         execute as execute_openmm86_unique_assigned_ph_v1_recovery_v3,
         self_test as openmm86_unique_assigned_ph_v1_recovery_v3_self_test,
     )
+    from check_openmm86_unique_assigned_ph_recovery_v3_independent import (
+        self_test as openmm86_unique_assigned_ph_recovery_v3_independent_self_test,
+        verify as verify_openmm86_unique_assigned_ph_recovery_v3_independent,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1532,6 +1536,11 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_unique_assigned_ph_recovery_v3_independent_checks = (
+        openmm86_unique_assigned_ph_recovery_v3_independent_self_test()
+        if args.self_test
+        else 0
+    )
     openmm86_unique_assigned_ph_v1_recovery_v3_output = (
         root
         / ".auto/staging/openmm86_unique_assigned_ph_v1_recovery_v3/receipt.json"
@@ -1615,6 +1624,26 @@ def main() -> int:
             checks,
             "unique Assigned-list recovery-v3 identity surface",
         )
+        independent_replay = (
+            verify_openmm86_unique_assigned_ph_recovery_v3_independent(root)
+        )
+        _require(
+            independent_replay.get("roster") == 135
+            and independent_replay.get("hold") == 20,
+            "independent unique Assigned-list recovery-v3 roster drifted",
+            checks,
+            "independent unique Assigned-list recovery-v3 roster",
+        )
+        _require(
+            type(independent_replay.get("resolved")) is int
+            and 0 <= independent_replay["resolved"] <= 20,
+            "independent unique Assigned-list recovery-v3 count drifted",
+            checks,
+            "independent unique Assigned-list recovery-v3 count",
+        )
+        openmm86_unique_assigned_ph_recovery_v3_independent_checks += (
+            independent_replay["checks"]
+        )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1631,7 +1660,7 @@ def main() -> int:
     )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v6_evidence_checks + openmm86_deposited_ph_recovery_v6_semantic_checks + openmm86_unique_assigned_ph_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v2_checks + openmm86_unique_assigned_ph_v1_recovery_v3_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_handler_checks + openmm86_deposited_ph_catalog_recovery_v5_checks + openmm86_deposited_ph_catalog_recovery_v5_checker_checks + openmm86_deposited_ph_catalog_recovery_v5_handler_checks + openmm86_deposited_ph_catalog_recovery_v6_checks + openmm86_deposited_ph_catalog_recovery_v6_checker_checks + openmm86_deposited_ph_catalog_recovery_v6_handler_checks + openmm86_deposited_ph_recovery_v6_evidence_checks + openmm86_deposited_ph_recovery_v6_semantic_checks + openmm86_unique_assigned_ph_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v1_checks + openmm86_unique_assigned_ph_v1_recovery_v2_checks + openmm86_unique_assigned_ph_v1_recovery_v3_checks + openmm86_unique_assigned_ph_recovery_v3_independent_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
