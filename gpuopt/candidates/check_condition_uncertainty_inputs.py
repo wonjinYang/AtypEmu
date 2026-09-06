@@ -365,9 +365,10 @@ def _closed(value: Any, label: str, *, complete: bool = False) -> None:
         raise ValueError(f"capability surface drifted: {label}")
     for field in (
         "authorization_consumed", "outer_or_formal_metrics_opened", "science_executed",
-        "source_scores_read", "target_values_read",
+        "source_construction_executed", "source_scores_read", "target_atom_identities_read",
+        "target_values_read",
     ):
-        if value.get(field) is not False:
+        if field in value and value[field] is not False:
             raise ValueError(f"opened protected surface: {label}.{field}")
 
 
@@ -400,7 +401,8 @@ def _common(
         raise ValueError(f"manifest identity or HOLD scope drifted: {label}")
     _closed(manifest["closed_capabilities"], f"{label}.closed_capabilities", complete=True)
     _binding(manifest["freezer"], FREEZER_RELATIVE, FREEZER_SHA256, f"{label}.freezer")
-    _binding(manifest["roster"], ROSTER_RELATIVE, ROSTER_SHA256, f"{label}.roster")
+    if "roster" in manifest:
+        _binding(manifest["roster"], ROSTER_RELATIVE, ROSTER_SHA256, f"{label}.roster")
 
 
 def _read_bound(root: Path, path: Path, digest: str, maximum: int) -> bytes:
@@ -657,6 +659,8 @@ def _validate_condition(
     )
     if manifest["entity_count"] != 135 or not isinstance(manifest["entities"], list):
         raise ValueError("condition entity count schema drifted")
+    if set(recovery) != {uid for uid, row in v6.items() if not row["ph_feasible"]}:
+        raise ValueError("recovery-v3 entities do not equal the v6 HOLD set")
     _binding(manifest["upstream"]["combined_receipt"], RECOVERY_RELATIVE, RECOVERY_SHA256, "condition recovery")
     _binding(
         manifest["upstream"]["recovery_v6_archive"], V6_ARCHIVE_RELATIVE,
@@ -870,7 +874,8 @@ def _catalog_entity(
     if (
         entity["catalog_digest"] != _canonical_hash(entity["files"])
         or entity["valid_index_digest"] != _canonical_hash(indexes)
-        or entity["heavy_topology_compatible_unique_coordinate_count"] != len(entity["files"])
+        or entity["heavy_topology_compatible_unique_coordinate_count"]
+        != len({item["heavy_atom_coordinate_sha256"] for item in entity["files"]})
     ):
         raise ValueError("catalog record digest/count replay drifted")
     variants = {item["all_atom_topology_sha256"] for item in entity["files"]}
@@ -947,7 +952,12 @@ def _validate_parent(
     except UnicodeDecodeError as error:
         raise ValueError("catalog checksum file is not ASCII") from error
     for line in lines:
-        match = re.fullmatch(r"([0-9a-f]{64})  /([A-Za-z0-9_.-]+)", line)
+        match = re.fullmatch(
+            r"([0-9a-f]{64})  /Users/yulab/Work/"
+            r"atypemu_nested_support_count_v1_catalog_20260905/output_v3/"
+            r"(catalog_summary\.json|shard_(?:[0-9]|1[0-9]|2[0-6])\.json)",
+            line,
+        )
         if match is None or match.group(2) in sums:
             raise ValueError("catalog checksum syntax/duplicate/path substitution")
         sums[match.group(2)] = match.group(1)
@@ -1228,8 +1238,29 @@ def _inspect_docker(raw: bytes) -> dict[str, Any]:
         or request.get("force-network-mode") != "none"
         or "no-cache" not in request
         or definition.get("internalParameters", {}).get("builderPlatform") != "linux/amd64"
-        or dependency != [{"digest": {"sha256": "781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7"}}]
-        or subject != [{"digest": {"sha256": manifest_hex}}]
+        or dependency
+        != [
+            {
+                "digest": {
+                    "sha256": "781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7"
+                },
+                "uri": (
+                    "pkg:docker/python@3.13.7-slim-bookworm?digest=sha256:"
+                    "781449467ffb6f04218f09b1ecdcdc7d22b289ee5da9ec498b024e24ad7a6db7"
+                    "&platform=linux%2Famd64"
+                ),
+            }
+        ]
+        or subject
+        != [
+            {
+                "digest": {"sha256": manifest_hex},
+                "name": (
+                    "pkg:docker/atypemu/openmm86-protonation@8.6.0"
+                    "?platform=linux%2Famd64"
+                ),
+            }
+        ]
     ):
         raise ValueError("build attestation semantics drifted")
     return {
@@ -1371,6 +1402,12 @@ def _validate_environment(
 def verify(root: Path, sif: Path, docker: Path) -> tuple[dict[str, str], int]:
     """Replay all frozen inputs.  No target, score, science, or authorization is read."""
     _read_bound(root, FREEZER_RELATIVE, FREEZER_SHA256, 1_000_000)
+    _read_bound(
+        root,
+        SOURCE_COMMITMENT_RELATIVE,
+        SOURCE_COMMITMENT_SHA256,
+        2_000_000,
+    )
     raw_manifests = {
         name: _read_bound(root, path, MANIFEST_SHA256[name], 3_000_000)
         for name, path in MANIFESTS.items()
@@ -1403,6 +1440,7 @@ def verify(root: Path, sif: Path, docker: Path) -> tuple[dict[str, str], int]:
     source_hashes = {
         "freezer": FREEZER_SHA256,
         "roster": ROSTER_SHA256,
+        "source_commitment": SOURCE_COMMITMENT_SHA256,
         "recovery_v3": RECOVERY_SHA256,
         "recovery_v6_archive": V6_ARCHIVE_SHA256,
         "catalog_archive": CATALOG_SHA256,
@@ -1471,8 +1509,18 @@ def _write_repo_once(root: Path, relative: Path, payload: dict[str, Any]) -> Non
         os.close(directory)
 
 
-def write_receipt(root: Path, hashes: dict[str, str]) -> None:
+def write_receipt(
+    root: Path,
+    sif: Path,
+    docker: Path,
+    hashes: dict[str, str],
+) -> None:
     head = _clean_committed_head(root)
+    replayed_hashes, replay_count = verify(root, sif, docker)
+    if replayed_hashes != hashes or replay_count != 135_120:
+        raise ValueError("post-clean verification replay drifted")
+    if _clean_committed_head(root) != head:
+        raise ValueError("Git HEAD or worktree changed during receipt verification")
     checker_hash = _sha256(_read_repo(root, CHECKER_RELATIVE, 2_000_000))
     payload = {
         "artifact_kind": "target_unread_condition_uncertainty_inputs_check_receipt_not_authorization",
@@ -1506,15 +1554,38 @@ def _self_test() -> int:
     checks += _expect_rejection("NaN", lambda: _json_object(b'{"a":NaN}', "test"))
     checks += _expect_rejection("infinite exponent", lambda: _json_object(b'{"a":1e999}', "test"))
     checks += _expect_rejection("unknown schema field", lambda: _schema({"a": 1, "x": 2}, {"a"}, "test"))
+    checks += _expect_rejection(
+        "target-identity capability flip",
+        lambda: _closed({"target_atom_identities_read": True}, "test"),
+    )
+    checks += _expect_rejection(
+        "source-construction capability flip",
+        lambda: _closed({"source_construction_executed": True}, "test"),
+    )
     checks += _expect_rejection("imputed pH", lambda: _decimal_ph("NaN", "test"))
     checks += _expect_rejection("alternate PDB atom", lambda: _parse_pdb(b"ATOM      1  CA AALA A   1       0.000   0.000   0.000  1.00  0.00           C  ", "test"))
     checks += _expect_rejection("HETATM PDB", lambda: _parse_pdb(b"HETATM    1  CA  ALA A   1       0.000   0.000   0.000  1.00  0.00           C  ", "test"))
     checks += _expect_rejection("bad catalog support schema", lambda: _catalog_file({}, {"canonical_heavy_topology_sha256": "0" * 64, "canonical_all_atom_topology_sha256": "0" * 64}, "test"))
     checks += _expect_rejection("malformed Docker archive", lambda: _inspect_docker(b"not a tar"))
+    duplicate_tar = io.BytesIO()
+    with tarfile.open(fileobj=duplicate_tar, mode="w:") as archive:
+        for _ in range(2):
+            member = tarfile.TarInfo("blobs")
+            member.type = tarfile.DIRTYPE
+            archive.addfile(member)
+    checks += _expect_rejection(
+        "duplicate Docker directory",
+        lambda: _inspect_docker(duplicate_tar.getvalue()),
+    )
     with tempfile.TemporaryDirectory(prefix="condition-input-self-test-") as directory:
         root = Path(directory)
         (root / "real").mkdir()
         (root / "real" / "input.json").write_bytes(b"{}")
+        (root / "manifest.json").write_bytes(b'{"tampered":true}\n')
+        checks += _expect_rejection(
+            "manifest byte tamper",
+            lambda: _read_bound(root, Path("manifest.json"), "0" * 64, 100),
+        )
         (root / "leaf.json").symlink_to(root / "real" / "input.json")
         checks += _expect_rejection("symlink direct input", lambda: _read_direct(root / "leaf.json", 10, "test"))
         receipt = root / "receipt.json"
@@ -1552,7 +1623,7 @@ def main(argv: list[str] | None = None) -> int:
         root = _root()
         hashes, replay_count = verify(root, args.runtime_sif, args.runtime_docker_archive)
         if args.write_receipt:
-            write_receipt(root, hashes)
+            write_receipt(root, args.runtime_sif, args.runtime_docker_archive, hashes)
         print("METRIC condition_rows_replayed=135")
         print("METRIC sequence_rows_replayed=135")
         print(f"METRIC parent_heavy_records_replayed={replay_count - 270}")
