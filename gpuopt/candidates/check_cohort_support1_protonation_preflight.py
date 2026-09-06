@@ -35,6 +35,17 @@ INPUT_HASHES = {
     "sequence.json": "4faf799877e0387a90c9f00c641e958bd02585dde6b1b99bbdcaeb9f2e82012b",
     "parent.json": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
 }
+FROZEN_PLAN_FILE = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json"
+)
+FROZEN_COMMITMENT_FILE = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
+    "source_commitment_v1.json"
+)
+FROZEN_COMMITMENT_CONTRACT = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
+    "source_commitment_v1"
+)
 AA = {
     "ALA": "A",
     "ARG": "R",
@@ -131,10 +142,58 @@ def token(uid: str) -> str:
 
 
 def checker_seed(uid: str, branch: str) -> int:
-    material = "\0".join(
-        (CANDIDATE_ID, uid, str(SUPPORT_INDEX), branch, "checker-replay")
-    )
+    material = "\0".join((CANDIDATE_ID, uid, str(SUPPORT_INDEX), branch))
     return int.from_bytes(hashlib.sha256(material.encode()).digest()[:8], "big")
+
+
+def require_committed_sources(inputs: Path) -> None:
+    """Independently require the staged, exact four-file source commitment."""
+    scripts = inputs.parent / "scripts"
+    receipt = object_json(regular(scripts, FROZEN_COMMITMENT_FILE), "source commitment")
+    exact_keys(
+        receipt,
+        {"candidate_id", "contract", "files", "git_commit", "status"},
+        "source commitment",
+    )
+    if not (
+        receipt["candidate_id"] == CANDIDATE_ID
+        and receipt["contract"] == FROZEN_COMMITMENT_CONTRACT
+        and receipt["status"] == "FROZEN_COMMITTED"
+        and isinstance(receipt["git_commit"], str)
+        and HEX.fullmatch(receipt["git_commit"])
+    ):
+        raise PermissionError("checker source commitment is not frozen")
+    staged = {
+        "gpuopt/candidates/check_cohort_support1_protonation_preflight.py": (
+            "check_cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/candidates/cohort_support1_protonation_preflight.py": (
+            "cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/candidates/launch_cohort_support1_protonation_preflight.py": (
+            "launch_cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+        "protonation_preflight_plan_v1.json": FROZEN_PLAN_FILE,
+    }
+    hashes = receipt["files"]
+    if not isinstance(hashes, dict) or set(hashes) != set(staged):
+        raise ValueError("checker source commitment inventory drifted")
+    for repository_name, stage_name in staged.items():
+        wanted = hashes[repository_name]
+        if (
+            not isinstance(wanted, str)
+            or HEX.fullmatch(wanted) is None
+            or digest(regular(scripts, stage_name)) != wanted
+        ):
+            raise ValueError(f"checker source hash mismatch: {repository_name}")
+    plan = object_json(regular(scripts, FROZEN_PLAN_FILE), "frozen plan")
+    if not (
+        plan.get("candidate_id") == CANDIDATE_ID
+        and plan.get("state") == "HOLD_PREFLIGHT_SOURCE_FROZEN_UNRUN"
+        and plan.get("source_commitment", {}).get("status") == "FROZEN_COMMITTED"
+    ):
+        raise PermissionError("checker plan is not source-frozen for HOLD execution")
 
 
 def pythonhashseed(seed: int) -> str:
@@ -470,6 +529,13 @@ def independent_roster(inputs: Path) -> list[ReplayState]:
             hash_value(row[name], name)
         support_rows[uid] = row
     branches = derive_branches(condition["entities"])
+    condition_bmrb = {
+        row["entity_uid"]: row["bmrb_id"] for row in condition["entities"]
+    }
+    if len(condition_bmrb) != ENTITY_COUNT or not all(
+        isinstance(value, str) and value for value in condition_bmrb.values()
+    ):
+        raise ValueError("independent condition BMRB roster failed")
     if (
         {item[0] for item in branches} != set(sequence_rows)
         or set(sequence_rows) != set(parent_rows)
@@ -484,7 +550,8 @@ def independent_roster(inputs: Path) -> list[ReplayState]:
             support_rows[uid],
         )
         if (
-            seq["bmrb_id"] != parent_row["bmrb_id"]
+            condition_bmrb[uid] != seq["bmrb_id"]
+            or seq["bmrb_id"] != parent_row["bmrb_id"]
             or support["pdb_sha256"] != seq["reference_pdb"]["sha256"]
             or support["heavy_topology_sha256"]
             != parent_row["heavy_atom_topology_sha256"]
@@ -801,6 +868,7 @@ def exclusive(path: Path, raw: bytes) -> None:
 def replay_worker(
     inputs: Path, generated: Path, output: Path, uid: str, branch: str
 ) -> None:
+    require_committed_sources(inputs)
     state = next(
         (
             item
@@ -875,9 +943,10 @@ def replay_worker(
     fd = os.open(pdb_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
     try:
         with os.fdopen(fd, "w", encoding="ascii", closefd=False) as handle:
-            app.PDBFile.writeFile(
+            app.PDBFile.writeModel(
                 modeller.topology, modeller.positions, handle, keepIds=True
             )
+            app.PDBFile.writeFooter(modeller.topology, handle)
             handle.flush()
             os.fsync(handle.fileno())
     finally:
@@ -961,6 +1030,7 @@ def generated_metadata(
 
 
 def check(inputs: Path, generated: Path, output: Path) -> None:
+    require_committed_sources(inputs)
     states = independent_roster(inputs)
     inventory = object_json(
         regular(generated, "generator_inventory.json"), "generator inventory"

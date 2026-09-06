@@ -314,8 +314,17 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if not isinstance(files, dict) or set(files) != expected_paths:
         raise ValueError("source commitment file inventory mismatch")
     for name, expected in files.items():
-        if hash_text(expected, name) != digest(repo_regular(root, Path(name))):
+        current = repo_regular(root, Path(name))
+        if hash_text(expected, name) != digest(current):
             raise ValueError(f"source commitment raw binding mismatch: {name}")
+        committed = subprocess.run(
+            ["git", "show", f"{commitment['git_commit']}:{name}"],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        ).stdout
+        if committed != current:
+            raise ValueError(f"source differs from committed Git object: {name}")
     return commitment
 
 
@@ -336,8 +345,17 @@ def require_clean_committed_tree(root: Path, commitment: dict[str, Any]) -> None
         text=True,
         capture_output=True,
     ).stdout.strip()
-    if commitment["git_commit"] != head or SHA.fullmatch(head) is None:
-        raise ValueError("source commitment does not bind current committed HEAD")
+    if SHA.fullmatch(head) is None:
+        raise ValueError("invalid current Git HEAD")
+    current_commitment = repo_regular(root, COMMITMENT_RELATIVE)
+    committed_commitment = subprocess.run(
+        ["git", "show", f"HEAD:{COMMITMENT_RELATIVE.as_posix()}"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    if committed_commitment != current_commitment:
+        raise ValueError("current Git HEAD does not bind source commitment")
     for relative in commitment["files"]:
         subprocess.run(
             ["git", "ls-files", "--error-unmatch", "--", relative],
@@ -471,7 +489,11 @@ def stage(root: Path, stage_dir: Path, runtime_sif: Path) -> None:
             raise ValueError("sequence entity identity mismatch")
         seen.add(uid)
         exact_keys(reference, {"path", "sha256"}, "reference PDB")
-        expected_path = Path(bmrb) / f"{bmrb}_BioEmu_1.pdb"
+        expected_path = (
+            Path("data/k32_complete_coordinate_supports_v4")
+            / bmrb
+            / f"{bmrb}_BioEmu_1.pdb"
+        )
         if reference["path"] != expected_path.as_posix():
             raise ValueError("sequence reference is not canonical support-index-1 path")
         source_pdb = repo_regular(root, expected_path)

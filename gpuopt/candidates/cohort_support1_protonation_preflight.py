@@ -37,6 +37,17 @@ INPUT_HASHES = {
     "sequence.json": "4faf799877e0387a90c9f00c641e958bd02585dde6b1b99bbdcaeb9f2e82012b",
     "parent.json": "77d52e663e80e55d178ffa7994596292f1753ffe4a0b4e5fd75005f826a119b3",
 }
+PLAN_NAME = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_plan_v1.json"
+)
+COMMITMENT_NAME = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
+    "source_commitment_v1.json"
+)
+COMMITMENT_CONTRACT = (
+    "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
+    "source_commitment_v1"
+)
 AA3_TO_1 = {
     "ALA": "A",
     "ARG": "R",
@@ -136,10 +147,60 @@ def safe_token(entity_uid: str) -> str:
 def seed_for(entity_uid: str, branch_id: str, role: str) -> int:
     if role not in {"generation-repeat-0", "generation-repeat-1", "checker-replay"}:
         raise ValueError("unknown seed role")
+    # Process role must not alter the scientific RNG stream: exact repeat and
+    # independent-replay equality are the determinism test.
     material = "\0".join(
-        (CANDIDATE_ID, entity_uid, str(SUPPORT_INDEX), branch_id, role)
+        (CANDIDATE_ID, entity_uid, str(SUPPORT_INDEX), branch_id)
     ).encode()
     return int.from_bytes(hashlib.sha256(material).digest()[:8], "big")
+
+
+def _require_frozen_source(inputs: Path) -> None:
+    """Refuse every non-self-test entry point before opening cohort inputs."""
+    scripts = inputs.parent / "scripts"
+    commitment_raw = read_regular(scripts, COMMITMENT_NAME)
+    commitment = parse_json(commitment_raw, "source commitment")
+    if set(commitment) != {"candidate_id", "contract", "files", "git_commit", "status"}:
+        raise ValueError("source commitment schema drifted")
+    if not (
+        commitment["candidate_id"] == CANDIDATE_ID
+        and commitment["contract"] == COMMITMENT_CONTRACT
+        and commitment["status"] == "FROZEN_COMMITTED"
+        and isinstance(commitment["git_commit"], str)
+        and SHA256_RE.fullmatch(commitment["git_commit"])
+    ):
+        raise PermissionError("source commitment is absent or not frozen")
+    expected = {
+        "gpuopt/candidates/check_cohort_support1_protonation_preflight.py": (
+            "check_cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/candidates/cohort_support1_protonation_preflight.py": (
+            "cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/candidates/launch_cohort_support1_protonation_preflight.py": (
+            "launch_cohort_support1_protonation_preflight.py"
+        ),
+        "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+        "protonation_preflight_plan_v1.json": PLAN_NAME,
+    }
+    files = commitment["files"]
+    if not isinstance(files, dict) or set(files) != set(expected):
+        raise ValueError("source commitment inventory drifted")
+    for repository_path, staged_name in expected.items():
+        wanted = files[repository_path]
+        if (
+            not isinstance(wanted, str)
+            or SHA256_RE.fullmatch(wanted) is None
+            or sha256(read_regular(scripts, staged_name)) != wanted
+        ):
+            raise ValueError(f"source commitment hash mismatch: {repository_path}")
+    plan = parse_json(read_regular(scripts, PLAN_NAME), "frozen plan")
+    if not (
+        plan.get("candidate_id") == CANDIDATE_ID
+        and plan.get("state") == "HOLD_PREFLIGHT_SOURCE_FROZEN_UNRUN"
+        and plan.get("source_commitment", {}).get("status") == "FROZEN_COMMITTED"
+    ):
+        raise PermissionError("plan has not released frozen HOLD preflight execution")
 
 
 def pythonhashseed(seed: int) -> str:
@@ -479,6 +540,13 @@ def _load_roster(inputs: Path) -> list[State]:
             _require_hash(row[field], field)
         inventory_by_uid[uid] = row
     condition_uids = {uid for uid, _, _ in condition_states}
+    condition_bmrb = {
+        row["entity_uid"]: row["bmrb_id"] for row in condition["entities"]
+    }
+    if len(condition_bmrb) != ENTITY_COUNT or not all(
+        isinstance(value, str) and value for value in condition_bmrb.values()
+    ):
+        raise ValueError("condition BMRB identity roster drifted")
     if not (
         condition_uids
         == set(sequence_by_uid)
@@ -493,7 +561,9 @@ def _load_roster(inputs: Path) -> list[State]:
             parent_by_uid[uid],
             inventory_by_uid[uid],
         )
-        if sequence_row["bmrb_id"] != parent_row["bmrb_id"]:
+        if not (
+            condition_bmrb[uid] == sequence_row["bmrb_id"] == parent_row["bmrb_id"]
+        ):
             raise ValueError("BMRB identity cross-join drifted")
         if support["heavy_topology_sha256"] != parent_row["heavy_atom_topology_sha256"]:
             raise ValueError("support heavy topology does not bind parent")
@@ -840,6 +910,7 @@ def _state_dir(output: Path, state: State, repeat: int) -> Path:
 def _worker(
     inputs: Path, output: Path, entity_uid: str, branch_id: str, repeat: int
 ) -> None:
+    _require_frozen_source(inputs)
     states = _load_roster(inputs)
     state = next(
         (
@@ -924,9 +995,12 @@ def _worker(
     descriptor = os.open(pdb_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
     try:
         with os.fdopen(descriptor, "w", encoding="ascii", closefd=False) as handle:
-            app.PDBFile.writeFile(
+            # writeFile() adds a wall-clock-dependent header.  Model+footer is
+            # the complete deterministic coordinate/bond payload we compare.
+            app.PDBFile.writeModel(
                 modeller.topology, modeller.positions, handle, keepIds=True
             )
+            app.PDBFile.writeFooter(modeller.topology, handle)
             handle.flush()
             os.fsync(handle.fileno())
     finally:
@@ -959,6 +1033,7 @@ def _worker(
 
 
 def _run(inputs: Path, output: Path) -> None:
+    _require_frozen_source(inputs)
     states = _load_roster(inputs)
     os.mkdir(output, 0o700)  # O_EXCL equivalent for the single run root.
     for state in states:

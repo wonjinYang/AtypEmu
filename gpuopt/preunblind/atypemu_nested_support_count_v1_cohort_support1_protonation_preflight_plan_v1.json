@@ -79,7 +79,7 @@
   "run_contract": {
     "checker_fresh_process_replays_per_state": 1,
     "generator_fresh_process_repeats_per_state": 2,
-    "per_state_pythonhashseed_and_rng_seed": "RNG seed is first 64 bits SHA256(candidate_id NUL entity_uid NUL support_index NUL branch_id NUL role); PYTHONHASHSEED is that seed modulo 2^32",
+    "per_state_pythonhashseed_and_rng_seed": "RNG seed is first 64 bits SHA256(candidate_id NUL entity_uid NUL support_index NUL branch_id), identical across process roles; PYTHONHASHSEED is that seed modulo 2^32",
     "repeat_equality": "repeat0 equals repeat1; checker replay equals repeat0"
   },
   "source_commitment": {
