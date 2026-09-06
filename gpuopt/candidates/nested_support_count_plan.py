@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "406897ed5dbe2b98ef7ccd72f5d3c5587c7d70da06a26ce303fceca26235b647"
+    "3a361f5391a746ec2ff7643b14edff835a2cb329ab3f67f89019ace77c240b4a"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -110,6 +110,18 @@ SAFE_EVIDENCE = {
     "openmm86_deposited_ph_catalog_recovery_v2_checker": {
         "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v2.py",
         "sha256": "d43093869b37f29a521cdc102008a10ab87da933a12cc9417d5d8160ab79842f",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v2_launch_intent": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v2_launch_intent.json",
+        "sha256": "ffdcebcaa4cf73d1e6b3d0834c8775836ba2c0f14edcd1bd10f21c2e5ab7aa9f",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v3_plan": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_deposited_ph_catalog_recovery_v3_plan.json",
+        "sha256": "f8eadb6a4dde415d1af016c2843f867ee32e9546a7e4a272ff211fbfe531ba1e",
+    },
+    "openmm86_deposited_ph_catalog_recovery_v3_producer": {
+        "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v3.py",
+        "sha256": "8c2549c18b60e6eb69812102a14f40e063458540ef0abf9191bdf7c3f4a59a49",
     },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
@@ -230,6 +242,9 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_recovery_v2_plan",
     "openmm86_deposited_ph_catalog_recovery_v2_producer",
     "openmm86_deposited_ph_catalog_recovery_v2_checker",
+    "openmm86_deposited_ph_catalog_recovery_v2_launch_intent",
+    "openmm86_deposited_ph_catalog_recovery_v3_plan",
+    "openmm86_deposited_ph_catalog_recovery_v3_producer",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -1035,6 +1050,9 @@ def main() -> int:
     from check_solution_state_openmm86_deposited_ph_catalog_recovery_v2 import (
         self_test as openmm86_deposited_ph_catalog_recovery_v2_checker_self_test,
     )
+    from solution_state_openmm86_deposited_ph_catalog_recovery_v3 import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v3_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1063,6 +1081,11 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_deposited_ph_catalog_recovery_v3_checks = (
+        openmm86_deposited_ph_catalog_recovery_v3_self_test()
+        if args.self_test
+        else 0
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1076,7 +1099,7 @@ def main() -> int:
         return 3
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
