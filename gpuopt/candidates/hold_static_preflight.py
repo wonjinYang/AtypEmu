@@ -136,7 +136,7 @@ SOURCE_RELATIVES = (
 )
 REQUIRED = SOURCE_RELATIVES + (
     ".auto/measure.sh",
-    "gpuopt/candidates/openmm86_protonation.Dockerfile",
+    "gpuopt/candidates/openmm86_protonation_runtime.Dockerfile",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_manifest_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_inputs_check_receipt_v1.json",
     "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1.json",
