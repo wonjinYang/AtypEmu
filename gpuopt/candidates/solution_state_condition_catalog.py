@@ -24,16 +24,16 @@ ROSTER_RELATIVE = Path(
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
 OUTPUT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery"
 )
 PARENT_FAILURE_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery/failure_receipt.json"
 )
 PARENT_FAILURE_SHA256 = (
-    "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
+    "e406ba9b96ea10f3a052457c85b5e506cb9dfd267db61d5bdb9f87af2567a704"
 )
 GRANDPARENT_FAILURE_SHA256 = (
-    "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
+    "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
 )
 PRODUCER_RELATIVE = Path("gpuopt/candidates/solution_state_condition_catalog.py")
 LOOPS = (
@@ -327,8 +327,14 @@ def _condition_lists(
 ) -> tuple[dict[str, dict[str, float]], list[str]]:
     result: dict[str, dict[str, float]] = {}
     invalid_condition_ids: set[str] = set()
-    for row in rows:
-        list_id = _id(row["Sample_condition_list_ID"], "sample-condition-list ID")
+    for row_index, row in enumerate(rows):
+        try:
+            list_id = _id(
+                row["Sample_condition_list_ID"], "sample-condition-list ID"
+            )
+        except ValueError:
+            invalid_condition_ids.add(f"invalid-row-{row_index}")
+            continue
         name = " ".join(str(row["Type"]).strip().lower().replace("_", " ").split())
         if name not in {"ph", "temperature", "ionic strength", "pressure"}:
             raise ValueError(f"nonallowlisted sample-condition type: {name}")
@@ -372,8 +378,13 @@ def summarize_entity(
         responses["Sample_condition_variable"], entry_id, LOOPS[2]
     )
     experiments: dict[str, dict[str, Any]] = {}
+    invalid_linkage_rows = 0
     for row in experiment_rows:
-        experiment_id = _id(row["ID"], "Experiment.ID")
+        try:
+            experiment_id = _id(row["ID"], "Experiment.ID")
+        except ValueError:
+            invalid_linkage_rows += 1
+            continue
         if experiment_id in experiments:
             raise ValueError("duplicate Experiment.ID")
         experiments[experiment_id] = row
@@ -383,10 +394,16 @@ def summarize_entity(
     experiment_links: list[dict[str, str]] = []
     seen_chem_links: set[tuple[str, str]] = set()
     for row in chem_rows:
-        experiment_id = _id(row["Experiment_ID"], "Chem_shift_experiment ID")
-        shift_list_id = _id(
-            row["Assigned_chem_shift_list_ID"], "assigned-shift-list ID"
-        )
+        try:
+            experiment_id = _id(
+                row["Experiment_ID"], "Chem_shift_experiment ID"
+            )
+            shift_list_id = _id(
+                row["Assigned_chem_shift_list_ID"], "assigned-shift-list ID"
+            )
+        except ValueError:
+            invalid_linkage_rows += 1
+            continue
         raw_link = (shift_list_id, experiment_id)
         if raw_link in seen_chem_links:
             raise ValueError("duplicate Chem_shift_experiment linkage")
@@ -436,7 +453,7 @@ def summarize_entity(
     reasons: list[str] = []
     if not chem_rows:
         reasons.append("no Chem_shift_experiment rows")
-    if unresolved_experiments:
+    if unresolved_experiments or invalid_linkage_rows:
         reasons.append("unresolved experiment-to-condition linkage")
     if invalid_condition_ids:
         reasons.append("invalid numeric condition value or units")
@@ -576,12 +593,12 @@ def _validate_parent_failure(parent_raw: bytes, expected_sha256: str) -> dict[st
         set(parent) != PARENT_FAILURE_FIELDS
         or parent.get("artifact_kind")
         != "target_unread_condition_catalog_failure_receipt"
-        or parent.get("response_count_written") != 261
+        or parent.get("response_count_written") != 264
         or parent.get("source_producer_git_commit")
-        != "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
+        != "16f6d700ae02bab8e8003ab448a743812e379948"
         or parent.get("recovery_parent_failure")
         != {
-            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json",
             "sha256": GRANDPARENT_FAILURE_SHA256,
         }
         or parent.get("target_values_read") is not False
@@ -782,6 +799,17 @@ def self_test() -> int:
         bmrb_id="bmr42",
         responses=_fixture(linked=False),
     )["condition_feasible"] is False
+    missing_experiment_id = _fixture()
+    parsed_missing_id = _loads(missing_experiment_id["Chem_shift_experiment"])
+    parsed_missing_id["42"]["Chem_shift_experiment"][0]["data"][0][0] = "."
+    missing_experiment_id["Chem_shift_experiment"] = json.dumps(
+        parsed_missing_id
+    ).encode()
+    assert summarize_entity(
+        entity_uid="bmrb:42:entity:1",
+        bmrb_id="bmr42",
+        responses=missing_experiment_id,
+    )["condition_feasible"] is False
     assert summarize_entity(
         entity_uid="bmrb:42:entity:1",
         bmrb_id="bmr42",
@@ -869,13 +897,13 @@ def self_test() -> int:
         "authorization_consumed": False,
         "error": "URLError: synthetic DNS failure",
         "recovery_parent_failure": {
-            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json",
             "sha256": GRANDPARENT_FAILURE_SHA256,
         },
-        "response_count_written": 261,
+        "response_count_written": 264,
         "science_executed": False,
         "source_producer_git_commit": (
-            "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
+            "16f6d700ae02bab8e8003ab448a743812e379948"
         ),
         "source_producer_relative_path": PRODUCER_RELATIVE.as_posix(),
         "source_producer_sha256": "0" * 64,
@@ -903,7 +931,7 @@ def self_test() -> int:
         pass
     else:
         raise AssertionError("semantic recovery-parent tamper was accepted")
-    return 17
+    return 18
 
 
 def main() -> int:

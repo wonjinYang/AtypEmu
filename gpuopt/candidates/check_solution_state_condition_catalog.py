@@ -22,7 +22,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 
 ARTIFACT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery"
 )
 RECEIPT_RELATIVE = ARTIFACT_RELATIVE / "receipt.json"
 RAW_DIRECTORY_NAME = "raw_api_responses"
@@ -31,11 +31,11 @@ ROSTER_RELATIVE = Path(
 )
 ROSTER_SHA256 = "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
 PARENT_FAILURE_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json"
+    ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v3_recovery/failure_receipt.json"
 )
-PARENT_FAILURE_SHA256 = "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
+PARENT_FAILURE_SHA256 = "e406ba9b96ea10f3a052457c85b5e506cb9dfd267db61d5bdb9f87af2567a704"
 GRANDPARENT_FAILURE_SHA256 = (
-    "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450"
+    "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3"
 )
 PRODUCER_RELATIVE = "gpuopt/candidates/solution_state_condition_catalog.py"
 API_BASE = "https://api.bmrb.io/v2"
@@ -472,10 +472,14 @@ def _condition_lists(
 ) -> Tuple[Dict[str, Dict[str, float]], List[str]]:
     result: Dict[str, Dict[str, float]] = {}
     invalid_condition_ids: set = set()
-    for row in rows:
-        condition_list_id = _valid_id(
-            row["Sample_condition_list_ID"], "Sample_condition_list_ID"
-        )
+    for row_index, row in enumerate(rows):
+        try:
+            condition_list_id = _valid_id(
+                row["Sample_condition_list_ID"], "Sample_condition_list_ID"
+            )
+        except ValueError:
+            invalid_condition_ids.add("invalid-row-%d" % row_index)
+            continue
         name = " ".join(str(row["Type"]).strip().lower().replace("_", " ").split())
         if name not in {"ph", "temperature", "ionic strength", "pressure"}:
             raise ValueError("nonallowlisted sample-condition type: %s" % name)
@@ -519,8 +523,13 @@ def summarize_entity(entity_uid: str, bmrb_id: str, responses: Dict[str, bytes])
     )
 
     experiments: Dict[str, Dict[str, Any]] = {}
+    invalid_linkage_rows = 0
     for row in experiment_rows:
-        experiment_id = _valid_id(row["ID"], "Experiment.ID")
+        try:
+            experiment_id = _valid_id(row["ID"], "Experiment.ID")
+        except ValueError:
+            invalid_linkage_rows += 1
+            continue
         if experiment_id in experiments:
             raise ValueError("duplicate Experiment.ID")
         experiments[experiment_id] = row
@@ -531,11 +540,17 @@ def summarize_entity(entity_uid: str, bmrb_id: str, responses: Dict[str, bytes])
     links: List[Dict[str, str]] = []
     seen_chem_links: set = set()
     for row in chem_rows:
-        experiment_id = _valid_id(row["Experiment_ID"], "Chem_shift_experiment.Experiment_ID")
-        shift_list_id = _valid_id(
-            row["Assigned_chem_shift_list_ID"],
-            "Chem_shift_experiment.Assigned_chem_shift_list_ID",
-        )
+        try:
+            experiment_id = _valid_id(
+                row["Experiment_ID"], "Chem_shift_experiment.Experiment_ID"
+            )
+            shift_list_id = _valid_id(
+                row["Assigned_chem_shift_list_ID"],
+                "Chem_shift_experiment.Assigned_chem_shift_list_ID",
+            )
+        except ValueError:
+            invalid_linkage_rows += 1
+            continue
         raw_link = (shift_list_id, experiment_id)
         if raw_link in seen_chem_links:
             raise ValueError("duplicate Chem_shift_experiment linkage")
@@ -587,7 +602,7 @@ def summarize_entity(entity_uid: str, bmrb_id: str, responses: Dict[str, bytes])
     reasons: List[str] = []
     if not chem_rows:
         reasons.append("no Chem_shift_experiment rows")
-    if unresolved:
+    if unresolved or invalid_linkage_rows:
         reasons.append("unresolved experiment-to-condition linkage")
     if invalid_condition_ids:
         reasons.append("invalid numeric condition value or units")
@@ -683,12 +698,12 @@ def _validate_recovery_parent(root: Path, receipt: Dict[str, Any]) -> None:
     if (
         parent.get("artifact_kind")
         != "target_unread_condition_catalog_failure_receipt"
-        or parent.get("response_count_written") != 261
+        or parent.get("response_count_written") != 264
         or parent.get("source_producer_git_commit")
-        != "c0e5e0e842a7972fcb6bb20ba88270cfc02bbfc7"
+        != "16f6d700ae02bab8e8003ab448a743812e379948"
         or parent.get("recovery_parent_failure")
         != {
-            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v1/failure_receipt.json",
+            "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v2_recovery/failure_receipt.json",
             "sha256": GRANDPARENT_FAILURE_SHA256,
         }
         or any(
@@ -1084,6 +1099,21 @@ def self_test() -> int:
         "bmrb:42:entity:1", "bmr42", _fixture_responses(missing_ionic=True)
     )
     assert missing["condition_feasible"] is False
+    checks += 1
+
+    missing_experiment_id = _fixture_responses()
+    parsed_missing_id = _decode_json(
+        missing_experiment_id["Chem_shift_experiment"],
+        "synthetic missing experiment ID",
+    )
+    parsed_missing_id["42"]["Chem_shift_experiment"][0]["data"][0][0] = "."
+    missing_experiment_id["Chem_shift_experiment"] = json.dumps(
+        parsed_missing_id
+    ).encode("utf-8")
+    missing_link = summarize_entity(
+        "bmrb:42:entity:1", "bmr42", missing_experiment_id
+    )
+    assert missing_link["condition_feasible"] is False
     checks += 1
 
     invalid_units = summarize_entity(
