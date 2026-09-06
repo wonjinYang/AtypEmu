@@ -1,0 +1,144 @@
+{
+  "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_plan_not_support_not_authorization",
+  "candidate_id": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_plan_v1",
+  "entities": [
+    {
+      "bmrb_id": "bmr10109",
+      "branches": [
+        {
+          "branch_id": "observed_pH_6.0",
+          "condition_branch_id": "observed:6.0",
+          "pH": "6.0"
+        }
+      ],
+      "condition_state": "observed",
+      "entity_uid": "bmrb:10109:entity:1",
+      "parent_pdb": {
+        "isolated_path": "/inputs/bmr10109_BioEmu_1.pdb",
+        "repository_path": "data/k32_complete_coordinate_supports_v4/bmr10109/bmr10109_BioEmu_1.pdb",
+        "sha256": "c14c2c3cd80b783d8addaf219ef2e6d13c059e4e7860f2e254488f0961ea066f"
+      },
+      "parent_support_id": "1"
+    },
+    {
+      "bmrb_id": "bmr4333",
+      "branches": [
+        {
+          "branch_id": "regime_0_pH_2.2",
+          "condition_branch_id": "regime:0:2.2",
+          "pH": "2.2"
+        },
+        {
+          "branch_id": "regime_1_pH_5.45",
+          "condition_branch_id": "regime:1:5.45",
+          "pH": "5.45"
+        },
+        {
+          "branch_id": "regime_2_pH_7.5",
+          "condition_branch_id": "regime:2:7.5",
+          "pH": "7.5"
+        },
+        {
+          "branch_id": "regime_3_pH_9.25",
+          "condition_branch_id": "regime:3:9.25",
+          "pH": "9.25"
+        },
+        {
+          "branch_id": "regime_4_pH_12.0",
+          "condition_branch_id": "regime:4:12.0",
+          "pH": "12.0"
+        }
+      ],
+      "condition_state": "state_missing",
+      "entity_uid": "bmrb:4333:entity:1",
+      "parent_pdb": {
+        "isolated_path": "/inputs/bmr4333_BioEmu_1.pdb",
+        "repository_path": "data/k32_complete_coordinate_supports_v4/bmr4333/bmr4333_BioEmu_1.pdb",
+        "sha256": "0d8ac3f45e6e82e153f86bf91c164a016d4b1280ad229820ba2f9a10f6695146"
+      },
+      "parent_support_id": "1"
+    }
+  ],
+  "execution": {
+    "fresh_python_process_per_entity_branch_repeat": true,
+    "isolated_mounts": {
+      "network": "none",
+      "read_only": [
+        "/work/generator.py",
+        "/work/checker.py",
+        "/work/plan.json",
+        "/work/source_commitment.json",
+        "/inputs/bmr10109_BioEmu_1.pdb",
+        "/inputs/bmr4333_BioEmu_1.pdb"
+      ],
+      "target_or_score_storage_mounted": false,
+      "writable": [
+        "/out"
+      ]
+    },
+    "pythonhashseed_required": true,
+    "repeat_count": 2,
+    "runtime": {
+      "force_field_relative_path": "amber14/protein.ff14SB.xml",
+      "force_field_sha256": "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8",
+      "hydrogen_definitions_relative_path": "openmm/app/data/hydrogens.xml",
+      "hydrogen_definitions_sha256": "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d",
+      "modeller_source_relative_path": "openmm/app/modeller.py",
+      "modeller_source_sha256": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
+      "openmm_exact_version": "8.6.0.dev-c6173db",
+      "platform": "Reference",
+      "sif_host_path": "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.sif",
+      "sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
+    },
+    "seed_derivation": "first 64 bits of SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id)"
+  },
+  "interpretation_limits": {
+    "all_atom_feasibility_established": false,
+    "all_support_replay_completed": false,
+    "bounded_smoke_only": true,
+    "condition_metadata_recovered_for_unresolved_entity": false,
+    "sampling_sufficiency_established": false,
+    "science_or_score_evidence": false
+  },
+  "output_contract": {
+    "all_distinct_atom_minimum_distance_angstrom": "0.5",
+    "atom_identity": "chain_id/residue_id/insertion_code/residue_name/atom_name/element",
+    "canonical_protonation_signature": "ordered residue identity plus sorted hydrogen-name-to-heavy-parent-name bonds",
+    "deterministic_pdb_bytes": true,
+    "existing_parent_heavy_identities_and_coordinates_byte_exact": true,
+    "finite_potential_energy_required": true,
+    "force_field_system_construction_required": true,
+    "new_hydrogen_exactly_one_heavy_parent_required": true,
+    "output_directory_must_not_exist": true,
+    "returned_variant_vector_required": true,
+    "support_id_derivation": "SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id NUL parent_pdb_sha256 NUL runtime_sif_sha256)",
+    "two_repeat_pdb_and_metadata_bytes_must_match": true
+  },
+  "parent_policy": {
+    "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1.json",
+    "raw_sha256": "37af7bd203fbe105178657663879f1737c905aebb12d4d9115d61773dc1e8843"
+  },
+  "source_commitment": {
+    "contract": "atypemu_nested_support_count_v1_condition_uncertainty_protonation_smoke_source_commitment_v1",
+    "isolated_path": "/work/source_commitment.json",
+    "required_before_execution": true
+  },
+  "state": "HOLD_SMOKE_SOURCE_UNFROZEN_UNRUN",
+  "unresolved_blockers": [
+    "bounded smoke source commitment and independent review are not yet complete",
+    "this smoke cannot qualify any support beyond its two exact parent examples",
+    "production protonation generator source commitment and all-support independent checker are absent",
+    "all-support deterministic replay physicality and effective-distinct-state audits are absent",
+    "support order diversity thresholds and downstream one-shared-q inference remain unqualified"
+  ]
+}
