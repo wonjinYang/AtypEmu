@@ -42,8 +42,15 @@
     "linkage": "Chem_shift_experiment.Experiment_ID through the entry-level Experiment loop to sample and sample-condition records",
     "missing_numeric_condition": "FAIL_ENTIRE_CANDIDATE_NO_FALLBACK",
     "path": "ABSENT_UNQUALIFIED",
+    "qualification_catalog": {
+      "condition_feasible_entity_count": 91,
+      "entity_count": 135,
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json",
+      "result": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS",
+      "sha256": "3f8056aba2d5efaed0a42baf6b67411f50cd6849f4a78103cea853bd862ceca8"
+    },
     "sha256": "ABSENT_UNQUALIFIED",
-    "state": "ABSENT_BLOCKS_SOURCE_CONSTRUCTION"
+    "state": "QUALIFICATION_FAILED_BLOCKS_SOURCE_CONSTRUCTION"
   },
   "contract": "atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1",
   "exact_nesting": {
@@ -111,10 +118,10 @@
     "identity_only_coverage_recount",
     "separate_science_commitment_review_and_authorization"
   ],
-  "state": "HOLD_PLAN_ONLY_REQUIRED_BINDINGS_ABSENT",
+  "state": "HOLD_CONDITION_MANIFEST_INCOMPLETE",
   "study_id": "atypemu_nested_support_count_v1",
   "unresolved_blockers": [
-    "condition manifest absent",
+    "condition manifest is incomplete or ambiguous for 44 of 135 entities under the frozen no-fallback policy",
     "protonation algorithm force field version pruning and seed absent",
     "parent input manifests absent",
     "support ordering and diversity thresholds absent",

@@ -1,0 +1,77 @@
+{
+  "artifact_kind": "target_unread_solution_condition_catalog_hold_receipt_not_authorization",
+  "candidate_id": "atypemu_nested_support_count_v1_solution_state_protonation_support_v1",
+  "catalog": {
+    "all_entities_condition_feasible": false,
+    "condition_feasible_entity_count": 91,
+    "entity_count": 135,
+    "hold_entity_count": 44,
+    "raw_response_count": 405,
+    "required_raw_loops_per_entity": [
+      "Chem_shift_experiment",
+      "Experiment",
+      "Sample_condition_variable"
+    ],
+    "status": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS"
+  },
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "evidence": {
+    "canonical_archive": {
+      "file_count": 978,
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70"
+    },
+    "catalog_receipt": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery/receipt.json",
+      "sha256": "dbb40e3dc7452cae9df5d36e878f1b3021779bcecb8fa8b9037eeebc15ca9a2e"
+    },
+    "checker": {
+      "metric_checks": 1505,
+      "path": "gpuopt/candidates/check_solution_state_condition_catalog.py",
+      "sha256": "2962ff781b8a44f3e6e971545a46d47f74c11d563f78a39792ea88ff4dc2296d",
+      "status": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS"
+    },
+    "producer": {
+      "git_commit": "eeb31c786591165acdfdcd586644115f94830da6",
+      "path": "gpuopt/candidates/solution_state_condition_catalog.py",
+      "sha256": "0a4f55973c3eadddb7d4d9ac5d2c463b1df53da7f89f7c5f672997ca5253fc36"
+    },
+    "recovery_failure_chain_sha256": [
+      "f2ab3d7f78d27c909ef53788a219a6cd2dfa570d8b3c4f90d8a595e4331d8450",
+      "e77a1c7601d385b804404f391a27e5ed85fb3c30d99f2760a9345acca9aee6a3",
+      "e406ba9b96ea10f3a052457c85b5e506cb9dfd267db61d5bdb9f87af2567a704"
+    ],
+    "roster": {
+      "entity_count": 135,
+      "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
+      "sha256": "1a2d71529c20179f06977105a573539132feb25a13adc6e1d7dc0e0e1b4c1cb9"
+    }
+  },
+  "hold_reason_counts_overlapping": {
+    "entry does not have exactly one assigned shift list": 17,
+    "entry does not have one cohort-usable condition signature": 43,
+    "invalid numeric condition value or units": 11,
+    "no linked assigned-shift-list condition": 15,
+    "shift list lacks one complete condition signature": 28,
+    "unresolved experiment-to-condition linkage": 16
+  },
+  "policy_consequence": {
+    "fallback_or_imputation_allowed": false,
+    "source_construction_allowed": false,
+    "uniform_cohort_policy_satisfied": false
+  },
+  "review": {
+    "actual_evidence_recomputation": "NO_GO_FOR_PROGRESSION_COUNTS_MATCH_91_OF_135_HOLD",
+    "provenance_and_leakage": "GO_SCOPE_LIMITED_TO_METADATA_HOLD",
+    "safe_claim": "CONDITION_MANIFEST_HOLD_91_OF_135_ONLY_NOT_PROTONATION_FEASIBILITY"
+  },
+  "schema_version": 1,
+  "study_id": "atypemu_nested_support_count_v1"
+}

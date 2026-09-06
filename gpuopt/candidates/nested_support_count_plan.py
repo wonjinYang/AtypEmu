@@ -27,7 +27,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "f1f28496a019c16312a106f263200e7e3b48aacce6b6eee783c28bb8919cf57a"
+    "477f0c29868b3d7ada4f6cd7c9c3ec1d75e7e7315522edcb11d443545e72376a"
 )
 CATALOG_RECEIPT_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_catalog_feasibility_receipt.json"
@@ -71,6 +71,14 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/check_solution_state_condition_catalog.py",
         "sha256": "2962ff781b8a44f3e6e971545a46d47f74c11d563f78a39792ea88ff4dc2296d",
     },
+    "solution_state_condition_catalog_seal": {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json",
+        "sha256": "3f8056aba2d5efaed0a42baf6b67411f50cd6849f4a78103cea853bd862ceca8",
+    },
+    "solution_state_condition_catalog_evidence_archive": {
+        "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+        "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70",
+    },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
@@ -101,11 +109,11 @@ SAFE_EVIDENCE = {
     },
     "solution_state_protonation_support_plan": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
-        "sha256": "16618f36d5979b7facbc9803d23fc7152c967af14be202c485e5f974d4f63422",
+        "sha256": "f6443dee60c0b7bec024420726adf8d7fdce56d6ee0ce056c9c593f547a0335a",
     },
     "solution_state_protonation_support_checker": {
         "path": "gpuopt/candidates/check_solution_state_protonation_support_plan.py",
-        "sha256": "03c7d203d89d0597e109e8b212399cd6cea7146d54766996fa6346b218b783aa",
+        "sha256": "415f7883507e929712b1ce122d31ad061703367c81e8ee8872a2770592d06031",
     },
     "all_atom_raw_replay_correction_receipt": {
         "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -178,6 +186,10 @@ EVIDENCE_CHECK_ORDER = (
     "all_atom_raw_evidence_archive",
     "all_atom_raw_evidence_archive_v3",
     "all_atom_raw_evidence_checker",
+    "solution_state_condition_catalog_producer",
+    "solution_state_condition_catalog_checker",
+    "solution_state_condition_catalog_seal",
+    "solution_state_condition_catalog_evidence_archive",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",

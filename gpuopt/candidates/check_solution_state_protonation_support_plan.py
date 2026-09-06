@@ -6,6 +6,7 @@ import argparse
 import copy
 import hashlib
 import json
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -16,8 +17,29 @@ PLAN_RELATIVE = Path(
 CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_solution_state_protonation_support_plan.py"
 )
-PLAN_SHA256 = "292a2d7f793286e5317cca34e41a1aed214be608da17f687dc101435a7b3f4b0"
-PLAN_RAW_SHA256 = "16618f36d5979b7facbc9803d23fc7152c967af14be202c485e5f974d4f63422"
+CATALOG_SEAL_RELATIVE = Path(
+    "gpuopt/preunblind/"
+    "atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json"
+)
+CATALOG_SEAL_RAW_SHA256 = (
+    "3f8056aba2d5efaed0a42baf6b67411f50cd6849f4a78103cea853bd862ceca8"
+)
+CATALOG_ARCHIVE_RELATIVE = Path(
+    ".auto/staging/"
+    "atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip"
+)
+CATALOG_ARCHIVE_SHA256 = (
+    "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70"
+)
+CATALOG_RECEIPT_ARCHIVE_NAME = (
+    "atypemu_nested_support_count_v1_solution_conditions_api_v2_v4_recovery/"
+    "receipt.json"
+)
+CATALOG_RECEIPT_SHA256 = (
+    "dbb40e3dc7452cae9df5d36e878f1b3021779bcecb8fa8b9037eeebc15ca9a2e"
+)
+PLAN_SHA256 = "fdcbf5dcf60be47c35aa35226e9a5f16f0fe252de66dc001355e8881ea347ab6"
+PLAN_RAW_SHA256 = "f6443dee60c0b7bec024420726adf8d7fdce56d6ee0ce056c9c593f547a0335a"
 TOP_LEVEL_FIELDS = {
     "artifact_kind",
     "authorization",
@@ -89,11 +111,21 @@ EXPECTED_CONDITION_MANIFEST = {
     ),
     "missing_numeric_condition": "FAIL_ENTIRE_CANDIDATE_NO_FALLBACK",
     "path": "ABSENT_UNQUALIFIED",
+    "qualification_catalog": {
+        "condition_feasible_entity_count": 91,
+        "entity_count": 135,
+        "path": CATALOG_SEAL_RELATIVE.as_posix(),
+        "result": "HOLD_CONDITION_MANIFEST_INPUTS_INCOMPLETE_OR_AMBIGUOUS",
+        "sha256": CATALOG_SEAL_RAW_SHA256,
+    },
     "sha256": "ABSENT_UNQUALIFIED",
-    "state": "ABSENT_BLOCKS_SOURCE_CONSTRUCTION",
+    "state": "QUALIFICATION_FAILED_BLOCKS_SOURCE_CONSTRUCTION",
 }
 EXPECTED_BLOCKERS = [
-    "condition manifest absent",
+    (
+        "condition manifest is incomplete or ambiguous for 44 of 135 entities "
+        "under the frozen no-fallback policy"
+    ),
     "protonation algorithm force field version pruning and seed absent",
     "parent input manifests absent",
     "support ordering and diversity thresholds absent",
@@ -202,7 +234,7 @@ def validate_plan(plan: dict[str, Any], *, enforce_hash: bool = True) -> list[st
         "candidate_identity",
     )
     _require(
-        plan["state"] == "HOLD_PLAN_ONLY_REQUIRED_BINDINGS_ABSENT",
+        plan["state"] == "HOLD_CONDITION_MANIFEST_INCOMPLETE",
         "plan is not HOLD-only",
         checks,
         "hold_state",
@@ -336,10 +368,12 @@ def self_test(plan: dict[str, Any]) -> int:
     return len(cases) + 2
 
 
-def _bound_paths() -> tuple[Path, Path]:
+def _bound_paths() -> tuple[Path, Path, Path, Path]:
     checker = Path(__file__).absolute()
     root = checker.parents[2]
     plan = root / PLAN_RELATIVE
+    catalog_seal = root / CATALOG_SEAL_RELATIVE
+    catalog_archive = root / CATALOG_ARCHIVE_RELATIVE
     if not (
         checker == root / CHECKER_RELATIVE
         and checker.is_file()
@@ -348,18 +382,54 @@ def _bound_paths() -> tuple[Path, Path]:
         and plan.is_file()
         and not plan.is_symlink()
         and plan.resolve(strict=True) == plan
+        and catalog_seal.is_file()
+        and not catalog_seal.is_symlink()
+        and catalog_seal.resolve(strict=True) == catalog_seal
+        and catalog_archive.is_file()
+        and not catalog_archive.is_symlink()
+        and catalog_archive.resolve(strict=True) == catalog_archive
     ):
-        raise ValueError("checker or plan path is indirect, noncanonical, or misplaced")
-    return root, plan
+        raise ValueError(
+            "checker, plan, or catalog-seal path is indirect, noncanonical, or misplaced"
+        )
+    return root, plan, catalog_seal, catalog_archive
 
 
 def verify(*, run_self_test: bool) -> int:
-    _, path = _bound_paths()
+    _, path, catalog_seal, catalog_archive = _bound_paths()
     raw = path.read_bytes()
     if hashlib.sha256(raw).hexdigest() != PLAN_RAW_SHA256:
         raise ValueError("plan raw-byte hash drifted")
     plan = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
     checks = validate_plan(plan)
+    if hashlib.sha256(catalog_seal.read_bytes()).hexdigest() != CATALOG_SEAL_RAW_SHA256:
+        raise ValueError("condition-catalog HOLD seal raw-byte hash drifted")
+    checks.append("condition_catalog_hold_seal_raw_binding")
+    seal = json.loads(catalog_seal.read_bytes(), object_pairs_hook=_reject_duplicate_keys)
+    if not (
+        seal["catalog"]["condition_feasible_entity_count"] == 91
+        and seal["catalog"]["entity_count"] == 135
+        and seal["catalog"]["all_entities_condition_feasible"] is False
+        and seal["policy_consequence"]["source_construction_allowed"] is False
+        and not any(seal["closed_capabilities"].values())
+    ):
+        raise ValueError("condition-catalog HOLD seal semantics drifted")
+    checks.append("condition_catalog_hold_seal_semantics")
+    if hashlib.sha256(catalog_archive.read_bytes()).hexdigest() != CATALOG_ARCHIVE_SHA256:
+        raise ValueError("condition-catalog canonical archive hash drifted")
+    checks.append("condition_catalog_archive_raw_binding")
+    with zipfile.ZipFile(catalog_archive) as archive:
+        names = archive.namelist()
+        if (
+            len(names) != 978
+            or len(set(names)) != 978
+            or any(name.startswith("/") or ".." in Path(name).parts for name in names)
+            or CATALOG_RECEIPT_ARCHIVE_NAME not in names
+            or hashlib.sha256(archive.read(CATALOG_RECEIPT_ARCHIVE_NAME)).hexdigest()
+            != CATALOG_RECEIPT_SHA256
+        ):
+            raise ValueError("condition-catalog canonical archive inventory drifted")
+    checks.append("condition_catalog_archive_inventory_and_receipt")
     negative = self_test(plan) if run_self_test else 0
     return len(checks) + negative + 2
 
@@ -371,7 +441,7 @@ def main() -> int:
     args = parser.parse_args()
     checks = verify(run_self_test=args.self_test)
     if not args.acknowledge_hold_only:
-        print("STATUS HOLD_PLAN_ONLY_REQUIRED_BINDINGS_ABSENT")
+        print("STATUS HOLD_CONDITION_MANIFEST_INCOMPLETE")
         print("REFUSAL this plan does not authorize source construction or science")
         return 3
     print(f"METRIC solution_state_support_plan_checks={checks}")
@@ -379,7 +449,7 @@ def main() -> int:
     print("METRIC source_scores_read=0")
     print("METRIC science_executed=0")
     print("METRIC authorization_consumed=0")
-    print("STATUS HOLD_PLAN_ONLY_REQUIRED_BINDINGS_ABSENT")
+    print("STATUS HOLD_CONDITION_MANIFEST_INCOMPLETE")
     return 0
 
 

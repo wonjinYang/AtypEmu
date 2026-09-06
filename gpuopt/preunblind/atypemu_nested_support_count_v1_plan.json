@@ -96,11 +96,11 @@
     },
     "solution_state_protonation_support_plan": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_protonation_support_plan_v1.json",
-      "sha256": "16618f36d5979b7facbc9803d23fc7152c967af14be202c485e5f974d4f63422"
+      "sha256": "f6443dee60c0b7bec024420726adf8d7fdce56d6ee0ce056c9c593f547a0335a"
     },
     "solution_state_protonation_support_checker": {
       "path": "gpuopt/candidates/check_solution_state_protonation_support_plan.py",
-      "sha256": "03c7d203d89d0597e109e8b212399cd6cea7146d54766996fa6346b218b783aa"
+      "sha256": "415f7883507e929712b1ce122d31ad061703367c81e8ee8872a2770592d06031"
     },
     "all_atom_raw_replay_correction_receipt": {
       "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_all_atom_raw_replay_correction_receipt.json",
@@ -149,6 +149,14 @@
     "entity_roster": {
       "path": ".auto/staging/atypemu_nested_support_count_v1_entity_roster_v3.json",
       "sha256": "1a2d08e2cce23932996c8534ba710088dc05488cab350e628133926cec5c1cb9"
+    },
+    "solution_state_condition_catalog_seal": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_solution_state_condition_catalog_v1.json",
+      "sha256": "3f8056aba2d5efaed0a42baf6b67411f50cd6849f4a78103cea853bd862ceca8"
+    },
+    "solution_state_condition_catalog_evidence_archive": {
+      "path": ".auto/staging/atypemu_nested_support_count_v1_solution_conditions_api_v2_evidence_v1.zip",
+      "sha256": "cca8b6612757005cbc62693ec6aaf433b4cb345919080a31f5492c2eb5349c70"
     }
   },
   "fixed_protocol": {
