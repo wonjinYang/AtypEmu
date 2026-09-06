@@ -31,7 +31,7 @@ FALSE_CAPABILITIES = {
     "target_value_deserialization": False,
 }
 PLAN_CANONICAL_SHA256 = (
-    "fd4d60063d66e9c47e22f374d8bda60175eeb64decaf2950612044179822123f"
+    "b682be31595181ae16f1fff71ab3ee298ea33b60028b5a016f3fb4f139c0ecd3"
 )
 OPENMM86_DEPOSITED_PH_RECOVERY_V3_LAUNCH_INTENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_openmm86_deposited_ph_recovery_v3_launch_intent.json"
@@ -180,6 +180,10 @@ SAFE_EVIDENCE = {
         "path": "gpuopt/candidates/solution_state_openmm86_deposited_ph_catalog_recovery_v4.py",
         "sha256": "3242f79ffff689ce8b6c10a9d69c53dde31f5f004c44931b47f8068d3cc07a9a",
     },
+    "openmm86_deposited_ph_catalog_recovery_v4_checker": {
+        "path": "gpuopt/candidates/check_solution_state_openmm86_deposited_ph_catalog_recovery_v4.py",
+        "sha256": "d417cdd32608bc1cfdf3a37d3fc4c7fae70a553fcdf896278e09f8dae42d145c",
+    },
     "all_atom_recount_policy": {
         "path": str(ALL_ATOM_POLICY_RELATIVE),
         "sha256": ALL_ATOM_POLICY_SHA256,
@@ -306,6 +310,7 @@ EVIDENCE_CHECK_ORDER = (
     "openmm86_deposited_ph_catalog_recovery_v3_failed_intent",
     "openmm86_deposited_ph_catalog_recovery_v4_plan",
     "openmm86_deposited_ph_catalog_recovery_v4_producer",
+    "openmm86_deposited_ph_catalog_recovery_v4_checker",
     "solution_state_protonation_support_plan",
     "solution_state_protonation_support_checker",
     "all_atom_raw_replay_correction_receipt",
@@ -1308,6 +1313,9 @@ def main() -> int:
     from solution_state_openmm86_deposited_ph_catalog_recovery_v4 import (
         self_test as openmm86_deposited_ph_catalog_recovery_v4_self_test,
     )
+    from check_solution_state_openmm86_deposited_ph_catalog_recovery_v4 import (
+        self_test as openmm86_deposited_ph_catalog_recovery_v4_checker_self_test,
+    )
 
     recount_checks = (
         recount_checker_self_test(root) if args.self_test else verify_recount(root)
@@ -1351,6 +1359,11 @@ def main() -> int:
         if args.self_test
         else 0
     )
+    openmm86_deposited_ph_catalog_recovery_v4_checker_checks = (
+        openmm86_deposited_ph_catalog_recovery_v4_checker_self_test()
+        if args.self_test
+        else 0
+    )
     if args.self_test:
         from check_nested_support_all_atom_recount_raw_v3 import (
             self_test as raw_recount_self_test,
@@ -1367,7 +1380,7 @@ def main() -> int:
     )
     print(
         f"METRIC support_count_plan_checks="
-        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
+        f"{len(checks) + negative_checks + recount_checks + raw_evidence_checks + solution_state_support_checks + solution_state_condition_catalog_checks + solution_state_condition_catalog_checker_checks + openmm86_deposited_ph_catalog_checks + openmm86_deposited_ph_catalog_checker_checks + openmm86_deposited_ph_catalog_recovery_v2_checks + openmm86_deposited_ph_catalog_recovery_v2_checker_checks + openmm86_deposited_ph_catalog_recovery_v3_checks + openmm86_deposited_ph_catalog_recovery_v3_checker_checks + openmm86_deposited_ph_catalog_recovery_v4_checks + openmm86_deposited_ph_catalog_recovery_v4_checker_checks + openmm86_deposited_ph_recovery_v3_execution_checks}"
     )
     print("METRIC source_target_values_read=0")
     print("METRIC outer_or_formal_metrics_opened=0")
