@@ -1,0 +1,35 @@
+{
+  "artifact_kind": "hold_target_unread_cohort_support1_preflight_resource_routing_interruption_receipt",
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "completed_generator_state_repeat_count": 16,
+  "contract": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_launch_v5_interruption_receipt",
+  "executed_git_head": "7fc9e69e4c5be4776428453ed59667a19a827075",
+  "interruption": "the valid serial HOLD preflight was terminated as a process group after 16 of 398 generator state-repeat outputs to replace single-core dispatch with a separately frozen bounded-parallel route",
+  "local_failed_stage": {
+    "byte_count": 97665996,
+    "file_count": 148,
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v5",
+    "tree_sha256": "521d9e0c91b8b6a064b5d3210c5fb1a7e5ab17dcd4c2a9e183dfaa051674fb4b"
+  },
+  "local_output": {
+    "byte_count": 3494806,
+    "file_count": 32,
+    "path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v4",
+    "tree_sha256": "b67f92fd29f072571fa64046c1ad8decec9c9c149b310a89cdad666145618746"
+  },
+  "next_route": "separately bound source_commitment_v6 with deterministic bounded eight-process dispatch; v5 stage/output remain immutable and ineligible",
+  "source_commitment_v5": {
+    "path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v5.json",
+    "sha256": "155859dd3b82f24a510caa23d72552394d9013607e60208a32932c6c19b04c04"
+  },
+  "status": "HOLD_PARTIAL_OUTPUTS_RETAINED_NO_AGGREGATION_OR_CHECKER"
+}
