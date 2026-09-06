@@ -1,0 +1,20 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_v1",
+  "checker_output_exists": false,
+  "failure_class": "OPENMM_FF14SB_N_TERMINAL_PROTONATION_TEMPLATE_UNAVAILABLE",
+  "failed_branch_id": "regime-0",
+  "failed_entity_uid": "bmrb:15575:entity:1",
+  "failed_ph": "2.2",
+  "frozen_git_commit": "2944a9dad5536dfc5687f01b90122c8f2bceae7d",
+  "generation_completed_state_directory_count": 38,
+  "generation_completed_state_file_count": 76,
+  "generation_output_tree_sha256": "4691108c1c40c00f17d8953bf0f74881a0fb6cdc83b33b3cd98c22c90d82248a",
+  "launch_commit": "d5bcb1b5e3d48e41d377d4f149127839e4a0436f",
+  "openmm_diagnostic": "No template found for residue 0 (ASP); ff14SB contains NASP and ASH but no combined NASH template",
+  "output_relative_path": ".auto/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_output_v6",
+  "scope": "target-unread HOLD-only cohort support-1 protonation preflight; no target, score, science, authorization, materialization, or support-feasibility surface",
+  "source_commitment_sha256": "852b10d349a37aff2be3faa2e95ea483fd7377619b0d14beb8a946e2958bb6ab",
+  "stage_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_stage_v7",
+  "status": "HOLD_FAILED_CLOSED_BEFORE_COMPLETE_GENERATION",
+  "target_or_score_read_count": 0
+}
