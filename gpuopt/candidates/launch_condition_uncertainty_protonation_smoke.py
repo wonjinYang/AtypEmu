@@ -89,10 +89,16 @@ def _sha(raw: bytes) -> str:
 
 
 def _read(path: Path, limit: int) -> bytes:
-    mode = os.lstat(str(path)).st_mode
-    if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
-        raise LaunchError("source is missing, indirect, or nonregular: %s" % path)
-    raw = path.read_bytes()
+    absolute = path.absolute()
+    if absolute.resolve(strict=True) != absolute:
+        raise LaunchError("source path or ancestor is indirect: %s" % path)
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(str(absolute), flags)
+    with os.fdopen(descriptor, "rb") as handle:
+        status = os.fstat(handle.fileno())
+        if not stat.S_ISREG(status.st_mode):
+            raise LaunchError("source is nonregular: %s" % path)
+        raw = handle.read(limit + 1)
     if len(raw) > limit:
         raise LaunchError("oversize source: %s" % path)
     return raw
@@ -182,7 +188,7 @@ def _commitment(root: Path) -> Tuple[Dict[str, Any], bytes]:
     return value, raw
 
 
-def _clean_head(root: Path) -> str:
+def _clean_head(root: Path, commitment_raw: bytes) -> str:
     try:
         head = subprocess.run(
             ["git", "rev-parse", "--verify", "HEAD"],
@@ -200,10 +206,19 @@ def _clean_head(root: Path) -> str:
             text=True,
             timeout=20,
         ).stdout
+        committed_commitment = subprocess.run(
+            ["git", "show", "HEAD:%s" % COMMITMENT_RELATIVE.as_posix()],
+            cwd=str(root),
+            check=True,
+            capture_output=True,
+            timeout=20,
+        ).stdout
     except (OSError, subprocess.SubprocessError) as error:
         raise LaunchError("clean Git HEAD check failed: %s" % error) from error
     if status:
         raise LaunchError("launch requires a clean worktree")
+    if committed_commitment != commitment_raw:
+        raise LaunchError("executed HEAD does not bind the source commitment")
     return head
 
 
@@ -215,19 +230,35 @@ def _write(path: Path, raw: bytes) -> None:
         os.fsync(handle.fileno())
 
 
-def _command(root: Path, output: Path, program: str) -> list:
+def _stage_inputs(root: Path, output: Path) -> Path:
+    sealed = output / "sealed_inputs"
+    sealed.mkdir(mode=0o700)
+    for name, relative in SOURCES.items():
+        _write(
+            sealed / (name + Path(relative).suffix), _read(root / relative, 1_000_000)
+        )
+    _write(
+        sealed / "source_commitment.json", _read(root / COMMITMENT_RELATIVE, 100_000)
+    )
+    for name, relative in PARENTS.items():
+        _write(sealed / name, _read(root / relative, 2_000_000))
+    _write(sealed / "runtime.sif", _read(SIF, 1_000_000_000))
+    sealed.chmod(0o500)
+    return sealed
+
+
+def _command(sealed: Path, output: Path, program: str) -> list:
     singularity = shutil.which("singularity")
     if singularity != "/usr/bin/singularity":
         raise LaunchError("exact /usr/bin/singularity is unavailable")
     binds = [
-        "%s:/work/generator.py:ro" % (root / SOURCES["generator"]),
-        "%s:/work/checker.py:ro" % (root / SOURCES["checker"]),
-        "%s:/work/launcher.py:ro" % (root / SOURCES["launcher"]),
-        "%s:/work/plan.json:ro" % (root / SOURCES["plan"]),
-        "%s:/work/source_commitment.json:ro" % (root / COMMITMENT_RELATIVE),
-        "%s:/inputs/bmr10109_BioEmu_1.pdb:ro"
-        % (root / PARENTS["bmr10109_BioEmu_1.pdb"]),
-        "%s:/inputs/bmr4333_BioEmu_1.pdb:ro" % (root / PARENTS["bmr4333_BioEmu_1.pdb"]),
+        "%s:/work/generator.py:ro" % (sealed / "generator.py"),
+        "%s:/work/checker.py:ro" % (sealed / "checker.py"),
+        "%s:/work/launcher.py:ro" % (sealed / "launcher.py"),
+        "%s:/work/plan.json:ro" % (sealed / "plan.json"),
+        "%s:/work/source_commitment.json:ro" % (sealed / "source_commitment.json"),
+        "%s:/inputs/bmr10109_BioEmu_1.pdb:ro" % (sealed / "bmr10109_BioEmu_1.pdb"),
+        "%s:/inputs/bmr4333_BioEmu_1.pdb:ro" % (sealed / "bmr4333_BioEmu_1.pdb"),
         "%s:/out:rw" % output,
     ]
     tail = (
@@ -249,14 +280,25 @@ def _command(root: Path, output: Path, program: str) -> list:
         "/work",
         "--bind",
         ",".join(binds),
-        str(SIF),
+        str(sealed / "runtime.sif"),
     ] + tail
+
+
+def _tree(root: Path) -> Dict[str, Dict[str, Any]]:
+    return {
+        str(path.relative_to(root)): {
+            "sha256": _sha(_read(path, 1_000_000_000)),
+            "size": path.stat().st_size,
+        }
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
 
 
 def main() -> int:
     root = _root()
     commitment, commitment_raw = _commitment(root)
-    head = _clean_head(root)
+    head = _clean_head(root, commitment_raw)
     if _sha(_read(SIF, 1_000_000_000)) != SIF_SHA256:
         raise LaunchError("runtime SIF hash drifted")
     for relative in PARENTS.values():
@@ -265,44 +307,55 @@ def main() -> int:
     if output.exists() or output.is_symlink():
         raise LaunchError("no-clobber output namespace already exists")
     output.mkdir(mode=0o700, parents=False)
+    results = output / "results"
+    results.mkdir(mode=0o700)
     runs = []
-    for name in ("generator", "checker"):
-        command = _command(root, output, name)
-        completed = subprocess.run(
-            command,
-            cwd="/",
-            capture_output=True,
-            text=True,
-            timeout=1800,
-            check=False,
-        )
-        _write(output / (name + ".stdout"), completed.stdout.encode("utf-8"))
-        _write(output / (name + ".stderr"), completed.stderr.encode("utf-8"))
-        runs.append(
-            {
-                "argv": command,
-                "returncode": completed.returncode,
-                "stderr_sha256": _sha(completed.stderr.encode("utf-8")),
-                "stdout_sha256": _sha(completed.stdout.encode("utf-8")),
-            }
-        )
-        if completed.returncode != 0:
-            raise LaunchError(
-                "%s failed with return code %d" % (name, completed.returncode)
+    try:
+        sealed = _stage_inputs(root, output)
+        for name in ("generator", "checker"):
+            command = _command(sealed, results, name)
+            completed = subprocess.run(
+                command,
+                cwd="/",
+                capture_output=True,
+                text=True,
+                timeout=1800,
+                check=False,
             )
+            _write(output / (name + ".stdout"), completed.stdout.encode("utf-8"))
+            _write(output / (name + ".stderr"), completed.stderr.encode("utf-8"))
+            runs.append(
+                {
+                    "argv": command,
+                    "returncode": completed.returncode,
+                    "stderr_sha256": _sha(completed.stderr.encode("utf-8")),
+                    "stdout_sha256": _sha(completed.stdout.encode("utf-8")),
+                }
+            )
+            if completed.returncode != 0:
+                raise LaunchError(
+                    "%s failed with return code %d" % (name, completed.returncode)
+                )
+    except Exception as error:
+        failure = {
+            "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_failure_receipt",
+            "candidate_id": CANDIDATE_ID,
+            "closed_capabilities": {field: False for field in sorted(CLOSED_FIELDS)},
+            "error": "%s: %s" % (type(error).__name__, error),
+            "execution_git_head": head,
+            "output_tree": _tree(output),
+            "runs": runs,
+            "source_commitment_sha256": _sha(commitment_raw),
+            "status": "HOLD_BOUNDED_PROTONATION_SMOKE_FAILED_CLOSED",
+        }
+        _write(output / "failure_receipt.json", _canonical(failure))
+        raise
     receipt = {
         "artifact_kind": "hold_only_target_unread_bounded_protonation_smoke_launch_receipt",
         "candidate_id": CANDIDATE_ID,
         "closed_capabilities": {field: False for field in sorted(CLOSED_FIELDS)},
         "execution_git_head": head,
-        "output_tree": {
-            str(path.relative_to(output)): {
-                "sha256": _sha(_read(path, 3_000_000)),
-                "size": path.stat().st_size,
-            }
-            for path in sorted(output.rglob("*"))
-            if path.is_file()
-        },
+        "output_tree": _tree(output),
         "runs": runs,
         "source_commitment_sha256": _sha(commitment_raw),
         "source_git_commit": commitment["source_git_commit"],

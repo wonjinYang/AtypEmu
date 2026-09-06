@@ -76,6 +76,7 @@
       "read_only": [
         "/work/generator.py",
         "/work/checker.py",
+        "/work/launcher.py",
         "/work/plan.json",
         "/work/source_commitment.json",
         "/inputs/bmr10109_BioEmu_1.pdb",
@@ -113,6 +114,7 @@
   "output_contract": {
     "all_distinct_atom_minimum_distance_angstrom": "0.5",
     "atom_identity": "chain_id/residue_id/insertion_code/residue_name/atom_name/element",
+    "broad_valence_and_covalent_geometry_required": true,
     "canonical_protonation_signature": "ordered residue identity plus sorted hydrogen-name-to-heavy-parent-name bonds",
     "deterministic_pdb_bytes": true,
     "existing_parent_heavy_identities_and_coordinates_byte_exact": true,
@@ -133,9 +135,9 @@
     "isolated_path": "/work/source_commitment.json",
     "required_before_execution": true
   },
-  "state": "HOLD_SMOKE_SOURCE_UNFROZEN_UNRUN",
+  "state": "HOLD_SMOKE_SOURCE_FROZEN_UNRUN",
   "unresolved_blockers": [
-    "bounded smoke source commitment and independent review are not yet complete",
+    "the bounded smoke has not yet run",
     "this smoke cannot qualify any support beyond its two exact parent examples",
     "production protonation generator source commitment and all-support independent checker are absent",
     "all-support deterministic replay physicality and effective-distinct-state audits are absent",

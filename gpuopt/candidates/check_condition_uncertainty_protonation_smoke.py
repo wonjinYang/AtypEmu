@@ -195,8 +195,26 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         execution["fresh_python_process_per_entity_branch_repeat"] is not True
         or execution["pythonhashseed_required"] is not True
         or execution["repeat_count"] != 2
-        or mounts["network"] != "none"
-        or mounts["target_or_score_storage_mounted"] is not False
+        or execution["seed_derivation"]
+        != (
+            "first 64 bits of SHA256(candidate_id NUL entity_uid NUL parent_support_id "
+            "NUL condition_branch_id)"
+        )
+        or mounts
+        != {
+            "network": "none",
+            "read_only": [
+                "/work/generator.py",
+                "/work/checker.py",
+                "/work/launcher.py",
+                "/work/plan.json",
+                "/work/source_commitment.json",
+                "/inputs/bmr10109_BioEmu_1.pdb",
+                "/inputs/bmr4333_BioEmu_1.pdb",
+            ],
+            "target_or_score_storage_mounted": False,
+            "writable": ["/out"],
+        }
     ):
         raise CheckError("execution isolation drifted")
     runtime = execution["runtime"]
@@ -216,22 +234,77 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
         },
         "runtime",
     )
-    if (
-        runtime["force_field_relative_path"] != "amber14/protein.ff14SB.xml"
-        or runtime["openmm_exact_version"] != "8.6.0.dev-c6173db"
-        or runtime["platform"] != "Reference"
-        or runtime["sif_sha256"]
-        != "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-    ):
+    if runtime != {
+        "force_field_relative_path": "amber14/protein.ff14SB.xml",
+        "force_field_sha256": "d9f9779c09d67cd5f8bc657692f174ffab14c469dfd06d560ac1899fa7e976b8",
+        "hydrogen_definitions_relative_path": "openmm/app/data/hydrogens.xml",
+        "hydrogen_definitions_sha256": "413096cd3005ca5a638180e9cf623a8f6d574c81acf0e2c9d92b2bd26bb7658d",
+        "modeller_source_relative_path": "openmm/app/modeller.py",
+        "modeller_source_sha256": "f61e61f1419fcc3c24e7096ab96e10f87f70951085a83941d6040390e8819ca3",
+        "openmm_exact_version": "8.6.0.dev-c6173db",
+        "platform": "Reference",
+        "sif_host_path": "/home/yang07/.cache/atypemu_openmm86_runtime/openmm86_protonation_8.6.0.sif",
+        "sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    }:
         raise CheckError("runtime drifted")
     entities = plan["entities"]
     expected = {
-        "bmrb:10109:entity:1": ("bmr10109", "observed", ["6.0"]),
-        "bmrb:4333:entity:1": (
-            "bmr4333",
-            "state_missing",
-            ["2.2", "5.45", "7.5", "9.25", "12.0"],
-        ),
+        "bmrb:10109:entity:1": {
+            "bmrb_id": "bmr10109",
+            "branches": [
+                {
+                    "branch_id": "observed_pH_6.0",
+                    "condition_branch_id": "observed:6.0",
+                    "pH": "6.0",
+                }
+            ],
+            "condition_state": "observed",
+            "entity_uid": "bmrb:10109:entity:1",
+            "parent_pdb": {
+                "isolated_path": "/inputs/bmr10109_BioEmu_1.pdb",
+                "repository_path": "data/k32_complete_coordinate_supports_v4/bmr10109/bmr10109_BioEmu_1.pdb",
+                "sha256": "c14c2c3cd80b783d8addaf219ef2e6d13c059e4e7860f2e254488f0961ea066f",
+            },
+            "parent_support_id": "1",
+        },
+        "bmrb:4333:entity:1": {
+            "bmrb_id": "bmr4333",
+            "branches": [
+                {
+                    "branch_id": "regime_0_pH_2.2",
+                    "condition_branch_id": "regime:0:2.2",
+                    "pH": "2.2",
+                },
+                {
+                    "branch_id": "regime_1_pH_5.45",
+                    "condition_branch_id": "regime:1:5.45",
+                    "pH": "5.45",
+                },
+                {
+                    "branch_id": "regime_2_pH_7.5",
+                    "condition_branch_id": "regime:2:7.5",
+                    "pH": "7.5",
+                },
+                {
+                    "branch_id": "regime_3_pH_9.25",
+                    "condition_branch_id": "regime:3:9.25",
+                    "pH": "9.25",
+                },
+                {
+                    "branch_id": "regime_4_pH_12.0",
+                    "condition_branch_id": "regime:4:12.0",
+                    "pH": "12.0",
+                },
+            ],
+            "condition_state": "state_missing",
+            "entity_uid": "bmrb:4333:entity:1",
+            "parent_pdb": {
+                "isolated_path": "/inputs/bmr4333_BioEmu_1.pdb",
+                "repository_path": "data/k32_complete_coordinate_supports_v4/bmr4333/bmr4333_BioEmu_1.pdb",
+                "sha256": "0d8ac3f45e6e82e153f86bf91c164a016d4b1280ad229820ba2f9a10f6695146",
+            },
+            "parent_support_id": "1",
+        },
     }
     if not isinstance(entities, list) or len(entities) != 2:
         raise CheckError("entity roster drifted")
@@ -250,24 +323,62 @@ def _plan(raw: bytes) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
             "entity",
         )
         wanted = expected.get(entity["entity_uid"])
-        if (
-            wanted is None
-            or (entity["bmrb_id"], entity["condition_state"]) != wanted[:2]
-            or entity["parent_support_id"] != "1"
-        ):
+        if wanted is None or entity != wanted:
             raise CheckError("entity identity drifted")
         _schema(
             entity["parent_pdb"],
             {"isolated_path", "repository_path", "sha256"},
             "parent PDB",
         )
-        if [branch.get("pH") for branch in entity["branches"]] != wanted[2]:
-            raise CheckError("branch pH roster drifted")
         for branch in entity["branches"]:
             _schema(branch, {"branch_id", "condition_branch_id", "pH"}, "branch")
             states += 1
     if states != 6:
         raise CheckError("state count drifted")
+    if plan["interpretation_limits"] != {
+        "all_atom_feasibility_established": False,
+        "all_support_replay_completed": False,
+        "bounded_smoke_only": True,
+        "condition_metadata_recovered_for_unresolved_entity": False,
+        "sampling_sufficiency_established": False,
+        "science_or_score_evidence": False,
+    }:
+        raise CheckError("interpretation limits drifted")
+    if plan["parent_policy"] != {
+        "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_condition_uncertainty_protonation_plan_v1.json",
+        "raw_sha256": "37af7bd203fbe105178657663879f1737c905aebb12d4d9115d61773dc1e8843",
+    }:
+        raise CheckError("parent policy binding drifted")
+    if plan["source_commitment"] != {
+        "contract": COMMITMENT_CONTRACT,
+        "isolated_path": "/work/source_commitment.json",
+        "required_before_execution": True,
+    }:
+        raise CheckError("source commitment binding drifted")
+    if plan["output_contract"] != {
+        "all_distinct_atom_minimum_distance_angstrom": "0.5",
+        "atom_identity": "chain_id/residue_id/insertion_code/residue_name/atom_name/element",
+        "broad_valence_and_covalent_geometry_required": True,
+        "canonical_protonation_signature": "ordered residue identity plus sorted hydrogen-name-to-heavy-parent-name bonds",
+        "deterministic_pdb_bytes": True,
+        "existing_parent_heavy_identities_and_coordinates_byte_exact": True,
+        "finite_potential_energy_required": True,
+        "force_field_system_construction_required": True,
+        "new_hydrogen_exactly_one_heavy_parent_required": True,
+        "output_directory_must_not_exist": True,
+        "returned_variant_vector_required": True,
+        "support_id_derivation": "SHA256(candidate_id NUL entity_uid NUL parent_support_id NUL condition_branch_id NUL parent_pdb_sha256 NUL runtime_sif_sha256)",
+        "two_repeat_pdb_and_metadata_bytes_must_match": True,
+    }:
+        raise CheckError("output contract drifted")
+    if plan["unresolved_blockers"] != [
+        "the bounded smoke has not yet run",
+        "this smoke cannot qualify any support beyond its two exact parent examples",
+        "production protonation generator source commitment and all-support independent checker are absent",
+        "all-support deterministic replay physicality and effective-distinct-state audits are absent",
+        "support order diversity thresholds and downstream one-shared-q inference remain unqualified",
+    ]:
+        raise CheckError("unresolved blocker inventory drifted")
     return plan, entities
 
 
@@ -414,6 +525,52 @@ def _audit(
     edges = {
         tuple(sorted((left.index, right.index))) for left, right in topology.bonds()
     }
+    neighbors = {atom.index: [] for atom in atoms}
+    bond_lengths = []
+    hydrogen_angles = []
+    maximum_neighbors = {1: 1, 6: 4, 7: 4, 8: 2, 16: 6}
+    for left, right in topology.bonds():
+        if left.element is None or right.element is None:
+            raise CheckError("bonded atom has no element")
+        neighbors[left.index].append(right)
+        neighbors[right.index].append(left)
+        length = float(np.linalg.norm(xyz[left.index] - xyz[right.index]))
+        lower, upper = (
+            (0.7, 1.3)
+            if 1 in {left.element.atomic_number, right.element.atomic_number}
+            else (1.0, 2.3)
+        )
+        if not lower <= length <= upper:
+            raise CheckError("covalent bond length is outside the broad physical range")
+        bond_lengths.append(length)
+    for atom in atoms:
+        if atom.element is None:
+            raise CheckError("atom has no element")
+        atomic_number = atom.element.atomic_number
+        if (
+            atomic_number not in maximum_neighbors
+            or len(neighbors[atom.index]) > maximum_neighbors[atomic_number]
+        ):
+            raise CheckError("atom valence exceeds the broad element limit")
+        if atomic_number != 1:
+            continue
+        parent = neighbors[atom.index][0]
+        for other in neighbors[parent.index]:
+            if other.index == atom.index or other.element.atomic_number == 1:
+                continue
+            first = xyz[atom.index] - xyz[parent.index]
+            second = xyz[other.index] - xyz[parent.index]
+            cosine = float(
+                np.dot(first, second) / (np.linalg.norm(first) * np.linalg.norm(second))
+            )
+            angle = math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
+            if not 45.0 <= angle <= 180.0:
+                raise CheckError(
+                    "hydrogen-parent-heavy angle is outside the broad physical range"
+                )
+            hydrogen_angles.append(angle)
+    if not bond_lengths or not hydrogen_angles:
+        raise CheckError("covalent geometry audit had no observations")
     for chain in topology.chains():
         residues = list(chain.residues())
         for left, right in zip(residues, residues[1:]):
@@ -443,7 +600,10 @@ def _audit(
     if not math.isfinite(energy):
         raise CheckError("potential energy is nonfinite")
     return {
+        "maximum_covalent_bond_angstrom_hex": max(bond_lengths).hex(),
         "minimum_distance_angstrom_hex": float(minimum).hex(),
+        "minimum_covalent_bond_angstrom_hex": min(bond_lengths).hex(),
+        "minimum_hydrogen_angle_degrees_hex": min(hydrogen_angles).hex(),
         "potential_energy_kj_mol_hex": energy.hex(),
     }
 
