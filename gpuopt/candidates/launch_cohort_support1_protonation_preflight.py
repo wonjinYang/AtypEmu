@@ -27,7 +27,7 @@ CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v2.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v3.json"
 )
 V1_COMMITMENT_FAILURE_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
@@ -35,6 +35,13 @@ V1_COMMITMENT_FAILURE_RELATIVE = Path(
 )
 V1_COMMITMENT_FAILURE_SHA256 = (
     "cd1d6b7615dd1174ed697a039000637e21c0ee4fc7988a7d023ef3b7f407e5ac"
+)
+V1_LAUNCH_FAILURE_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+    "ff15ipq_preflight_launch_v1_failure_receipt.json"
+)
+V1_LAUNCH_FAILURE_SHA256 = (
+    "d11b78569aae6ca8ba4f515951134b392ea997bd00f7f525131122bb1befc196"
 )
 PARENT_FF14SB_HOLD_RELATIVE = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
@@ -50,10 +57,10 @@ FF15IPQ_SCAN_RELATIVE = Path(
 FF15IPQ_SCAN_SHA256 = "a106871b1fc0504f90d92e412ff5242f0f2db995e384650b0befe8b6c0fc9bb5"
 STAGE_RELATIVE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_"
-    "ff15ipq_preflight_stage_v1"
+    "ff15ipq_preflight_stage_v2"
 )
 OUTPUT_RELATIVE = Path(
-    ".auto/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_output_v1"
+    ".auto/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_output_v2"
 )
 INPUTS = {
     "environment.json": (
@@ -276,6 +283,11 @@ def validate_plan(plan: dict[str, Any]) -> None:
             "path": V1_COMMITMENT_FAILURE_RELATIVE.as_posix(),
             "sha256": V1_COMMITMENT_FAILURE_SHA256,
         }
+        and plan["source_commitment"].get("prior_v1_launch_failure_receipt")
+        == {
+            "path": V1_LAUNCH_FAILURE_RELATIVE.as_posix(),
+            "sha256": V1_LAUNCH_FAILURE_SHA256,
+        }
         and plan["frozen_inputs"].get("parent_ff14sb_hold_receipt")
         == {
             "path": PARENT_FF14SB_HOLD_RELATIVE.as_posix(),
@@ -347,7 +359,7 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v2"
+        != "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_source_commitment_v3"
         or commitment["status"] != "FROZEN_COMMITTED"
         or not isinstance(commitment["git_commit"], str)
         or GIT_SHA.fullmatch(commitment["git_commit"]) is None
@@ -365,6 +377,11 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
         != V1_COMMITMENT_FAILURE_SHA256
     ):
         raise ValueError("ff15ipq source-commitment-v1 failure binding mismatch")
+    if (
+        digest(repo_regular(root, V1_LAUNCH_FAILURE_RELATIVE))
+        != V1_LAUNCH_FAILURE_SHA256
+    ):
+        raise ValueError("ff15ipq launch-v1 failure binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),
@@ -617,7 +634,7 @@ def launch(root: Path, stage_dir: Path, output: Path, runtime_sif: Path) -> None
     expected_stage = (root / STAGE_RELATIVE).absolute()
     expected_output = (root / OUTPUT_RELATIVE).absolute()
     if stage_dir.absolute() != expected_stage or output.absolute() != expected_output:
-        raise ValueError("launcher paths differ from the frozen recovery-v3 namespace")
+        raise ValueError("launcher paths differ from the frozen ff15ipq-v2 namespace")
     stage_dir, output = expected_stage, expected_output
     plan = json_object(repo_regular(root, PLAN_RELATIVE), "plan")
     validate_plan(plan)

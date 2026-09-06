@@ -39,11 +39,11 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
-    "source_commitment_v2.json"
+    "source_commitment_v3.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_"
-    "source_commitment_v2"
+    "source_commitment_v3"
 )
 MAX_PARALLEL_WORKERS = 8
 AA = {

@@ -1,0 +1,14 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1",
+  "failed_launch_commit": "28364a1f925c56dffcd431c23a34e5ecd237cd90",
+  "failure_class": "PRE_RUNTIME_COPY_RELATIVE_SIF_ARGUMENT_REJECTED",
+  "failed_stage_file_count": 148,
+  "failed_stage_file_manifest_sha256": "0ad6943d1c03d98560aaa886d6dc45944b0681123e8560b396cb1e61903f8d2d",
+  "failed_stage_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_stage_v1",
+  "generation_output_created": false,
+  "next_action": "Use isolated stage/output v2 with an absolute runtime-SIF argument and a fresh source commitment; do not reuse the v1 stage.",
+  "scope": "target-unread HOLD-only staging; inputs and 135 support-1 PDBs copied, runtime not copied, generator/checker not invoked, no target values, scores, science, authorization, or feasibility surface",
+  "status": "FAILED_CLOSED_BEFORE_RUNTIME_COPY",
+  "stderr_terminal": "ValueError: runtime must be an absolute direct file",
+  "target_or_score_read_count": 0
+}
