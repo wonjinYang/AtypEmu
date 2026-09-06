@@ -42,11 +42,11 @@ PLAN_NAME = (
 )
 COMMITMENT_NAME = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v1.json"
+    "source_commitment_v2.json"
 )
 COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v1"
+    "source_commitment_v2"
 )
 AA3_TO_1 = {
     "ALA": "A",
@@ -71,6 +71,7 @@ AA3_TO_1 = {
     "VAL": "V",
 }
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+GIT_COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 SLUG_RE = re.compile(r"[^a-zA-Z0-9_.-]+")
 CLOSED_CAPABILITIES = {
     "authorization_consumed": False,
@@ -167,7 +168,7 @@ def _require_frozen_source(inputs: Path) -> None:
         and commitment["contract"] == COMMITMENT_CONTRACT
         and commitment["status"] == "FROZEN_COMMITTED"
         and isinstance(commitment["git_commit"], str)
-        and SHA256_RE.fullmatch(commitment["git_commit"])
+        and GIT_COMMIT_RE.fullmatch(commitment["git_commit"])
     ):
         raise PermissionError("source commitment is absent or not frozen")
     expected = {

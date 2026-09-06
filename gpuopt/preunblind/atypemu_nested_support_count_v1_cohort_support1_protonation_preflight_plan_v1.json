@@ -83,7 +83,11 @@
     "repeat_equality": "repeat0 equals repeat1; checker replay equals repeat0"
   },
   "source_commitment": {
-    "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1.json",
+    "canonical_relative_path": ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v2.json",
+    "prior_v1_failure_receipt": {
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1_failure_receipt.json",
+      "sha256": "a3472da3e9c7b7ae69a4233ce1d387db5b127b4192983ab9662a5f770f358037"
+    },
     "status": "FROZEN_COMMITTED"
   },
   "state": "HOLD_PREFLIGHT_SOURCE_FROZEN_UNRUN",

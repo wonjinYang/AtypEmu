@@ -40,11 +40,11 @@ FROZEN_PLAN_FILE = (
 )
 FROZEN_COMMITMENT_FILE = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v1.json"
+    "source_commitment_v2.json"
 )
 FROZEN_COMMITMENT_CONTRACT = (
     "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_"
-    "source_commitment_v1"
+    "source_commitment_v2"
 )
 AA = {
     "ALA": "A",
@@ -69,6 +69,7 @@ AA = {
     "VAL": "V",
 }
 HEX = re.compile(r"[0-9a-f]{64}\Z")
+GIT_COMMIT = re.compile(r"[0-9a-f]{40}\Z")
 SLUG = re.compile(r"[^a-zA-Z0-9_.-]+")
 CLOSED_CAPABILITIES = {
     "authorization_consumed": False,
@@ -160,7 +161,7 @@ def require_committed_sources(inputs: Path) -> None:
         and receipt["contract"] == FROZEN_COMMITMENT_CONTRACT
         and receipt["status"] == "FROZEN_COMMITTED"
         and isinstance(receipt["git_commit"], str)
-        and HEX.fullmatch(receipt["git_commit"])
+        and GIT_COMMIT.fullmatch(receipt["git_commit"])
     ):
         raise PermissionError("checker source commitment is not frozen")
     staged = {

@@ -33,8 +33,13 @@ CHECKER_RELATIVE = Path(
     "gpuopt/candidates/check_cohort_support1_protonation_preflight.py"
 )
 COMMITMENT_RELATIVE = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1.json"
+    ".auto/staging/atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v2.json"
 )
+V1_FAILURE_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_"
+    "protonation_preflight_source_commitment_v1_failure_receipt.json"
+)
+V1_FAILURE_SHA256 = "a3472da3e9c7b7ae69a4233ce1d387db5b127b4192983ab9662a5f770f358037"
 INPUTS = {
     "environment.json": (
         Path(
@@ -75,6 +80,7 @@ INPUTS = {
 }
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
 SHA = re.compile(r"[0-9a-f]{64}\Z")
+GIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 SLUG = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
@@ -247,6 +253,11 @@ def validate_plan(plan: dict[str, Any]) -> None:
         }
         and plan["source_commitment"].get("canonical_relative_path")
         == COMMITMENT_RELATIVE.as_posix()
+        and plan["source_commitment"].get("prior_v1_failure_receipt")
+        == {
+            "path": V1_FAILURE_RELATIVE.as_posix(),
+            "sha256": V1_FAILURE_SHA256,
+        }
         and plan["source_commitment"].get("status")
         in {"ABSENT_UNFROZEN", "FROZEN_COMMITTED"}
         and not any(plan["closed_capabilities"].values())
@@ -300,10 +311,14 @@ def require_frozen_commitment(root: Path, plan: dict[str, Any]) -> dict[str, Any
     if (
         commitment["candidate_id"] != CANDIDATE_ID
         or commitment["contract"]
-        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v1"
+        != "atypemu_nested_support_count_v1_cohort_support1_protonation_preflight_source_commitment_v2"
         or commitment["status"] != "FROZEN_COMMITTED"
+        or not isinstance(commitment["git_commit"], str)
+        or GIT_SHA.fullmatch(commitment["git_commit"]) is None
     ):
         raise ValueError("source commitment identity mismatch")
+    if digest(repo_regular(root, V1_FAILURE_RELATIVE)) != V1_FAILURE_SHA256:
+        raise ValueError("v1 pre-data failure receipt binding mismatch")
     files = commitment["files"]
     expected_paths = {
         PLAN_RELATIVE.as_posix(),
@@ -345,7 +360,7 @@ def require_clean_committed_tree(root: Path, commitment: dict[str, Any]) -> None
         text=True,
         capture_output=True,
     ).stdout.strip()
-    if SHA.fullmatch(head) is None:
+    if GIT_SHA.fullmatch(head) is None:
         raise ValueError("invalid current Git HEAD")
     current_commitment = repo_regular(root, COMMITMENT_RELATIVE)
     committed_commitment = subprocess.run(
