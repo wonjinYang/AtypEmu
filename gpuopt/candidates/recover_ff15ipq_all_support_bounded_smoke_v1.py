@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import gzip
 import hashlib
 import json
 import os
@@ -213,8 +214,13 @@ def require_direct_directory(root: Path, relative: Path) -> Path:
 def exclusive(path: Path, raw: bytes) -> None:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o444)
     try:
-        if os.write(descriptor, raw) != len(raw):
-            raise OSError("short exclusive write")
+        offset = 0
+        view = memoryview(raw)
+        while offset < len(raw):
+            written = os.write(descriptor, view[offset:])
+            if written <= 0:
+                raise OSError("short exclusive write")
+            offset += written
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
@@ -257,7 +263,17 @@ def git_head(root: Path) -> str:
     return head
 
 
-def validate_parent(root: Path) -> tuple[dict[str, Any], bytes, bytes, bytes]:
+def validate_parent(
+    root: Path,
+) -> tuple[
+    dict[str, Any],
+    bytes,
+    bytes,
+    bytes,
+    bytes,
+    dict[str, bytes],
+    bytes,
+]:
     expected = {
         PARENT_SOURCE: PARENT_SOURCE_SHA256,
         PARENT_RELEASE: PARENT_RELEASE_SHA256,
@@ -288,6 +304,7 @@ def validate_parent(root: Path) -> tuple[dict[str, Any], bytes, bytes, bytes]:
     files = source.get("files")
     if not isinstance(files, dict):
         raise ValueError("parent source manifest is invalid")
+    staged_files: dict[str, bytes] = {}
     for relative, expected_hash in files.items():
         staged = (
             root
@@ -295,15 +312,22 @@ def validate_parent(root: Path) -> tuple[dict[str, Any], bytes, bytes, bytes]:
             / ("inputs" if relative.endswith(".json.gz") else "scripts")
             / Path(relative).name
         )
-        if (
-            sha256(read_beneath(root, staged.relative_to(root), 20_000_000))
-            != expected_hash
-        ):
+        staged_raw = read_beneath(root, staged.relative_to(root), 20_000_000)
+        if sha256(staged_raw) != expected_hash:
             raise PermissionError(f"staged parent source drifted: {relative}")
+        staged_files[relative] = staged_raw
     review_raw = read_beneath(root, PARENT_REVIEW, 1_000_000)
     if sha256(review_raw) != release.get("review_receipt_sha256"):
         raise PermissionError("parent source-review receipt drifted")
-    return source, raw_by_path[PARENT_RELEASE], raw_by_path[PARENT_CONSUMED], review_raw
+    return (
+        source,
+        raw_by_path[PARENT_SOURCE],
+        raw_by_path[PARENT_RELEASE],
+        raw_by_path[PARENT_CONSUMED],
+        review_raw,
+        staged_files,
+        raw_by_path[RUNTIME],
+    )
 
 
 def validate_recovery_release(
@@ -343,7 +367,11 @@ def validate_recovery_release(
         and release["entity_uid"] == ENTITY_UID
         and release["git_commit"] == git_commit
         and release["mount_fix"]
-        == "bind scripts and projection separately so writable nested outputs are not created beneath a read-only /work bind"
+        == (
+            "copy only hash-verified source, runtime, projection, and entity PDB bytes "
+            "into a private sealed recovery tree, then bind disjoint paths so writable "
+            "outputs are not created beneath a read-only /work bind"
+        )
         and release["parent_consumed_sha256"] == PARENT_CONSUMED_SHA256
         and release["parent_failure_sha256"] == PARENT_FAILURE_SHA256
         and release["parent_release_sha256"] == PARENT_RELEASE_SHA256
@@ -391,13 +419,8 @@ def validate_recovery_release(
     return release, raw
 
 
-def command(
-    root: Path,
-    output: Path,
-    bioemu: Path,
-    script: str,
-) -> list[str]:
-    stage = root / STAGE
+def command(output: Path, script: str) -> list[str]:
+    sealed = output / "sealed_source"
     released = output / "release"
     checker = script.startswith("check_")
     result = [
@@ -410,9 +433,9 @@ def command(
         "--network",
         "none",
         "--bind",
-        f"{stage / 'scripts'}:/work/scripts:ro",
+        f"{sealed / 'scripts'}:/work/scripts:ro",
         "--bind",
-        f"{stage / 'inputs' / PROJECTION}:/work/inputs/{PROJECTION}:ro",
+        f"{sealed / 'inputs' / PROJECTION}:/work/inputs/{PROJECTION}:ro",
         "--bind",
         f"{output / 'entity_archives'}:/work/outputs:{'ro' if checker else 'rw'}",
     ]
@@ -421,7 +444,7 @@ def command(
     result.extend(
         [
             "--bind",
-            f"{bioemu / 'bmr10109'}:/work/inputs/data/BioEmu/bmr10109:ro",
+            f"{output / 'sealed_pdb' / 'bmr10109'}:/work/inputs/data/BioEmu/bmr10109:ro",
             "--bind",
             f"{released}:/work/release:ro",
             "--env",
@@ -430,7 +453,7 @@ def command(
             f"ATYPEMU_GIT_COMMIT=ed3df1021c2cbd5c672a24e286bf15e8ace3c2ad,"
             f"ATYPEMU_EXECUTION_RELEASE_SHA256={PARENT_RELEASE_SHA256},"
             f"ATYPEMU_RELEASED_ENTITY_UID={ENTITY_UID}",
-            str(stage / "runtime.sif"),
+            str(sealed / "runtime.sif"),
             "python",
             f"/work/scripts/{script}",
             "--entity-uid",
@@ -438,6 +461,80 @@ def command(
         ]
     )
     return result
+
+
+def seal_source(
+    temporary: Path,
+    source: dict[str, Any],
+    source_raw: bytes,
+    staged_files: dict[str, bytes],
+    runtime_raw: bytes,
+) -> None:
+    sealed = temporary / "sealed_source"
+    scripts = sealed / "scripts"
+    inputs = sealed / "inputs"
+    scripts.mkdir(parents=True, mode=0o700)
+    inputs.mkdir(mode=0o700)
+    for relative in source["files"]:
+        destination = inputs if relative.endswith(".json.gz") else scripts
+        exclusive(destination / Path(relative).name, staged_files[relative])
+    exclusive(scripts / SOURCE_COMMITMENT_NAME, source_raw)
+    exclusive(sealed / "runtime.sif", runtime_raw)
+    os.chmod(scripts, 0o555)
+    os.chmod(inputs, 0o555)
+    os.chmod(sealed, 0o555)
+
+
+def seal_entity_pdbs(output: Path, bioemu: Path) -> int:
+    projection_raw = read_beneath(
+        output,
+        Path("sealed_source/inputs") / PROJECTION,
+        20_000_000,
+    )
+    projection = parse_object(gzip.decompress(projection_raw), "runtime projection")
+    entries = projection.get("entries")
+    if not isinstance(entries, list):
+        raise ValueError("runtime projection entries are invalid")
+    entity = next((row for row in entries if row.get("entity_uid") == ENTITY_UID), None)
+    if not isinstance(entity, dict) or entity.get("bmrb_id") != "bmr10109":
+        raise ValueError("released entity is absent from runtime projection")
+    supports = entity.get("supports")
+    missing = entity.get("missing_support_indices")
+    if not isinstance(supports, list) or not isinstance(missing, list):
+        raise ValueError("released entity support inventory is incomplete")
+    projected_indices = [
+        row.get("support_index") for row in supports if isinstance(row, dict)
+    ]
+    if (
+        len(projected_indices) != len(supports)
+        or any(type(index) is not int for index in projected_indices)
+        or any(type(index) is not int for index in missing)
+        or set(projected_indices).intersection(missing)
+        or sorted(projected_indices + missing) != list(range(1, 1001))
+    ):
+        raise ValueError(
+            "released entity projected and missing supports are not exhaustive"
+        )
+    destination = output / "sealed_pdb/bmr10109"
+    for support in supports:
+        if not isinstance(support, dict):
+            raise ValueError("projected support row is invalid")
+        index = support.get("support_index")
+        expected = support.get("parent_raw_pdb_sha256")
+        if (
+            type(index) is not int
+            or not 1 <= index <= 1000
+            or not isinstance(expected, str)
+        ):
+            raise ValueError("projected support identity is invalid")
+        name = f"bmr10109_BioEmu_{index}.pdb"
+        raw = read_beneath(bioemu, Path("bmr10109") / name, 5_000_000)
+        if sha256(raw) != expected:
+            raise ValueError(f"projected PDB hash drifted: {name}")
+        exclusive(destination / name, raw)
+    os.chmod(destination, 0o555)
+    os.chmod(destination.parent, 0o555)
+    return len(supports)
 
 
 def execute(command_line: list[str]) -> None:
@@ -472,7 +569,15 @@ def run(root: Path, expected_release_hash: str) -> None:
     require_direct_directory(root, STAGE / "scripts")
     require_direct_directory(root, STAGE / "inputs")
     git_commit = git_head(root)
-    _, parent_release, parent_consumed, parent_review = validate_parent(root)
+    (
+        source,
+        source_raw,
+        parent_release,
+        parent_consumed,
+        parent_review,
+        staged_files,
+        runtime_raw,
+    ) = validate_parent(root)
     release, release_raw = validate_recovery_release(
         root, expected_release_hash, git_commit
     )
@@ -499,6 +604,8 @@ def run(root: Path, expected_release_hash: str) -> None:
     (temporary / "entity_archives").mkdir(mode=0o700)
     (temporary / "checker_receipts").mkdir(mode=0o700)
     (temporary / "release").mkdir(mode=0o700)
+    (temporary / "sealed_pdb/bmr10109").mkdir(parents=True, mode=0o700)
+    seal_source(temporary, source, source_raw, staged_files, runtime_raw)
     exclusive(temporary / "release/execution_release.json", parent_release)
     exclusive(temporary / "release/execution_consumed.json", parent_consumed)
     exclusive(temporary / "release/source_cold_review.json", parent_review)
@@ -520,22 +627,9 @@ def run(root: Path, expected_release_hash: str) -> None:
         exclusive(temporary / "release/recovery_consumed.json", consumed_raw)
         exclusive(temporary / "release/recovery_release.json", release_raw)
         publish_directory(temporary, output)
-        execute(
-            command(
-                root,
-                output,
-                bioemu,
-                "materialize_ff15ipq_all_support_entity.py",
-            )
-        )
-        execute(
-            command(
-                root,
-                output,
-                bioemu,
-                "check_ff15ipq_all_support_entity.py",
-            )
-        )
+        pdb_count = seal_entity_pdbs(output, bioemu)
+        execute(command(output, "materialize_ff15ipq_all_support_entity.py"))
+        execute(command(output, "check_ff15ipq_all_support_entity.py"))
         result = {
             "candidate_id": RECOVERY_ID,
             "closed_capabilities": CLOSED_CAPABILITIES,
@@ -543,6 +637,7 @@ def run(root: Path, expected_release_hash: str) -> None:
             "parent_failure_sha256": PARENT_FAILURE_SHA256,
             "parent_source_sha256": PARENT_SOURCE_SHA256,
             "recovery_release_sha256": expected_release_hash,
+            "sealed_projected_pdb_count": pdb_count,
             "state": "PASS_MOUNT_ONLY_RECOVERY_BOUNDED_SMOKE",
         }
         exclusive(output / "recovery_result.json", canonical(result) + b"\n")
@@ -576,7 +671,7 @@ def self_test() -> int:
         ".auto/atypemu_nested_support_count_v1_ff15ipq_all_support_output_v1"
     ):
         raise AssertionError("recovery output aliases parent output")
-    synthetic = command(Path("/repo"), Path("/output"), Path("/bioemu"), "producer.py")
+    synthetic = command(Path("/output"), "producer.py")
     if (
         "/repo/.auto/staging/atypemu_nested_support_count_v1_ff15ipq_all_support_stage_v1:/work:ro"
         in synthetic
