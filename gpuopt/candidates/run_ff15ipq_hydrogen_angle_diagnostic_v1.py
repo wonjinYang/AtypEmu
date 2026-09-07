@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import ctypes
 import gzip
 import hashlib
@@ -21,7 +22,9 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-CANDIDATE_ID = "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_v1"
+CANDIDATE_ID = (
+    "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_recovery_v1"
+)
 PARENT_CANDIDATE_ID = (
     "atypemu_nested_support_count_v1_ff15ipq_all_support_qualification_v1"
 )
@@ -34,9 +37,13 @@ PH = 6.0
 BRANCH = "observed-0"
 LOW_ANGLE = 55.0
 OPENMM_VERSION = "8.6.0.dev-c6173db"
+OPENMM_GIT_REVISION = "c6173db6e8edd705eb59172bd21e9ce69c572405"
 FORCEFIELD = "amber14/protein.ff15ipq.xml"
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-PLAN_SHA256 = "61c3536239321dd14b0dd8ce092a838643d59ae3ea3ce3fd72926589768561ab"
+PLAN_SHA256 = "8929bf76dbdd948845afc2f7766cbe5552950ad86ae803fd0e085a9cd1d854e3"
+PREDECESSOR_FAILURE_SHA256 = (
+    "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3"
+)
 PROJECTION_SHA256 = "e9b4861216d99e8136df872958a50f568337fc8a6b4991b25df2b906dcee5046"
 DECISION_SHA256 = "ab47932dcbce7a2b61a30ed2f17907f3dbdc8dafbf71428463de43393d77db75"
 INVENTORY_SHA256 = "eedcd06f38e4234a29eb6b2bc981a87928406b507f9ccb102bd282f4957b881f"
@@ -54,7 +61,13 @@ PARENT_RUNTIME = Path(
 SCRIPT = Path("gpuopt/candidates/run_ff15ipq_hydrogen_angle_diagnostic_v1.py")
 PLAN = Path(
     "gpuopt/preunblind/"
-    "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_plan_v1.json"
+    "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_"
+    "recovery_plan_v1.json"
+)
+PREDECESSOR_FAILURE = Path(
+    "gpuopt/preunblind/"
+    "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_"
+    "runtime_version_failure_v1.json"
 )
 PROJECTION = Path(
     "gpuopt/preunblind/"
@@ -77,32 +90,41 @@ DECISION_REVIEW = Path(
 )
 SOURCE_COMMITMENT = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_source_commitment_v1.json"
+    "diagnostic_recovery_source_commitment_v1.json"
 )
 STAGE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_stage_v1"
+    "diagnostic_recovery_stage_v1"
 )
 SOURCE_REVIEW = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_source_review_v1.json"
+    "diagnostic_recovery_source_review_v1.json"
 )
 RELEASE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_execution_release_v1.json"
+    "diagnostic_recovery_execution_release_v1.json"
 )
 CONSUMED = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_execution_release_v1.consumed.json"
+    "diagnostic_recovery_execution_release_v1.consumed.json"
 )
 FAILURE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_execution_failure_v1.json"
+    "diagnostic_recovery_execution_failure_v1.json"
 )
 OUTPUT = Path(
-    ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_output_v1"
+    ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_output_v1"
 )
-SOURCE_FILES = (SCRIPT, PLAN, PROJECTION, DECISION, INVENTORY, DECISION_REVIEW)
+SOURCE_FILES = (
+    SCRIPT,
+    PLAN,
+    PREDECESSOR_FAILURE,
+    PROJECTION,
+    DECISION,
+    INVENTORY,
+    DECISION_REVIEW,
+)
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 CLOSED = {
     "authorization_consumed": False,
@@ -233,6 +255,26 @@ def publish_directory(source: Path, destination: Path) -> None:
 
 
 def git_head(root: Path) -> str:
+    replacements = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname)", "refs/replace"],
+        cwd=root,
+        env=HOST_ENV,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    alternates = Path(
+        subprocess.run(
+            ["git", "rev-parse", "--git-path", "objects/info/alternates"],
+            cwd=root,
+            env=HOST_ENV,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+    )
+    if replacements or alternates.exists():
+        raise PermissionError("Git replacement or alternate-object route is open")
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=root,
@@ -269,6 +311,7 @@ def committed_bytes(root: Path, commit: str, relative: Path) -> bytes:
 def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
     expected = {
         PLAN: PLAN_SHA256,
+        PREDECESSOR_FAILURE: PREDECESSOR_FAILURE_SHA256,
         PROJECTION: PROJECTION_SHA256,
         DECISION: DECISION_SHA256,
         INVENTORY: INVENTORY_SHA256,
@@ -277,6 +320,11 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
     if any(sha256(raw_by_path[path]) != digest for path, digest in expected.items()):
         raise PermissionError("fixed diagnostic input hash drifted")
     plan = parse_object(raw_by_path[PLAN], "diagnostic plan", require_canonical=False)
+    predecessor_failure = parse_object(
+        raw_by_path[PREDECESSOR_FAILURE],
+        "predecessor runtime-version failure",
+        require_canonical=False,
+    )
     if not (
         plan.get("candidate_id") == CANDIDATE_ID
         and plan.get("scope") == "TARGET_UNREAD_DIAGNOSTIC_ONLY"
@@ -289,6 +337,20 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
             "promotion_or_feasibility_claim_allowed"
         )
         is False
+        and plan.get("failed_predecessor", {}).get("ordinary_rerun_allowed") is False
+        and plan.get("failed_predecessor", {}).get("failure_receipt_sha256")
+        == PREDECESSOR_FAILURE_SHA256
+        and predecessor_failure.get("state")
+        == "FAILED_CLOSED_PRE_PDB_RUNTIME_VERSION_ATTRIBUTE_MISMATCH"
+        and predecessor_failure.get("parent_pdb_bytes_read") is False
+        and predecessor_failure.get("recovery_policy", {}).get("ordinary_rerun_allowed")
+        is False
+        and predecessor_failure.get("recovery_policy", {}).get("required_candidate_id")
+        == CANDIDATE_ID
+        and predecessor_failure.get("observed_runtime", {}).get("openmm_full_version")
+        == OPENMM_VERSION
+        and predecessor_failure.get("observed_runtime", {}).get("git_revision")
+        == OPENMM_GIT_REVISION
     ):
         raise PermissionError("diagnostic plan identity drifted")
     decision = parse_object(
@@ -313,17 +375,67 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         raise PermissionError("parent terminal closure drifted")
 
 
+def validate_static_scope(root: Path) -> None:
+    if not all(
+        not path.is_absolute()
+        and ".." not in path.parts
+        and path.suffix not in {".tar", ".tgz"}
+        for path in SOURCE_FILES
+    ):
+        raise PermissionError("source path or archive surface is unsafe")
+    for relative in SOURCE_FILES:
+        current = root
+        for part in relative.parts:
+            current /= part
+            if current.is_symlink():
+                raise PermissionError(f"source path traverses a symlink: {relative}")
+    tree = ast.parse(read_file(root / SCRIPT, 2_000_000).decode("utf-8"))
+    imported: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".", 1)[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".", 1)[0])
+    if imported & {
+        "pandas",
+        "pyarrow",
+        "requests",
+        "sklearn",
+        "socket",
+        "torch",
+        "urllib",
+    }:
+        raise PermissionError(
+            "forbidden target, score, model, or network import is open"
+        )
+    strings = {
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    }
+    if strings & {
+        "/targets/",
+        "target.parquet",
+        "scores.parquet",
+        "outer_metrics.json",
+    }:
+        raise PermissionError("forbidden target or score route is open")
+    if set(CLOSED.values()) != {False}:
+        raise PermissionError("a protected capability is open")
+
+
 def freeze_source(root: Path) -> None:
     commit = git_head(root)
+    validate_static_scope(root)
     raw_by_path = {path: committed_bytes(root, commit, path) for path in SOURCE_FILES}
     validate_fixed_inputs(raw_by_path)
     commitment = {
         "candidate_id": CANDIDATE_ID,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_source_commitment_v1",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1",
         "files": {str(path): sha256(raw_by_path[path]) for path in SOURCE_FILES},
         "git_commit": commit,
         "runtime_sif_sha256": RUNTIME_SHA256,
-        "state": "FROZEN_DIAGNOSTIC_ONLY_UNRUN",
+        "state": "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN",
     }
     exclusive(root / SOURCE_COMMITMENT, canonical(commitment) + b"\n")
 
@@ -335,6 +447,7 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
     if sha256(raw) != expected_hash:
         raise PermissionError("source commitment hash drifted")
     source = parse_object(raw, "source commitment")
+    validate_static_scope(root)
     if set(source) != {
         "candidate_id",
         "contract",
@@ -345,10 +458,10 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
     } or not (
         source["candidate_id"] == CANDIDATE_ID
         and source["contract"]
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_source_commitment_v1"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1"
         and source["git_commit"] == git_head(root)
         and source["runtime_sif_sha256"] == RUNTIME_SHA256
-        and source["state"] == "FROZEN_DIAGNOSTIC_ONLY_UNRUN"
+        and source["state"] == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
         and isinstance(source["files"], dict)
         and set(source["files"]) == {str(path) for path in SOURCE_FILES}
     ):
@@ -373,7 +486,7 @@ def stage_source(root: Path, expected_hash: str) -> None:
     if sha256(runtime_raw) != RUNTIME_SHA256:
         raise PermissionError("OpenMM runtime hash drifted")
     with tempfile.TemporaryDirectory(
-        prefix=".ff15ipq-angle-stage-", dir=root / ".auto"
+        prefix=".ff15ipq-angle-recovery-stage-", dir=(root / STAGE).parent
     ) as text:
         temporary = Path(text)
         scripts = temporary / "scripts"
@@ -435,7 +548,10 @@ def diagnose_support(task: tuple[int, str, str]) -> dict[str, Any]:
         import openmm  # type: ignore[import-not-found]
         from openmm import Platform, app, unit  # type: ignore[import-not-found]
 
-        if getattr(openmm, "__version__", None) != OPENMM_VERSION:
+        if (
+            getattr(openmm.version, "full_version", None) != OPENMM_VERSION
+            or getattr(openmm.version, "git_revision", None) != OPENMM_GIT_REVISION
+        ):
             raise RuntimeError("OpenMM version drifted")
         seed = seed_for(index)
         random.seed(seed)
@@ -633,19 +749,19 @@ def require_worker_release(stage: Path) -> None:
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_execution_release_v1"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v1"
         and release.get("entity_uid") == ENTITY_UID
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
         and release.get("source_commitment_sha256") == expected_source
         and release.get("runtime_sif_sha256") == RUNTIME_SHA256
         and os.environ.get("ATYPEMU_RUNTIME_SIF_SHA256") == RUNTIME_SHA256
-        and release.get("state") == "EXTERNALLY_RELEASED_ONCE_DIAGNOSTIC_ONLY"
+        and release.get("state") == "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY"
         and consumed.get("candidate_id") == CANDIDATE_ID
         and consumed.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_consumption_v1"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v1"
         and consumed.get("execution_release_sha256") == expected_release
         and consumed.get("source_commitment_sha256") == expected_source
-        and consumed.get("state") == "CONSUMED_BEFORE_DIAGNOSTIC_PDB_ACCESS"
+        and consumed.get("state") == "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS"
     ):
         raise PermissionError("worker release/consumption identity drifted")
 
@@ -766,7 +882,7 @@ def validate_release(
         and review.get("candidate_id") == CANDIDATE_ID
         and review.get("closed_capabilities") == CLOSED
         and review.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_source_review_v1"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v1"
         and review.get("source_commitment_sha256") == source_hash
         and review.get("source_git_commit") == source["git_commit"]
         and review.get("state") == "GO_DIAGNOSTIC_ONLY"
@@ -787,14 +903,14 @@ def validate_release(
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_execution_release_v1"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v1"
         and release.get("entity_uid") == ENTITY_UID
         and release.get("git_commit") == source["git_commit"]
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
         and release.get("source_commitment_sha256") == source_hash
         and release.get("source_review_sha256") == sha256(review_raw)
         and release.get("runtime_sif_sha256") == RUNTIME_SHA256
-        and release.get("state") == "EXTERNALLY_RELEASED_ONCE_DIAGNOSTIC_ONLY"
+        and release.get("state") == "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY"
     ):
         raise PermissionError("source review or execution release drifted")
     return review_raw, release_raw
@@ -869,10 +985,10 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
         raise PermissionError("staged runtime drifted")
     consumed = {
         "candidate_id": CANDIDATE_ID,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_consumption_v1",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v1",
         "execution_release_sha256": release_hash,
         "source_commitment_sha256": source_hash,
-        "state": "CONSUMED_BEFORE_DIAGNOSTIC_PDB_ACCESS",
+        "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
     }
     consumed_raw = canonical(consumed) + b"\n"
     exclusive(root / CONSUMED, consumed_raw)
@@ -964,7 +1080,7 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
             "execution_release_sha256": release_hash,
             "result_class": summary["result_class"],
             "source_commitment_sha256": source_hash,
-            "state": "PASS_DIAGNOSTIC_EXECUTION_ONLY",
+            "state": "PASS_RECOVERY_DIAGNOSTIC_EXECUTION_ONLY",
             "stderr_sha256": sha256(stderr),
             "stdout_sha256": sha256(stdout),
             "summary_sha256": sha256(summary_raw),
@@ -981,13 +1097,14 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
             "error_type": type(error).__name__,
             "execution_release_sha256": release_hash,
             "source_commitment_sha256": source_hash,
-            "state": "FAILED_AFTER_DIAGNOSTIC_CONSUMPTION",
+            "state": "FAILED_AFTER_RECOVERY_DIAGNOSTIC_CONSUMPTION",
         }
         exclusive(root / FAILURE, canonical(failure) + b"\n")
         raise
 
 
-def self_test() -> int:
+def self_test(root: Path) -> int:
+    checks = 0
     for invalid in (b'{"a":1,"a":2}\n', b'{"a":NaN}\n', b"[]\n"):
         try:
             parse_object(invalid, "synthetic")
@@ -995,6 +1112,7 @@ def self_test() -> int:
             pass
         else:
             raise AssertionError("invalid JSON accepted")
+        checks += 1
     angle = angle_degrees(
         (1.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.5, math.sqrt(3) / 2, 0.0)
     )
@@ -1006,13 +1124,128 @@ def self_test() -> int:
         raise AssertionError("synthetic angle or support partition failed")
     if seed_for(1) == seed_for(2):
         raise AssertionError("support seed collision")
+    checks += 3
     try:
         worker(None)
     except PermissionError:
         pass
     else:
         raise AssertionError("worker capability failed open")
-    return 7
+    checks += 1
+
+    git_head(root)
+    validate_static_scope(root)
+    fixed = {path: read_file(root / path, 20_000_000) for path in SOURCE_FILES}
+    validate_fixed_inputs(fixed)
+    if len(load_projection(root / PROJECTION)) != 998:
+        raise AssertionError("projection/count replay drifted")
+    checks += 4
+
+    predecessor = parse_object(
+        read_file(root / PREDECESSOR_FAILURE),
+        "predecessor runtime-version failure",
+        require_canonical=False,
+    )
+    predecessor_paths = {
+        "consumed_sha256": root
+        / ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_execution_release_v1.consumed.json",
+        "summary_sha256": root
+        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/results/summary.json",
+        "support_results_sha256": root
+        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/results/support_results.jsonl",
+        "terminal_receipt_sha256": root
+        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/terminal_receipt.json",
+    }
+    if any(
+        sha256(read_file(path)) != predecessor[key]
+        for key, path in predecessor_paths.items()
+    ):
+        raise AssertionError("predecessor terminal evidence drifted")
+    predecessor_rows = [
+        parse_object(line, f"predecessor result {index}")
+        for index, line in enumerate(
+            read_file(predecessor_paths["support_results_sha256"]).splitlines(
+                keepends=True
+            )
+        )
+    ]
+    if not (
+        len(predecessor_rows) == 998
+        and [row.get("support_index") for row in predecessor_rows] == SUPPORTS
+        and all(
+            row.get("status") == "ERROR"
+            and row.get("error_type") == "RuntimeError"
+            and row.get("error_message") == "OpenMM version drifted"
+            for row in predecessor_rows
+        )
+    ):
+        raise AssertionError("predecessor error inventory drifted")
+    checks += 2
+
+    synthetic_rows = [
+        {
+            "error_message": "synthetic",
+            "error_type": "RuntimeError",
+            "status": "ERROR",
+            "support_index": index,
+        }
+        for index in SUPPORTS
+    ]
+    synthetic_results = b"".join(canonical(row) + b"\n" for row in synthetic_rows)
+    synthetic_summary = {
+        "candidate_id": CANDIDATE_ID,
+        "error_support_count": 998,
+        "full_135_entity_route": "CLOSED",
+        "global_minimum_angle": None,
+        "promotion_or_feasibility_claim_allowed": False,
+        "result_class": "DIAGNOSTIC_EXECUTION_FAILED",
+        "state": "SEALED_TARGET_UNREAD_DIAGNOSTIC_ONLY",
+        "support_count": 998,
+        "support_results_sha256": sha256(synthetic_results),
+        "violation_support_count": 0,
+    }
+    validate_result_bytes(canonical(synthetic_summary) + b"\n", synthetic_results)
+    try:
+        validate_result_bytes(
+            canonical(synthetic_summary) + b"\n",
+            b"".join(canonical(row) + b"\n" for row in synthetic_rows[:-1]),
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("incomplete result surface accepted")
+    checks += 2
+
+    with tempfile.TemporaryDirectory(prefix="ff15ipq-angle-self-test-") as text:
+        test_root = Path(text)
+        marker = test_root / "consumed.json"
+        exclusive(marker, b"{}\n")
+        try:
+            exclusive(marker, b"{}\n")
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("one-shot receipt overwrite accepted")
+        source = test_root / "source"
+        destination = test_root / "destination"
+        source.mkdir()
+        exclusive(source / "payload", b"fixed")
+        os.chmod(source, 0o555)
+        publish_directory(source, destination)
+        replacement = test_root / "replacement"
+        replacement.mkdir()
+        try:
+            publish_directory(replacement, destination)
+        except FileExistsError:
+            pass
+        else:
+            raise AssertionError("no-clobber directory publication failed open")
+    checks += 2
+    return checks
 
 
 def repository_root() -> Path:
@@ -1049,10 +1282,12 @@ def main() -> int:
     if args.container_controller:
         worker(_WORKER_SEAL)
         return 0
-    if args.self_test:
-        print(f"STATUS PASS_FF15IPQ_ANGLE_DIAGNOSTIC_SELF_TEST checks={self_test()}")
-        return 0
     root = repository_root()
+    if args.self_test:
+        print(
+            f"STATUS PASS_FF15IPQ_ANGLE_DIAGNOSTIC_SELF_TEST checks={self_test(root)}"
+        )
+        return 0
     if args.freeze_source:
         freeze_source(root)
     elif args.stage_source:

@@ -1,0 +1,34 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_v1",
+  "consumed_sha256": "63818e54d48aa2091e84ceac24a3936615863c06ffa52fa286c8a7cf4e979000",
+  "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_runtime_version_failure_v1",
+  "elapsed_seconds": "136.149",
+  "execution_release_sha256": "573edc39721410baf0ee5cd3cd0633a7f5787c5c3ab8c12b19aa423e1dba7de3",
+  "observed_error": {
+    "error_message": "OpenMM version drifted",
+    "error_support_count": 998,
+    "error_type": "RuntimeError"
+  },
+  "observed_runtime": {
+    "git_revision": "c6173db6e8edd705eb59172bd21e9ce69c572405",
+    "openmm_dunder_version": "8.6",
+    "openmm_full_version": "8.6.0.dev-c6173db",
+    "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
+  },
+  "parent_pdb_bytes_read": false,
+  "recovery_policy": {
+    "ordinary_rerun_allowed": false,
+    "required_candidate_id": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_recovery_v1",
+    "required_fix": "compare openmm.version.full_version and openmm.version.git_revision instead of openmm.__version__",
+    "reuse_consumed_or_release_allowed": false
+  },
+  "result_class": "DIAGNOSTIC_EXECUTION_FAILED",
+  "source_commitment_sha256": "afc7002689b3d1ae1e1cf088cfa91e8502989d330f1895d8415806960f4e0129",
+  "source_review_sha256": "9915fcf5baf7bc41fc36ca08d689e63cf9375fbe8e8437bae728714ac9a50f83",
+  "state": "FAILED_CLOSED_PRE_PDB_RUNTIME_VERSION_ATTRIBUTE_MISMATCH",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "summary_sha256": "3b47d70d3ee6164024b1c98464ce9e84f12b3978a38be9dcd53006804b183351",
+  "support_results_sha256": "f60d89d06458cd0233bdda7a1e44a04b38c5169cacb0e1f7f74c84247e4d78f3",
+  "terminal_receipt_sha256": "b5a41c2c2e70fe6ffbeede69d8ce2667925c3d590cf3f2b659946833924c9e77"
+}

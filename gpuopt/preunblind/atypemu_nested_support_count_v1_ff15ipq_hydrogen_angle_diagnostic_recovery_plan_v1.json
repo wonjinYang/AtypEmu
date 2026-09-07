@@ -1,0 +1,76 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_recovery_v1",
+  "condition": {
+    "condition_branch_id": "observed-0",
+    "condition_state": "observed",
+    "proposal_pH": "6.0"
+  },
+  "contract": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_recovery_plan_v1",
+  "decision_contract": {
+    "all_998_supports_required": true,
+    "failure_threshold_degrees": "55.0",
+    "full_135_entity_route": "CLOSED",
+    "mechanism_claim_requires_independent_replay": true,
+    "no_threshold_adjustment_from_result": true,
+    "promotion_or_feasibility_claim_allowed": false,
+    "result_classes": [
+      "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
+      "HYDROGEN_ANGLE_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
+      "DIAGNOSTIC_EXECUTION_FAILED"
+    ]
+  },
+  "entity_uid": "bmrb:10109:entity:1",
+  "execution_contract": {
+    "exactly_one_fresh_external_release": true,
+    "fresh_process_per_support": true,
+    "network": "DISABLED",
+    "openmm_forcefield": "amber14/protein.ff15ipq.xml",
+    "openmm_git_revision": "c6173db6e8edd705eb59172bd21e9ce69c572405",
+    "openmm_platform": "Reference",
+    "openmm_version": "8.6.0.dev-c6173db",
+    "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "source_commitment": "FRESH_EXTERNAL_O_EXCL_BEFORE_INPUT_ACCESS",
+    "stderr_and_per_support_results_sealed": true
+  },
+  "failed_predecessor": {
+    "consumed_sha256": "63818e54d48aa2091e84ceac24a3936615863c06ffa52fa286c8a7cf4e979000",
+    "failure_receipt_sha256": "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3",
+    "ordinary_rerun_allowed": false,
+    "source_commitment_sha256": "afc7002689b3d1ae1e1cf088cfa91e8502989d330f1895d8415806960f4e0129",
+    "support_results_sha256": "f60d89d06458cd0233bdda7a1e44a04b38c5169cacb0e1f7f74c84247e4d78f3",
+    "terminal_receipt_sha256": "b5a41c2c2e70fe6ffbeede69d8ce2667925c3d590cf3f2b659946833924c9e77"
+  },
+  "input_contract": {
+    "missing_support_indices": [272, 795],
+    "parent_projection_sha256": "e9b4861216d99e8136df872958a50f568337fc8a6b4991b25df2b906dcee5046",
+    "present_support_count": 998,
+    "support_indices": "ALL_PRESENT_1_TO_1000_EXCEPT_272_AND_795"
+  },
+  "method": {
+    "angle_definition": "H-parent-heavy angle for every hydrogen and every heavy neighbor of its bonded parent",
+    "heavy_coordinates": "preserve deposited parent heavy coordinates exactly",
+    "hydrogen_input_policy": "delete every input hydrogen before OpenMM addHydrogens",
+    "independent_implementation": "must not import the failed all-support materializer or ff15ipq_all_support_common",
+    "output_identity": "support_index plus atom, residue, chain, angle, and minimum-angle records",
+    "seed_policy": "unchanged exact failed-materializer seed policy",
+    "threshold_degrees_inclusive": ["55.0", "180.0"]
+  },
+  "prohibited_inputs": [
+    "NMR target values",
+    "target Atom_ID identities",
+    "source or formal scores",
+    "outer or formal metrics",
+    "failed worker temporary outputs",
+    "unpersisted terminal stderr as ground truth"
+  ],
+  "recovery_delta": {
+    "allowed": [
+      "bind failed predecessor terminal evidence",
+      "check openmm.version.full_version and openmm.version.git_revision",
+      "place staging temporary directory in the destination parent"
+    ],
+    "scientific_method_changed": false
+  },
+  "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",
+  "state": "HOLD_PENDING_AUTOMATED_GATES_FINAL_COLD_REVIEW_SOURCE_COMMITMENT_AND_FRESH_RELEASE"
+}
