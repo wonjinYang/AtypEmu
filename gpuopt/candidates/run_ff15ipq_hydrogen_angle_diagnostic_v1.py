@@ -29,6 +29,7 @@ ENTITY_UID = "bmrb:10109:entity:1"
 BMRB_ID = "bmr10109"
 MISSING = [272, 795]
 SUPPORTS = [index for index in range(1, 1001) if index not in MISSING]
+_WORKER_SEAL = object()
 PH = 6.0
 BRANCH = "observed-0"
 LOW_ANGLE = 55.0
@@ -639,7 +640,9 @@ def require_worker_release(stage: Path) -> None:
         raise PermissionError("worker release/consumption identity drifted")
 
 
-def worker() -> None:
+def worker(access: object) -> None:
+    if access is not _WORKER_SEAL:
+        raise PermissionError("worker requires a process-local released capability")
     script = Path(__file__).absolute()
     stage = script.parent.parent
     if (
@@ -649,6 +652,11 @@ def worker() -> None:
     ):
         raise PermissionError("worker script is outside the released stage")
     require_worker_release(stage)
+    output = stage / "output"
+    if output.is_symlink() or not output.is_dir() or any(output.iterdir()):
+        raise PermissionError(
+            "worker result directory is absent, indirect, or nonempty"
+        )
     projection = load_projection(stage / "inputs" / PROJECTION.name)
     pdb_root = stage / "inputs/data/BioEmu/bmr10109"
     entries = list(pdb_root.iterdir())
@@ -693,7 +701,6 @@ def worker() -> None:
             else "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY"
         )
     )
-    output = stage / "output"
     result_raw = b"".join(canonical(row) + b"\n" for row in rows)
     summary = {
         "candidate_id": CANDIDATE_ID,
@@ -915,7 +922,7 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
         str(output / "runtime.sif"),
         "python",
         f"/work/scripts/{SCRIPT.name}",
-        "--worker",
+        "--container-controller",
     ]
     process: subprocess.Popen[bytes] | None = None
     try:
@@ -989,7 +996,13 @@ def self_test() -> int:
         raise AssertionError("synthetic angle or support partition failed")
     if seed_for(1) == seed_for(2):
         raise AssertionError("support seed collision")
-    return 6
+    try:
+        worker(None)
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("worker capability failed open")
+    return 7
 
 
 def repository_root() -> Path:
@@ -1009,7 +1022,7 @@ def main() -> int:
     parser.add_argument("--freeze-source", action="store_true")
     parser.add_argument("--stage-source", action="store_true")
     parser.add_argument("--run", action="store_true")
-    parser.add_argument("--worker", action="store_true")
+    parser.add_argument("--container-controller", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument("--source-commitment-sha256")
     parser.add_argument("--execution-release-sha256")
@@ -1018,13 +1031,13 @@ def main() -> int:
         args.freeze_source,
         args.stage_source,
         args.run,
-        args.worker,
+        args.container_controller,
         args.self_test,
     ]
     if sum(modes) != 1:
         parser.error("select exactly one mode")
-    if args.worker:
-        worker()
+    if args.container_controller:
+        worker(_WORKER_SEAL)
         return 0
     if args.self_test:
         print(f"STATUS PASS_FF15IPQ_ANGLE_DIAGNOSTIC_SELF_TEST checks={self_test()}")
