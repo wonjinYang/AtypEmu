@@ -437,10 +437,47 @@ def diagnose_support(task: tuple[int, str, str]) -> dict[str, Any]:
         atoms = list(modeller.topology.atoms())
         if any(atom.element is None for atom in atoms):
             raise ValueError("input atom lacks element")
+
+        def heavy_snapshot() -> list[tuple[Any, ...]]:
+            positions = list(modeller.positions)
+            snapshot: list[tuple[Any, ...]] = []
+            for atom in modeller.topology.atoms():
+                if atom.element.atomic_number == 1:
+                    continue
+                position = positions[atom.index].value_in_unit(unit.angstrom)
+                snapshot.append(
+                    (
+                        atom.residue.chain.index,
+                        atom.residue.chain.id,
+                        atom.residue.index,
+                        atom.residue.id,
+                        getattr(atom.residue, "insertionCode", ""),
+                        atom.residue.name,
+                        atom.index,
+                        atom.name,
+                        atom.element.symbol,
+                        *(float(value) for value in position),
+                    )
+                )
+            return snapshot
+
+        parent_heavy = heavy_snapshot()
         modeller.delete([atom for atom in atoms if atom.element.atomic_number == 1])
+        if any(atom.element.atomic_number == 1 for atom in modeller.topology.atoms()):
+            raise ValueError("input hydrogen deletion was incomplete")
+        deleted_heavy = heavy_snapshot()
+        if [row[:6] + row[7:] for row in deleted_heavy] != [
+            row[:6] + row[7:] for row in parent_heavy
+        ]:
+            raise ValueError("input hydrogen deletion changed parent heavy records")
         forcefield = app.ForceField(FORCEFIELD)
         platform = Platform.getPlatformByName("Reference")
         modeller.addHydrogens(forcefield, pH=PH, variants=None, platform=platform)
+        protonated_heavy = heavy_snapshot()
+        if [row[:6] + row[7:] for row in protonated_heavy] != [
+            row[:6] + row[7:] for row in parent_heavy
+        ]:
+            raise ValueError("protonation changed parent heavy records")
         atoms = list(modeller.topology.atoms())
         positions = list(modeller.positions)
         if not atoms or len(atoms) != len(positions):
@@ -745,6 +782,59 @@ def validate_release(
     return review_raw, release_raw
 
 
+def validate_result_bytes(summary_raw: bytes, results_raw: bytes) -> dict[str, Any]:
+    summary = parse_object(summary_raw, "diagnostic summary")
+    lines = results_raw.splitlines(keepends=True)
+    if len(lines) != 998 or not results_raw.endswith(b"\n"):
+        raise ValueError("diagnostic result row count or framing drifted")
+    rows = [
+        parse_object(line, f"support result {index}")
+        for index, line in enumerate(lines)
+    ]
+    if [row.get("support_index") for row in rows] != SUPPORTS:
+        raise ValueError("diagnostic result support identity drifted")
+    errors = [row for row in rows if row.get("status") == "ERROR"]
+    ok_rows = [row for row in rows if row.get("status") == "OK"]
+    if len(errors) + len(ok_rows) != 998:
+        raise ValueError("diagnostic result status drifted")
+    violations = [row for row in ok_rows if row.get("violation_count", 0) > 0]
+    expected_class = (
+        "DIAGNOSTIC_EXECUTION_FAILED"
+        if errors
+        else (
+            "HYDROGEN_ANGLE_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY"
+            if violations
+            else "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY"
+        )
+    )
+    if not (
+        set(summary)
+        == {
+            "candidate_id",
+            "error_support_count",
+            "full_135_entity_route",
+            "global_minimum_angle",
+            "promotion_or_feasibility_claim_allowed",
+            "result_class",
+            "state",
+            "support_count",
+            "support_results_sha256",
+            "violation_support_count",
+        }
+        and summary.get("candidate_id") == CANDIDATE_ID
+        and summary.get("support_count") == 998
+        and summary.get("support_results_sha256") == sha256(results_raw)
+        and summary.get("error_support_count") == len(errors)
+        and summary.get("violation_support_count") == len(violations)
+        and summary.get("result_class") == expected_class
+        and summary.get("state") == "SEALED_TARGET_UNREAD_DIAGNOSTIC_ONLY"
+        and summary.get("full_135_entity_route") == "CLOSED"
+        and summary.get("promotion_or_feasibility_claim_allowed") is False
+    ):
+        raise ValueError("diagnostic summary drifted")
+    return summary
+
+
 def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
     source, _ = require_source(root, source_hash)
     review_raw, release_raw = validate_release(root, source, source_hash, release_hash)
@@ -827,27 +917,25 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
         "--worker",
     ]
     try:
-        completed = subprocess.run(
-            command,
-            cwd=root,
-            env=HOST_ENV,
-            capture_output=True,
-            timeout=21_600,
-        )
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=root,
+                env=HOST_ENV,
+                capture_output=True,
+                timeout=21_600,
+            )
+        except subprocess.TimeoutExpired as error:
+            exclusive(output / "stdout.bin", error.stdout or b"")
+            exclusive(output / "stderr.bin", error.stderr or b"")
+            raise
         exclusive(output / "stdout.bin", completed.stdout)
         exclusive(output / "stderr.bin", completed.stderr)
         if completed.returncode != 0:
             raise subprocess.CalledProcessError(completed.returncode, command)
         summary_raw = read_file(output / "results/summary.json", 2_000_000)
         results_raw = read_file(output / "results/support_results.jsonl", 100_000_000)
-        summary = parse_object(summary_raw, "diagnostic summary")
-        if not (
-            summary.get("support_count") == 998
-            and summary.get("support_results_sha256") == sha256(results_raw)
-            and summary.get("full_135_entity_route") == "CLOSED"
-            and summary.get("promotion_or_feasibility_claim_allowed") is False
-        ):
-            raise ValueError("diagnostic summary drifted")
+        summary = validate_result_bytes(summary_raw, results_raw)
         terminal = {
             "candidate_id": CANDIDATE_ID,
             "execution_release_sha256": release_hash,
