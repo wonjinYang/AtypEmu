@@ -13,6 +13,11 @@
     "mechanism_claim_requires_independent_replay": true,
     "no_threshold_adjustment_from_result": true,
     "promotion_or_feasibility_claim_allowed": false,
+    "downstream_action_map": {
+      "DIAGNOSTIC_EXECUTION_FAILED": "HOLD_NO_INFERENCE_SEPARATE_REVIEWED_RECOVERY_ONLY",
+      "HYDROGEN_ANGLE_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY": "HOLD_NO_MECHANISM_CLAIM_FREEZE_INDEPENDENT_VIOLATION_REPLAY_ONLY",
+      "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY": "HOLD_NO_MECHANISM_CLAIM_FREEZE_INDEPENDENT_INTEGRATION_CONTEXT_DIAGNOSTIC_ONLY"
+    },
     "result_classes": [
       "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
       "HYDROGEN_ANGLE_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
@@ -31,7 +36,7 @@
     "openmm_version": "8.6.0.dev-c6173db",
     "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
     "runtime_source": "hash-verified fixed member of canonical archive/filesystem-consolidation-20260907",
-    "source_commitment": "TRACKED_V6_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_V5_PRECONSUMPTION_RELEASE_FAILURE",
+    "source_commitment": "TRACKED_V7_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_V6_DOWNSTREAM_DECISION_HOLD",
     "stderr_and_per_support_results_sealed": true,
     "drvfs_publication": "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_ROOT_MODE_BOUND_MARKER_LAST_COMPLETE_HASH_MANIFEST",
     "failure_sealing": "EVERY_POST_CONSUMPTION_BASEEXCEPTION_SEALED_BEFORE_BEST_EFFORT_CLEANUP",
@@ -81,7 +86,8 @@
       "execute and validate in a private directory before one final immutable publication",
       "bind the tracked source commitment digest through exact Git commit trailers",
       "preserve and validate the read-only publication root mode before completing the marker",
-      "isolate an invalid external-review schema receipt before any release consumption or PDB access"
+      "isolate an invalid external-review schema receipt before any release consumption or PDB access",
+      "freeze the HOLD-only downstream action for every possible diagnostic result class"
     ],
     "scientific_method_changed": false
   },
@@ -93,12 +99,12 @@
     "scoped_development_reviewers_allowed": 0
   },
   "superseded_source_bundle": {
-    "final_cold_review_go_sha256": "3d1d80bb542e36a3cf8f8e7a9b1f2821c9727cdb67b452eb377cbd964de891ab",
-    "git_commit": "262c7e62aa3d68cbb0a0adece5b89395c2024168",
+    "downstream_decision_hold_sha256": "00315d4107625b3587150a19c7be4db63e8fa7647c690a06090253bc2911845f",
+    "final_cold_review_go_sha256": "ef8cd2e7b44463db576e613efaea064596b06a7afc05e3e8ae6455fb3980c3b0",
+    "git_commit": "62f7588b2a05e843293844dace33f155128b3379",
     "ordinary_release_allowed": false,
-    "release_validation_failure_sha256": "e60a9d6a972de5c4b8d4429dbef27082701a3400f4d7ad99741a33b583c22faf",
-    "source_commitment_sha256": "00c3b27cef79ae341ac729c5b0c7008bc762819541af5307bd676c378026c776",
-    "state": "V5_REVIEW_GO_RELEASE_FAIL_CLOSED_PRECONSUMPTION_NO_EXECUTION"
+    "source_commitment_sha256": "c1c4da9f8fa9c18932ad1f0b14ad84475166202a2eadd84f99af1e58ed1882ef",
+    "state": "V6_REVIEW_GO_RELEASE_HELD_FOR_UNFROZEN_DOWNSTREAM_DECISION_MAP"
   },
   "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",
   "state": "HOLD_PENDING_AUTOMATED_GATES_FINAL_COLD_REVIEW_SOURCE_COMMITMENT_AND_FRESH_RELEASE"
