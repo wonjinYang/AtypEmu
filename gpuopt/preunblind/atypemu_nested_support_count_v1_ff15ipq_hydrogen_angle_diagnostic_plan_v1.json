@@ -1,0 +1,62 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_v1",
+  "condition": {
+    "condition_branch_id": "observed-0",
+    "condition_state": "observed",
+    "proposal_pH": "6.0"
+  },
+  "contract": "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_diagnostic_plan_v1",
+  "decision_contract": {
+    "all_998_supports_required": true,
+    "failure_threshold_degrees": "55.0",
+    "full_135_entity_route": "CLOSED",
+    "mechanism_claim_requires_independent_replay": true,
+    "no_threshold_adjustment_from_result": true,
+    "promotion_or_feasibility_claim_allowed": false,
+    "result_classes": [
+      "NO_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
+      "HYDROGEN_ANGLE_FAILURE_REPRODUCED_DIAGNOSTIC_ONLY",
+      "DIAGNOSTIC_EXECUTION_FAILED"
+    ]
+  },
+  "entity_uid": "bmrb:10109:entity:1",
+  "execution_contract": {
+    "exactly_one_external_release": true,
+    "fresh_process_per_support": true,
+    "network": "DISABLED",
+    "openmm_forcefield": "amber14/protein.ff15ipq.xml",
+    "openmm_platform": "Reference",
+    "openmm_version": "8.6.0.dev-c6173db",
+    "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "source_commitment": "EXTERNAL_O_EXCL_BEFORE_INPUT_ACCESS",
+    "stderr_and_per_support_results_sealed": true
+  },
+  "input_contract": {
+    "missing_support_indices": [272, 795],
+    "parent_projection_sha256": "e9b4861216d99e8136df872958a50f568337fc8a6b4991b25df2b906dcee5046",
+    "present_support_count": 998,
+    "recovery_consumed_sha256": "0147ca81c7493ee702c704a530cf3621460360831b985e71721ef497eeb78355",
+    "recovery_failure_sha256": "06e49c2e4dae55f6da6ae43d77b9f9891ef7a8dbd43114668b9cade271bbbeb7",
+    "recovery_terminal_decision_sha256": "ab47932dcbce7a2b61a30ed2f17907f3dbdc8dafbf71428463de43393d77db75",
+    "recovery_terminal_inventory_sha256": "eedcd06f38e4234a29eb6b2bc981a87928406b507f9ccb102bd282f4957b881f",
+    "support_indices": "ALL_PRESENT_1_TO_1000_EXCEPT_272_AND_795"
+  },
+  "method": {
+    "angle_definition": "H-parent-heavy angle for every hydrogen and every heavy neighbor of its bonded parent",
+    "heavy_coordinates": "preserve deposited parent heavy coordinates exactly",
+    "hydrogen_input_policy": "delete every input hydrogen before OpenMM addHydrogens",
+    "independent_implementation": "must not import the failed materializer or ff15ipq_all_support_common",
+    "output_identity": "support_index plus atom, residue, chain, angle, and minimum-angle records",
+    "threshold_degrees_inclusive": ["55.0", "180.0"]
+  },
+  "prohibited_inputs": [
+    "NMR target values",
+    "target Atom_ID identities",
+    "source or formal scores",
+    "outer or formal metrics",
+    "failed worker temporary outputs",
+    "unpersisted terminal stderr as ground truth"
+  ],
+  "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",
+  "state": "HOLD_PENDING_IMPLEMENTATION_REVIEW_SOURCE_COMMITMENT_AND_EXTERNAL_RELEASE"
+}
