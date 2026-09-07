@@ -44,7 +44,7 @@ OPENMM_VERSION = "8.6.0.dev-c6173db"
 OPENMM_GIT_REVISION = "c6173db6e8edd705eb59172bd21e9ce69c572405"
 FORCEFIELD = "amber14/protein.ff15ipq.xml"
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-PLAN_SHA256 = "57c6bda0be4e77f72bec0aa47b0a85f969519f412c7bf9a37fb4cc0a593270a6"
+PLAN_SHA256 = "8083863f891ba706adc8ac2bb6c408e44a6c2b5283b7eae4e70617136dc6ded5"
 PREDECESSOR_FAILURE_SHA256 = (
     "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3"
 )
@@ -174,33 +174,54 @@ SUPERSEDED_REVIEW_NOGO_V4 = Path(
 SUPERSEDED_REVIEW_NOGO_V4_SHA256 = (
     "329765795af3e50f7de5e22cc80b83711d1697937ff91530416af665b3703c49"
 )
-SOURCE_COMMITMENT = Path(
+SUPERSEDED_SOURCE_COMMITMENT_V5 = Path(
     "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
     "diagnostic_recovery_source_commitment_v5.json"
 )
+SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256 = (
+    "00c3b27cef79ae341ac729c5b0c7008bc762819541af5307bd676c378026c776"
+)
+SUPERSEDED_REVIEW_GO_V5 = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_final_cold_review_go_v5.json"
+)
+SUPERSEDED_REVIEW_GO_V5_SHA256 = (
+    "3d1d80bb542e36a3cf8f8e7a9b1f2821c9727cdb67b452eb377cbd964de891ab"
+)
+SUPERSEDED_RELEASE_FAILURE_V5 = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_release_validation_failure_v1.json"
+)
+SUPERSEDED_RELEASE_FAILURE_V5_SHA256 = (
+    "e60a9d6a972de5c4b8d4429dbef27082701a3400f4d7ad99741a33b583c22faf"
+)
+SOURCE_COMMITMENT = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_source_commitment_v6.json"
+)
 STAGE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_stage_v5"
+    "diagnostic_recovery_stage_v6"
 )
 SOURCE_REVIEW = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_source_review_v5.json"
+    "diagnostic_recovery_source_review_v6.json"
 )
 RELEASE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_release_v5.json"
+    "diagnostic_recovery_execution_release_v6.json"
 )
 CONSUMED = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_release_v5.consumed.json"
+    "diagnostic_recovery_execution_release_v6.consumed.json"
 )
 FAILURE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_failure_v5.json"
+    "diagnostic_recovery_execution_failure_v6.json"
 )
 OUTPUT = Path(
     ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_output_v5"
+    "diagnostic_recovery_output_v6"
 )
 SOURCE_FILES = (
     SCRIPT,
@@ -216,6 +237,9 @@ SOURCE_FILES = (
     SUPERSEDED_REVIEW_NOGO_V3,
     SUPERSEDED_SOURCE_COMMITMENT_V4,
     SUPERSEDED_REVIEW_NOGO_V4,
+    SUPERSEDED_SOURCE_COMMITMENT_V5,
+    SUPERSEDED_REVIEW_GO_V5,
+    SUPERSEDED_RELEASE_FAILURE_V5,
 )
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 GIT_COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
@@ -742,6 +766,9 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         SUPERSEDED_REVIEW_NOGO_V3: SUPERSEDED_REVIEW_NOGO_V3_SHA256,
         SUPERSEDED_SOURCE_COMMITMENT_V4: SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256,
         SUPERSEDED_REVIEW_NOGO_V4: SUPERSEDED_REVIEW_NOGO_V4_SHA256,
+        SUPERSEDED_SOURCE_COMMITMENT_V5: SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
+        SUPERSEDED_REVIEW_GO_V5: SUPERSEDED_REVIEW_GO_V5_SHA256,
+        SUPERSEDED_RELEASE_FAILURE_V5: SUPERSEDED_RELEASE_FAILURE_V5_SHA256,
     }
     if any(sha256(raw_by_path[path]) != digest for path, digest in expected.items()):
         raise PermissionError("fixed diagnostic input hash drifted")
@@ -766,6 +793,18 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         raw_by_path[SUPERSEDED_REVIEW_NOGO_V4],
         "superseded v4 final cold-review NO_GO",
     )
+    superseded_source_v5 = parse_object(
+        raw_by_path[SUPERSEDED_SOURCE_COMMITMENT_V5],
+        "superseded v5 source commitment",
+    )
+    superseded_review_v5 = parse_object(
+        raw_by_path[SUPERSEDED_REVIEW_GO_V5],
+        "superseded v5 final cold-review GO",
+    )
+    superseded_release_failure_v5 = parse_object(
+        raw_by_path[SUPERSEDED_RELEASE_FAILURE_V5],
+        "superseded v5 release-validation failure",
+    )
     if not (
         plan.get("candidate_id") == CANDIDATE_ID
         and plan.get("scope") == "TARGET_UNREAD_DIAGNOSTIC_ONLY"
@@ -783,7 +822,7 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         == RUNTIME_SHA256
         and plan.get("execution_contract", {}).get("worker_processes") == WORKERS
         and plan.get("execution_contract", {}).get("source_commitment")
-        == "TRACKED_V5_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_SUPERSEDED_V4_NO_GO"
+        == "TRACKED_V6_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_V5_PRECONSUMPTION_RELEASE_FAILURE"
         and plan.get("execution_contract", {}).get("drvfs_publication")
         == "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_ROOT_MODE_BOUND_MARKER_LAST_COMPLETE_HASH_MANIFEST"
         and plan.get("execution_contract", {}).get("failure_sealing")
@@ -800,11 +839,12 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         }
         and plan.get("superseded_source_bundle")
         == {
-            "final_cold_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V4_SHA256,
-            "git_commit": "e08613c08bdc0982a8968f29551e72e57fdeaaf0",
+            "final_cold_review_go_sha256": SUPERSEDED_REVIEW_GO_V5_SHA256,
+            "git_commit": "262c7e62aa3d68cbb0a0adece5b89395c2024168",
             "ordinary_release_allowed": False,
-            "source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256,
-            "state": "SUPERSEDED_AFTER_FINAL_COLD_REVIEW_NO_GO",
+            "release_validation_failure_sha256": SUPERSEDED_RELEASE_FAILURE_V5_SHA256,
+            "source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
+            "state": "V5_REVIEW_GO_RELEASE_FAIL_CLOSED_PRECONSUMPTION_NO_EXECUTION",
         }
         and plan.get("decision_contract", {}).get("full_135_entity_route") == "CLOSED"
         and plan.get("decision_contract", {}).get(
@@ -848,6 +888,44 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         and superseded_review_v4.get("scope") == "final_full_cold"
         and superseded_review_v4.get("git_commit")
         == "e08613c08bdc0982a8968f29551e72e57fdeaaf0"
+        and superseded_source_v5.get("contract")
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v5"
+        and superseded_source_v5.get("superseded_final_review_nogo_sha256")
+        == SUPERSEDED_REVIEW_NOGO_V4_SHA256
+        and superseded_source_v5.get("superseded_source_commitment_sha256")
+        == SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256
+        and superseded_source_v5.get("state")
+        == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
+        and superseded_review_v5
+        == {
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_final_cold_review_go_v5",
+            "elapsed_seconds": 720.0,
+            "git_commit": "262c7e62aa3d68cbb0a0adece5b89395c2024168",
+            "review_session": "ff15ipq-v5-final",
+            "scope": "final_full_cold",
+            "source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
+            "state": "GO",
+            "verified": [
+                "v4_root_mode_blocker_closed",
+                "prior_four_v3_blockers_closed",
+                "full_frozen_scope_contract_causally_closed",
+            ],
+        }
+        and superseded_release_failure_v5.get("state")
+        == "FAIL_CLOSED_PRECONSUMPTION_INVALID_EXTERNAL_RECEIPT"
+        and superseded_release_failure_v5.get("git_commit")
+        == "262c7e62aa3d68cbb0a0adece5b89395c2024168"
+        and superseded_release_failure_v5.get("source_commitment_sha256")
+        == SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256
+        and superseded_release_failure_v5.get("review_sha256")
+        == "4e4bcfc4dc81a4fe4254c191052726788e0be82553f13fe288af4f1d7e7bf450"
+        and superseded_release_failure_v5.get("release_sha256")
+        == "8b2c9f37fea211271af35dc7870a846d5a91957afa64f60e3b907b5bfdd37c8c"
+        and superseded_release_failure_v5.get("consumed_marker_absent") is True
+        and superseded_release_failure_v5.get("diagnostic_executed") is False
+        and superseded_release_failure_v5.get("output_absent") is True
+        and superseded_release_failure_v5.get("pdb_or_protected_surface_read")
+        is False
     ):
         raise PermissionError("diagnostic plan identity drifted")
     decision = parse_object(
@@ -981,22 +1059,25 @@ def require_source(
         "git_binding",
         "runtime_sif_sha256",
         "state",
-        "superseded_final_review_nogo_sha256",
+        "superseded_final_review_go_sha256",
+        "superseded_release_validation_failure_sha256",
         "superseded_source_commitment_sha256",
     } or not (
         source["candidate_id"] == CANDIDATE_ID
         and source["consolidation_archive_sha256"]
         == CONSOLIDATION_ARCHIVE_SHA256
         and source["contract"]
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v6"
         and source["git_binding"]
         == "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER"
         and source["runtime_sif_sha256"] == RUNTIME_SHA256
         and source["state"] == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
-        and source["superseded_final_review_nogo_sha256"]
-        == SUPERSEDED_REVIEW_NOGO_V4_SHA256
+        and source["superseded_final_review_go_sha256"]
+        == SUPERSEDED_REVIEW_GO_V5_SHA256
+        and source["superseded_release_validation_failure_sha256"]
+        == SUPERSEDED_RELEASE_FAILURE_V5_SHA256
         and source["superseded_source_commitment_sha256"]
-        == SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256
+        == SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256
         and isinstance(source["files"], dict)
         and set(source["files"]) == {str(path) for path in SOURCE_FILES}
     ):
@@ -1261,7 +1342,7 @@ def validate_final_review(
         and review.get("candidate_id") == CANDIDATE_ID
         and review.get("closed_capabilities") == CLOSED
         and review.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v6"
         and review.get("source_commitment_sha256") == source_hash
         and GIT_COMMIT_RE.fullmatch(git_commit) is not None
         and review.get("source_git_commit") == git_commit
@@ -1328,7 +1409,8 @@ def require_worker_release(stage: Path) -> None:
         "git_binding",
         "runtime_sif_sha256",
         "state",
-        "superseded_final_review_nogo_sha256",
+        "superseded_final_review_go_sha256",
+        "superseded_release_validation_failure_sha256",
         "superseded_source_commitment_sha256",
     }
     validate_final_review(review, expected_source, release.get("git_commit", ""))
@@ -1338,15 +1420,17 @@ def require_worker_release(stage: Path) -> None:
         and source.get("consolidation_archive_sha256")
         == CONSOLIDATION_ARCHIVE_SHA256
         and source.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v6"
         and source.get("git_binding")
         == "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER"
         and source.get("runtime_sif_sha256") == RUNTIME_SHA256
         and source.get("state") == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
-        and source.get("superseded_final_review_nogo_sha256")
-        == SUPERSEDED_REVIEW_NOGO_V4_SHA256
+        and source.get("superseded_final_review_go_sha256")
+        == SUPERSEDED_REVIEW_GO_V5_SHA256
+        and source.get("superseded_release_validation_failure_sha256")
+        == SUPERSEDED_RELEASE_FAILURE_V5_SHA256
         and source.get("superseded_source_commitment_sha256")
-        == SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256
+        == SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256
         and isinstance(source.get("files"), dict)
         and source["files"]
         == {
@@ -1363,13 +1447,16 @@ def require_worker_release(stage: Path) -> None:
             str(SUPERSEDED_REVIEW_NOGO_V3): SUPERSEDED_REVIEW_NOGO_V3_SHA256,
             str(SUPERSEDED_SOURCE_COMMITMENT_V4): SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256,
             str(SUPERSEDED_REVIEW_NOGO_V4): SUPERSEDED_REVIEW_NOGO_V4_SHA256,
+            str(SUPERSEDED_SOURCE_COMMITMENT_V5): SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
+            str(SUPERSEDED_REVIEW_GO_V5): SUPERSEDED_REVIEW_GO_V5_SHA256,
+            str(SUPERSEDED_RELEASE_FAILURE_V5): SUPERSEDED_RELEASE_FAILURE_V5_SHA256,
         }
         and set(release) == release_fields
         and set(consumed) == consumed_fields
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v6"
         and release.get("entity_uid") == ENTITY_UID
         and GIT_COMMIT_RE.fullmatch(release.get("git_commit", "")) is not None
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
@@ -1380,7 +1467,7 @@ def require_worker_release(stage: Path) -> None:
         and release.get("state") == "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY"
         and consumed.get("candidate_id") == CANDIDATE_ID
         and consumed.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v6"
         and consumed.get("execution_release_sha256") == expected_release
         and consumed.get("source_commitment_sha256") == expected_source
         and consumed.get("state") == "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS"
@@ -1497,7 +1584,7 @@ def validate_release(
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v5"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v6"
         and release.get("entity_uid") == ENTITY_UID
         and release.get("git_commit") == git_commit
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
@@ -1734,7 +1821,7 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
 
     consumed = {
         "candidate_id": CANDIDATE_ID,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v5",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v6",
         "execution_release_sha256": release_hash,
         "source_commitment_sha256": source_hash,
         "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
@@ -1875,8 +1962,8 @@ def self_test(root: Path) -> int:
     fixed = {path: read_file(root / path, 20_000_000) for path in SOURCE_FILES}
     validate_fixed_inputs(fixed)
     if (
-        sha256(read_file(root / SUPERSEDED_SOURCE_COMMITMENT_V4, 1_000_000))
-        != SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256
+        sha256(read_file(root / SUPERSEDED_SOURCE_COMMITMENT_V5, 1_000_000))
+        != SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256
     ):
         raise AssertionError("superseded source commitment drifted")
     current_source_raw = read_file(root / SOURCE_COMMITMENT, 1_000_000)
@@ -2008,7 +2095,7 @@ def self_test(root: Path) -> int:
     synthetic_review = {
         "candidate_id": CANDIDATE_ID,
         "closed_capabilities": CLOSED,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v5",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v6",
         "reviews": [
             {
                 "elapsed_seconds": 1.0,
@@ -2142,7 +2229,7 @@ def self_test(root: Path) -> int:
         source_object = {
             "candidate_id": CANDIDATE_ID,
             "consolidation_archive_sha256": CONSOLIDATION_ARCHIVE_SHA256,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v5",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v6",
             "files": {
                 str(SCRIPT): sha256(script_raw),
                 str(PLAN): PLAN_SHA256,
@@ -2157,12 +2244,16 @@ def self_test(root: Path) -> int:
                 str(SUPERSEDED_REVIEW_NOGO_V3): SUPERSEDED_REVIEW_NOGO_V3_SHA256,
                 str(SUPERSEDED_SOURCE_COMMITMENT_V4): SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256,
                 str(SUPERSEDED_REVIEW_NOGO_V4): SUPERSEDED_REVIEW_NOGO_V4_SHA256,
+                str(SUPERSEDED_SOURCE_COMMITMENT_V5): SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
+                str(SUPERSEDED_REVIEW_GO_V5): SUPERSEDED_REVIEW_GO_V5_SHA256,
+                str(SUPERSEDED_RELEASE_FAILURE_V5): SUPERSEDED_RELEASE_FAILURE_V5_SHA256,
             },
             "git_binding": "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER",
             "runtime_sif_sha256": RUNTIME_SHA256,
             "state": "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN",
-            "superseded_final_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V4_SHA256,
-            "superseded_source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V4_SHA256,
+            "superseded_final_review_go_sha256": SUPERSEDED_REVIEW_GO_V5_SHA256,
+            "superseded_release_validation_failure_sha256": SUPERSEDED_RELEASE_FAILURE_V5_SHA256,
+            "superseded_source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V5_SHA256,
         }
         source_raw = canonical(source_object) + b"\n"
         source_hash = sha256(source_raw)
@@ -2174,7 +2265,7 @@ def self_test(root: Path) -> int:
         release_object = {
             "candidate_id": CANDIDATE_ID,
             "closed_capabilities": CLOSED,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v5",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v6",
             "entity_uid": ENTITY_UID,
             "git_commit": synthetic_commit,
             "mode": "DIAGNOSTIC_ONLY_998_SUPPORTS",
@@ -2187,7 +2278,7 @@ def self_test(root: Path) -> int:
         release_hash = sha256(release_raw)
         consumed_object = {
             "candidate_id": CANDIDATE_ID,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v5",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v6",
             "execution_release_sha256": release_hash,
             "source_commitment_sha256": source_hash,
             "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
