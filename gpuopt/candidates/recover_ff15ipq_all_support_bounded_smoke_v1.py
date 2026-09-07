@@ -424,11 +424,24 @@ def execute(command_line: list[str]) -> None:
 
 
 def run(root: Path, expected_release_hash: str) -> None:
+    executing = Path(__file__).absolute()
+    canonical_script = (root / SCRIPT).absolute()
+    if (
+        executing != canonical_script
+        or executing.is_symlink()
+        or executing.resolve(strict=True) != executing
+    ):
+        raise PermissionError("recovery must execute the canonical direct Git script")
     git_commit = git_head(root)
     _, parent_release, parent_consumed, parent_review = validate_parent(root)
     release, release_raw = validate_recovery_release(
         root, expected_release_hash, git_commit
     )
+    if (
+        release["bioemu_root"]
+        != parse_object(parent_release, "parent execution release")["bioemu_root"]
+    ):
+        raise PermissionError("recovery BioEmu root differs from the parent release")
     bioemu = Path(release["bioemu_root"])
     if not bioemu.is_absolute() or bioemu.is_symlink() or not bioemu.is_dir():
         raise PermissionError("recovery BioEmu root is absent or indirect")
