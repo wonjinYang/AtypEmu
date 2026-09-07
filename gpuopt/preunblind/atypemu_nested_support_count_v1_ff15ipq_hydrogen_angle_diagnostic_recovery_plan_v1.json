@@ -31,8 +31,9 @@
     "openmm_version": "8.6.0.dev-c6173db",
     "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
     "runtime_source": "hash-verified fixed member of canonical archive/filesystem-consolidation-20260907",
-    "source_commitment": "FRESH_EXTERNAL_O_EXCL_BEFORE_INPUT_ACCESS",
+    "source_commitment": "FRESH_V2_O_EXCL_BEFORE_INPUT_ACCESS_BOUND_TO_SUPERSEDED_V1_NO_GO",
     "stderr_and_per_support_results_sealed": true,
+    "drvfs_publication": "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_WITH_COMPLETE_HASH_MANIFEST",
     "worker_processes": 12
   },
   "failed_predecessor": {
@@ -72,7 +73,10 @@
       "bind failed predecessor terminal evidence",
       "read exact predecessor evidence and runtime from the canonical consolidation archive",
       "check openmm.version.full_version and openmm.version.git_revision",
-      "place staging temporary directory in the destination parent"
+      "place staging temporary directory in the destination parent",
+      "bind superseded source commitment and final-review NO_GO evidence",
+      "reject indirect ancestors and use complete no-clobber publication manifests",
+      "seal every post-consumption failure before best-effort process cleanup returns"
     ],
     "scientific_method_changed": false
   },
@@ -81,6 +85,13 @@
     "exactly_one_final_full_cold_review": true,
     "review_bundle": "GIT_COMMIT_PLUS_FROZEN_SOURCE_COMMITMENT",
     "scoped_development_reviewers_allowed": 0
+  },
+  "superseded_source_bundle": {
+    "final_cold_review_nogo_sha256": "e49a10d3b08035c65774c719b3beb7ec0b45e1e6e002b296980633f8be11a589",
+    "git_commit": "235470fbdb12e2561906940ead3798a1e0c2ec87",
+    "ordinary_release_allowed": false,
+    "source_commitment_sha256": "668580433512de2b5150c52752fc71cd0d8071638bc6765b0deee13aa57d147c",
+    "state": "SUPERSEDED_AFTER_FINAL_COLD_REVIEW_NO_GO"
   },
   "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",
   "state": "HOLD_PENDING_AUTOMATED_GATES_FINAL_COLD_REVIEW_SOURCE_COMMITMENT_AND_FRESH_RELEASE"
