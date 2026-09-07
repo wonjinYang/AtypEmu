@@ -1,0 +1,55 @@
+{
+  "artifact_kind": "target_unread_hold_only_openmm86_ff15ipq_environment_extension_not_support_not_authorization",
+  "base_environment_manifest": {
+    "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_openmm86_environment_manifest_v1.json",
+    "sha256": "6a5f3ff4a041d0fc055ee0a3b855ef2715a826812d11d6b2fdf1744a56fecd88"
+  },
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_all_support_qualification_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "container": {
+    "filename": "openmm86_protonation_8.6.0.sif",
+    "sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "size": 78290944
+  },
+  "contract": "atypemu_nested_support_count_v1_openmm86_ff15ipq_environment_manifest_v1",
+  "force_field": {
+    "relative_path": "amber14/protein.ff15ipq.xml",
+    "sha256": "0085c9dc2818a28501f6074a0bb46b994a9787bf4010ff86417fe014b11ab622"
+  },
+  "openmm_exact_version": "8.6.0.dev-c6173db",
+  "ph_regimes": {
+    "combined_transition_thresholds": [
+      "4.4",
+      "6.5",
+      "8.5",
+      "10.0"
+    ],
+    "interval_midpoints": [
+      "2.2",
+      "5.45",
+      "7.5",
+      "9.25",
+      "12.0"
+    ],
+    "lower_bound_inclusive": "0.0",
+    "upper_bound_inclusive": "14.0"
+  },
+  "platform": "Reference",
+  "qualification_evidence": {
+    "postrun_audit_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_postrun_audit_receipt_v1.json",
+    "postrun_audit_sha256": "c6deaea251ff9730a6b455724e767f507004aba3045f6e1854d7cf207dee2d16",
+    "result_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_result_receipt_v1.json",
+    "result_sha256": "f40bdebf94077fdea6070fd432f2d932ae750a390c583fde77111e0102aa0ec9",
+    "scope": "support-index-1 method smoke only; no all-support claim"
+  },
+  "state": "HOLD_SUPPORT1_METHOD_SMOKE_ONLY_ALL_SUPPORT_UNRUN",
+  "study_id": "atypemu_nested_support_count_v1"
+}
