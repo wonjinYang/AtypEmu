@@ -414,6 +414,7 @@ def validate_recovery_release(
             and row["verdict"] == "GO"
             for row in review["reviews"]
         )
+        and len({row["review_session"] for row in review["reviews"]}) == 3
     ):
         raise PermissionError("recovery review receipt drifted")
     return release, raw
