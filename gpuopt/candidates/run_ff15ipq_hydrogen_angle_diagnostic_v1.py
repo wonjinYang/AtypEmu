@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import ctypes
+import errno
 import gzip
 import hashlib
 import io
@@ -18,6 +19,7 @@ import re
 import signal
 import stat
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -32,6 +34,7 @@ ENTITY_UID = "bmrb:10109:entity:1"
 BMRB_ID = "bmr10109"
 MISSING = [272, 795]
 SUPPORTS = [index for index in range(1, 1001) if index not in MISSING]
+WORKERS = 12
 _WORKER_SEAL = object()
 PH = 6.0
 BRANCH = "observed-0"
@@ -40,7 +43,7 @@ OPENMM_VERSION = "8.6.0.dev-c6173db"
 OPENMM_GIT_REVISION = "c6173db6e8edd705eb59172bd21e9ce69c572405"
 FORCEFIELD = "amber14/protein.ff15ipq.xml"
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-PLAN_SHA256 = "8929bf76dbdd948845afc2f7766cbe5552950ad86ae803fd0e085a9cd1d854e3"
+PLAN_SHA256 = "b117dce4b7f0b76566d6965cbb75a06c1261bdc78e3a891be7a0abe1d0bff37e"
 PREDECESSOR_FAILURE_SHA256 = (
     "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3"
 )
@@ -50,14 +53,40 @@ INVENTORY_SHA256 = "eedcd06f38e4234a29eb6b2bc981a87928406b507f9ccb102bd282f4957b
 DECISION_REVIEW_SHA256 = (
     "73fade7cf8fe87e551804faf2a09b8ed9a90f61ffa32bf33cba40741900b922e"
 )
-RECOVERY_PDB_ROOT = Path(
-    ".auto/atypemu_nested_support_count_v1_ff15ipq_all_support_recovery_output_v1/"
-    "sealed_pdb/bmr10109"
+RECOVERY_PDB_ROOT = Path("data/BioEmu/bmr10109")
+CONSOLIDATION_ARCHIVE = Path(
+    "archive/filesystem-consolidation-20260907/archives/home-worktrees.tar.zst"
 )
-PARENT_RUNTIME = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_all_support_stage_v1/"
-    "runtime.sif"
+CONSOLIDATION_ARCHIVE_SHA256 = (
+    "0fd6c7163bb725d6ca5f3c85c41260397cf5abe1b853aa914ef9bd0f011c263f"
 )
+ARCHIVE_PREFIX = "AtypEmu-hold-autoresearch"
+RUNTIME_MEMBER = (
+    f"{ARCHIVE_PREFIX}/.auto/staging/"
+    "atypemu_nested_support_count_v1_ff15ipq_all_support_stage_v1/runtime.sif"
+)
+PREDECESSOR_MEMBERS = {
+    "consumed_sha256": (
+        f"{ARCHIVE_PREFIX}/.auto/staging/"
+        "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_execution_release_v1.consumed.json"
+    ),
+    "summary_sha256": (
+        f"{ARCHIVE_PREFIX}/.auto/"
+        "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/results/summary.json"
+    ),
+    "support_results_sha256": (
+        f"{ARCHIVE_PREFIX}/.auto/"
+        "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/results/support_results.jsonl"
+    ),
+    "terminal_receipt_sha256": (
+        f"{ARCHIVE_PREFIX}/.auto/"
+        "atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+        "diagnostic_output_v1/terminal_receipt.json"
+    ),
+}
 SCRIPT = Path("gpuopt/candidates/run_ff15ipq_hydrogen_angle_diagnostic_v1.py")
 PLAN = Path(
     "gpuopt/preunblind/"
@@ -144,6 +173,7 @@ HOST_ENV = {
     "SINGULARITY_TMPDIR": "/tmp",
     "TMPDIR": "/tmp",
 }
+_VERIFIED_ARCHIVE_IDENTITY: tuple[int, int, int, int, int] | None = None
 
 
 def sha256(raw: bytes) -> str:
@@ -225,6 +255,133 @@ def read_file(path: Path, maximum: int = 100_000_000) -> bytes:
         os.close(descriptor)
 
 
+def sha256_file(path: Path) -> str:
+    if path.is_symlink():
+        raise ValueError(f"symlink rejected: {path}")
+    descriptor = os.open(
+        path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    )
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(f"regular file required: {path}")
+        digest = hashlib.sha256()
+        while chunk := os.read(descriptor, 1_048_576):
+            digest.update(chunk)
+        after = os.fstat(descriptor)
+        if (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        ) != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        ):
+            raise ValueError(f"file changed while hashed: {path}")
+        return digest.hexdigest()
+    finally:
+        os.close(descriptor)
+
+
+def require_consolidation_archive(root: Path) -> Path:
+    global _VERIFIED_ARCHIVE_IDENTITY
+    archive = root / CONSOLIDATION_ARCHIVE
+    metadata = archive.stat(follow_symlinks=False)
+    identity = (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+    if _VERIFIED_ARCHIVE_IDENTITY != identity:
+        if sha256_file(archive) != CONSOLIDATION_ARCHIVE_SHA256:
+            raise PermissionError("canonical consolidation archive hash drifted")
+        _VERIFIED_ARCHIVE_IDENTITY = identity
+    return archive
+
+
+def archive_members_bytes(
+    root: Path, ceilings: dict[str, int]
+) -> dict[str, bytes]:
+    import zstandard  # type: ignore[import-not-found]
+
+    archive = require_consolidation_archive(root)
+    found: dict[str, bytes] = {}
+    with archive.open("rb") as compressed:
+        with zstandard.ZstdDecompressor().stream_reader(compressed) as reader:
+            with tarfile.open(fileobj=reader, mode="r|") as stream:
+                for member in stream:
+                    if member.name not in ceilings:
+                        continue
+                    if member.name in found or not member.isfile():
+                        raise ValueError(f"invalid archived member: {member.name}")
+                    maximum = ceilings[member.name]
+                    if member.size > maximum:
+                        raise ValueError(
+                            f"archive member exceeds ceiling: {member.name}"
+                        )
+                    handle = stream.extractfile(member)
+                    if handle is None:
+                        raise ValueError(
+                            f"archive member cannot be read: {member.name}"
+                        )
+                    raw = handle.read(maximum + 1)
+                    if len(raw) != member.size:
+                        raise ValueError(
+                            f"archive member framing drifted: {member.name}"
+                        )
+                    found[member.name] = raw
+    if set(found) != set(ceilings):
+        raise ValueError("required canonical archive member is absent")
+    return found
+
+
+def extract_runtime(root: Path, destination: Path) -> None:
+    import zstandard  # type: ignore[import-not-found]
+
+    archive = require_consolidation_archive(root)
+    descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o400)
+    try:
+        with os.fdopen(descriptor, "wb", closefd=False) as handle:
+            found = False
+            with archive.open("rb") as compressed:
+                with zstandard.ZstdDecompressor().stream_reader(compressed) as reader:
+                    with tarfile.open(fileobj=reader, mode="r|") as stream:
+                        for member in stream:
+                            if member.name != RUNTIME_MEMBER:
+                                continue
+                            if found or not member.isfile() or member.size != 78_290_944:
+                                raise ValueError("archived runtime member is invalid")
+                            source = stream.extractfile(member)
+                            if source is None:
+                                raise ValueError("archived runtime cannot be read")
+                            while chunk := source.read(1_048_576):
+                                handle.write(chunk)
+                            found = True
+            if not found:
+                raise ValueError("archived runtime member is absent")
+            handle.flush()
+            os.fsync(handle.fileno())
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+    finally:
+        os.close(descriptor)
+    os.chmod(destination, 0o444)
+    if (
+        destination.stat().st_size != 78_290_944
+        or sha256_file(destination) != RUNTIME_SHA256
+    ):
+        destination.unlink()
+        raise PermissionError("archived OpenMM runtime identity drifted")
+
+
 def exclusive(path: Path, raw: bytes, mode: int = 0o444) -> None:
     descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
     try:
@@ -251,7 +408,23 @@ def publish_directory(source: Path, destination: Path) -> None:
     renameat2.restype = ctypes.c_int
     if renameat2(-100, os.fsencode(source), -100, os.fsencode(destination), 1) != 0:
         error = ctypes.get_errno()
-        raise OSError(error, os.strerror(error), str(destination))
+        unsupported = {errno.EINVAL, errno.ENOSYS, errno.ENOTSUP, errno.EOPNOTSUPP}
+        if error not in unsupported:
+            raise OSError(error, os.strerror(error), str(destination))
+        claim = destination.with_name(f".{destination.name}.publish-claim")
+        exclusive(
+            claim,
+            canonical(
+                {
+                    "contract": "atypemu_no_clobber_directory_publish_claim_v1",
+                    "destination": destination.name,
+                }
+            )
+            + b"\n",
+        )
+        if destination.exists() or destination.is_symlink():
+            raise FileExistsError(destination)
+        os.rename(source, destination)
 
 
 def git_head(root: Path) -> str:
@@ -331,7 +504,16 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         and plan.get("entity_uid") == ENTITY_UID
         and plan.get("input_contract", {}).get("present_support_count") == 998
         and plan.get("input_contract", {}).get("missing_support_indices") == MISSING
+        and plan.get("input_contract", {}).get("parent_pdb_root")
+        == RECOVERY_PDB_ROOT.as_posix()
         and plan.get("condition", {}).get("proposal_pH") == "6.0"
+        and plan.get("execution_contract", {}).get(
+            "canonical_consolidation_archive_sha256"
+        )
+        == CONSOLIDATION_ARCHIVE_SHA256
+        and plan.get("execution_contract", {}).get("runtime_sif_sha256")
+        == RUNTIME_SHA256
+        and plan.get("execution_contract", {}).get("worker_processes") == WORKERS
         and plan.get("decision_contract", {}).get("full_135_entity_route") == "CLOSED"
         and plan.get("decision_contract", {}).get(
             "promotion_or_feasibility_claim_allowed"
@@ -408,10 +590,18 @@ def validate_static_scope(root: Path) -> None:
         raise PermissionError(
             "forbidden target, score, model, or network import is open"
         )
+    audit_function = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "validate_static_scope"
+    )
+    audit_nodes = {id(node) for node in ast.walk(audit_function)}
     strings = {
         node.value
         for node in ast.walk(tree)
-        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+        if id(node) not in audit_nodes
+        and isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
     }
     if strings & {
         "/targets/",
@@ -427,10 +617,12 @@ def validate_static_scope(root: Path) -> None:
 def freeze_source(root: Path) -> None:
     commit = git_head(root)
     validate_static_scope(root)
+    require_consolidation_archive(root)
     raw_by_path = {path: committed_bytes(root, commit, path) for path in SOURCE_FILES}
     validate_fixed_inputs(raw_by_path)
     commitment = {
         "candidate_id": CANDIDATE_ID,
+        "consolidation_archive_sha256": CONSOLIDATION_ARCHIVE_SHA256,
         "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1",
         "files": {str(path): sha256(raw_by_path[path]) for path in SOURCE_FILES},
         "git_commit": commit,
@@ -450,6 +642,7 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
     validate_static_scope(root)
     if set(source) != {
         "candidate_id",
+        "consolidation_archive_sha256",
         "contract",
         "files",
         "git_commit",
@@ -457,6 +650,8 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
         "state",
     } or not (
         source["candidate_id"] == CANDIDATE_ID
+        and source["consolidation_archive_sha256"]
+        == CONSOLIDATION_ARCHIVE_SHA256
         and source["contract"]
         == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1"
         and source["git_commit"] == git_head(root)
@@ -482,9 +677,7 @@ def stage_source(root: Path, expected_hash: str) -> None:
     destination = root / STAGE
     if destination.exists() or destination.is_symlink():
         raise FileExistsError(destination)
-    runtime_raw = read_file(root / PARENT_RUNTIME)
-    if sha256(runtime_raw) != RUNTIME_SHA256:
-        raise PermissionError("OpenMM runtime hash drifted")
+    destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
         prefix=".ff15ipq-angle-recovery-stage-", dir=(root / STAGE).parent
     ) as text:
@@ -498,7 +691,7 @@ def stage_source(root: Path, expected_hash: str) -> None:
             directory = inputs if relative == PROJECTION else scripts
             exclusive(directory / relative.name, raw)
         exclusive(scripts / SOURCE_COMMITMENT.name, source_raw)
-        exclusive(temporary / "runtime.sif", runtime_raw)
+        extract_runtime(root, temporary / "runtime.sif")
         os.chmod(scripts, 0o555)
         os.chmod(inputs, 0o555)
         os.chmod(temporary, 0o555)
@@ -796,7 +989,7 @@ def worker(access: object) -> None:
         raise ValueError("diagnostic PDB directory inventory drifted")
     tasks = [(index, str(pdb_root), projection[index]) for index in SUPPORTS]
     context = multiprocessing.get_context("spawn")
-    with context.Pool(processes=8, maxtasksperchild=1) as pool:
+    with context.Pool(processes=WORKERS, maxtasksperchild=1) as pool:
         rows = list(pool.imap(diagnose_support, tasks, chunksize=1))
     if [row.get("support_index") for row in rows] != SUPPORTS:
         raise ValueError("diagnostic result identity drifted")
@@ -1146,31 +1339,20 @@ def self_test(root: Path) -> int:
         "predecessor runtime-version failure",
         require_canonical=False,
     )
-    predecessor_paths = {
-        "consumed_sha256": root
-        / ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-        "diagnostic_execution_release_v1.consumed.json",
-        "summary_sha256": root
-        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-        "diagnostic_output_v1/results/summary.json",
-        "support_results_sha256": root
-        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-        "diagnostic_output_v1/results/support_results.jsonl",
-        "terminal_receipt_sha256": root
-        / ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-        "diagnostic_output_v1/terminal_receipt.json",
-    }
+    predecessor_raw = archive_members_bytes(
+        root, {member: 100_000_000 for member in PREDECESSOR_MEMBERS.values()}
+    )
     if any(
-        sha256(read_file(path)) != predecessor[key]
-        for key, path in predecessor_paths.items()
+        sha256(predecessor_raw[member]) != predecessor[key]
+        for key, member in PREDECESSOR_MEMBERS.items()
     ):
         raise AssertionError("predecessor terminal evidence drifted")
     predecessor_rows = [
         parse_object(line, f"predecessor result {index}")
         for index, line in enumerate(
-            read_file(predecessor_paths["support_results_sha256"]).splitlines(
-                keepends=True
-            )
+            predecessor_raw[
+                PREDECESSOR_MEMBERS["support_results_sha256"]
+            ].splitlines(keepends=True)
         )
     ]
     if not (
@@ -1220,7 +1402,9 @@ def self_test(root: Path) -> int:
         raise AssertionError("incomplete result surface accepted")
     checks += 2
 
-    with tempfile.TemporaryDirectory(prefix="ff15ipq-angle-self-test-") as text:
+    with tempfile.TemporaryDirectory(
+        prefix="ff15ipq-angle-self-test-", dir=root / ".auto"
+    ) as text:
         test_root = Path(text)
         marker = test_root / "consumed.json"
         exclusive(marker, b"{}\n")

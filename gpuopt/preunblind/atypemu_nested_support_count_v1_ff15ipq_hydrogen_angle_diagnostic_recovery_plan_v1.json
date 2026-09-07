@@ -21,6 +21,7 @@
   },
   "entity_uid": "bmrb:10109:entity:1",
   "execution_contract": {
+    "canonical_consolidation_archive_sha256": "0fd6c7163bb725d6ca5f3c85c41260397cf5abe1b853aa914ef9bd0f011c263f",
     "exactly_one_fresh_external_release": true,
     "fresh_process_per_support": true,
     "network": "DISABLED",
@@ -29,8 +30,10 @@
     "openmm_platform": "Reference",
     "openmm_version": "8.6.0.dev-c6173db",
     "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
+    "runtime_source": "hash-verified fixed member of canonical archive/filesystem-consolidation-20260907",
     "source_commitment": "FRESH_EXTERNAL_O_EXCL_BEFORE_INPUT_ACCESS",
-    "stderr_and_per_support_results_sealed": true
+    "stderr_and_per_support_results_sealed": true,
+    "worker_processes": 12
   },
   "failed_predecessor": {
     "consumed_sha256": "63818e54d48aa2091e84ceac24a3936615863c06ffa52fa286c8a7cf4e979000",
@@ -43,6 +46,7 @@
   "input_contract": {
     "missing_support_indices": [272, 795],
     "parent_projection_sha256": "e9b4861216d99e8136df872958a50f568337fc8a6b4991b25df2b906dcee5046",
+    "parent_pdb_root": "data/BioEmu/bmr10109",
     "present_support_count": 998,
     "support_indices": "ALL_PRESENT_1_TO_1000_EXCEPT_272_AND_795"
   },
@@ -66,6 +70,7 @@
   "recovery_delta": {
     "allowed": [
       "bind failed predecessor terminal evidence",
+      "read exact predecessor evidence and runtime from the canonical consolidation archive",
       "check openmm.version.full_version and openmm.version.git_revision",
       "place staging temporary directory in the destination parent"
     ],
