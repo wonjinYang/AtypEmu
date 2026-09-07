@@ -47,6 +47,7 @@
     "hydrogen_input_policy": "delete every input hydrogen before OpenMM addHydrogens",
     "independent_implementation": "must not import the failed materializer or ff15ipq_all_support_common",
     "output_identity": "support_index plus atom, residue, chain, angle, and minimum-angle records",
+    "seed_policy": "SHA256(atypemu_nested_support_count_v1_ff15ipq_all_support_qualification_v1 NUL entity_uid NUL support_index NUL observed-0) first eight bytes big-endian; Python seed full value and NumPy seed modulo 2^32",
     "threshold_degrees_inclusive": ["55.0", "180.0"]
   },
   "prohibited_inputs": [
