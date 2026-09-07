@@ -1,0 +1,12 @@
+{
+  "artifact_verdict": "ARTIFACT_GO",
+  "blockers": [],
+  "candidate_decision": "NO_GO_BOUNDED_SMOKE",
+  "contract": "atypemu_ff15ipq_all_support_bounded_smoke_terminal_decision_review_receipt_v1",
+  "decision_sha256": "ab47932dcbce7a2b61a30ed2f17907f3dbdc8dafbf71428463de43393d77db75",
+  "full_135_entity_route": "CLOSED",
+  "inventory_sha256": "eedcd06f38e4234a29eb6b2bc981a87928406b507f9ccb102bd282f4957b881f",
+  "review_bundle_sha256": "801abce373c76ebc8640e85e4d1ba1b413a611e40231db96fdfeb7563a9c29df",
+  "review_session": "sub_reviewer_r0omhj96e5",
+  "state": "INDEPENDENT_TERMINAL_DECISION_REVIEW_COMPLETE"
+}
