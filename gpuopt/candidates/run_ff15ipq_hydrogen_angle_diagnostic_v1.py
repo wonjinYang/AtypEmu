@@ -14,6 +14,7 @@ import multiprocessing
 import os
 import random
 import re
+import signal
 import stat
 import subprocess
 import tempfile
@@ -916,23 +917,28 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
         f"/work/scripts/{SCRIPT.name}",
         "--worker",
     ]
+    process: subprocess.Popen[bytes] | None = None
     try:
+        process = subprocess.Popen(
+            command,
+            cwd=root,
+            env=HOST_ENV,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
         try:
-            completed = subprocess.run(
-                command,
-                cwd=root,
-                env=HOST_ENV,
-                capture_output=True,
-                timeout=21_600,
-            )
+            stdout, stderr = process.communicate(timeout=21_600)
         except subprocess.TimeoutExpired as error:
-            exclusive(output / "stdout.bin", error.stdout or b"")
-            exclusive(output / "stderr.bin", error.stderr or b"")
-            raise
-        exclusive(output / "stdout.bin", completed.stdout)
-        exclusive(output / "stderr.bin", completed.stderr)
-        if completed.returncode != 0:
-            raise subprocess.CalledProcessError(completed.returncode, command)
+            os.killpg(process.pid, signal.SIGKILL)
+            stdout, stderr = process.communicate()
+            exclusive(output / "stdout.bin", stdout)
+            exclusive(output / "stderr.bin", stderr)
+            raise subprocess.TimeoutExpired(command, 21_600, stdout, stderr) from error
+        exclusive(output / "stdout.bin", stdout)
+        exclusive(output / "stderr.bin", stderr)
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, command)
         summary_raw = read_file(output / "results/summary.json", 2_000_000)
         results_raw = read_file(output / "results/support_results.jsonl", 100_000_000)
         summary = validate_result_bytes(summary_raw, results_raw)
@@ -942,13 +948,16 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
             "result_class": summary["result_class"],
             "source_commitment_sha256": source_hash,
             "state": "PASS_DIAGNOSTIC_EXECUTION_ONLY",
-            "stderr_sha256": sha256(completed.stderr),
-            "stdout_sha256": sha256(completed.stdout),
+            "stderr_sha256": sha256(stderr),
+            "stdout_sha256": sha256(stdout),
             "summary_sha256": sha256(summary_raw),
             "support_results_sha256": sha256(results_raw),
         }
         exclusive(output / "terminal_receipt.json", canonical(terminal) + b"\n")
     except BaseException as error:
+        if process is not None and process.poll() is None:
+            os.killpg(process.pid, signal.SIGKILL)
+            process.wait()
         failure = {
             "candidate_id": CANDIDATE_ID,
             "error_message": str(error),
