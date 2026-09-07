@@ -31,9 +31,10 @@
     "openmm_version": "8.6.0.dev-c6173db",
     "runtime_sif_sha256": "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5",
     "runtime_source": "hash-verified fixed member of canonical archive/filesystem-consolidation-20260907",
-    "source_commitment": "FRESH_V3_O_EXCL_BEFORE_INPUT_ACCESS_BOUND_TO_SUPERSEDED_V2_NO_GO",
+    "source_commitment": "TRACKED_V4_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_SUPERSEDED_V3_NO_GO",
     "stderr_and_per_support_results_sealed": true,
-    "drvfs_publication": "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_WITH_COMPLETE_HASH_MANIFEST",
+    "drvfs_publication": "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_MARKER_LAST_COMPLETE_HASH_MANIFEST",
+    "failure_sealing": "EVERY_POST_CONSUMPTION_BASEEXCEPTION_SEALED_BEFORE_BEST_EFFORT_CLEANUP",
     "worker_processes": 12
   },
   "failed_predecessor": {
@@ -76,22 +77,24 @@
       "place staging temporary directory in the destination parent",
       "bind superseded source commitment and final-review NO_GO evidence",
       "reject indirect ancestors and use complete no-clobber publication manifests",
-      "seal every post-consumption failure before best-effort process cleanup returns"
+      "seal every post-consumption failure before best-effort process cleanup returns",
+      "execute and validate in a private directory before one final immutable publication",
+      "bind the tracked source commitment digest through exact Git commit trailers"
     ],
     "scientific_method_changed": false
   },
   "review_contract": {
     "any_post_review_byte_change_invalidates_review": true,
     "exactly_one_final_full_cold_review": true,
-    "review_bundle": "GIT_COMMIT_PLUS_FROZEN_SOURCE_COMMITMENT",
+    "review_bundle": "GIT_COMMIT_PLUS_TRACKED_FROZEN_SOURCE_COMMITMENT",
     "review_source_ref": "refs/heads/autoresearch/all-label-corrected-k8-20260905",
     "scoped_development_reviewers_allowed": 0
   },
   "superseded_source_bundle": {
-    "final_cold_review_nogo_sha256": "49f7f5f5023bcf5773542de51e41499d7629404ab0867c14e75d190b81ef2352",
-    "git_commit": "65a4e92fe79fa60667d0e0bff6f452bda364a427",
+    "final_cold_review_nogo_sha256": "c34aa0af4d3daf43a7e87c1753b68a0a47b8be38004822268d48e7b89ee1dc62",
+    "git_commit": "b3b979b22ef38ead133e69ebfc4338db45276e33",
     "ordinary_release_allowed": false,
-    "source_commitment_sha256": "36c46e3af429739b2f918869b488647e7522c4770247904ca9a3a9dd236cf616",
+    "source_commitment_sha256": "524cf0ed953716a1bbf9e144e83d20275ccc4205f5f5c0b4d00f093d656901fa",
     "state": "SUPERSEDED_AFTER_FINAL_COLD_REVIEW_NO_GO"
   },
   "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",

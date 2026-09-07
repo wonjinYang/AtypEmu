@@ -16,6 +16,7 @@ import multiprocessing
 import os
 import random
 import re
+import shutil
 import signal
 import stat
 import subprocess
@@ -43,7 +44,7 @@ OPENMM_VERSION = "8.6.0.dev-c6173db"
 OPENMM_GIT_REVISION = "c6173db6e8edd705eb59172bd21e9ce69c572405"
 FORCEFIELD = "amber14/protein.ff15ipq.xml"
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-PLAN_SHA256 = "cce39052c5647c9a2834eba3e7589e5442e23f52534a5e3cd31c8ab013e6976b"
+PLAN_SHA256 = "2666ad486607fc34c38cd03c277e7859a4dbcb37aef05eea99f30be6956e96c6"
 PREDECESSOR_FAILURE_SHA256 = (
     "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3"
 )
@@ -145,33 +146,47 @@ SUPERSEDED_REVIEW_NOGO_V2 = Path(
 SUPERSEDED_REVIEW_NOGO_V2_SHA256 = (
     "49f7f5f5023bcf5773542de51e41499d7629404ab0867c14e75d190b81ef2352"
 )
-SOURCE_COMMITMENT = Path(
-    ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+SUPERSEDED_SOURCE_COMMITMENT_V3 = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
     "diagnostic_recovery_source_commitment_v3.json"
+)
+SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256 = (
+    "524cf0ed953716a1bbf9e144e83d20275ccc4205f5f5c0b4d00f093d656901fa"
+)
+SUPERSEDED_REVIEW_NOGO_V3 = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_final_cold_review_nogo_v3.json"
+)
+SUPERSEDED_REVIEW_NOGO_V3_SHA256 = (
+    "c34aa0af4d3daf43a7e87c1753b68a0a47b8be38004822268d48e7b89ee1dc62"
+)
+SOURCE_COMMITMENT = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
+    "diagnostic_recovery_source_commitment_v4.json"
 )
 STAGE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_stage_v3"
+    "diagnostic_recovery_stage_v4"
 )
 SOURCE_REVIEW = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_source_review_v3.json"
+    "diagnostic_recovery_source_review_v4.json"
 )
 RELEASE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_release_v3.json"
+    "diagnostic_recovery_execution_release_v4.json"
 )
 CONSUMED = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_release_v3.consumed.json"
+    "diagnostic_recovery_execution_release_v4.consumed.json"
 )
 FAILURE = Path(
     ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_execution_failure_v3.json"
+    "diagnostic_recovery_execution_failure_v4.json"
 )
 OUTPUT = Path(
     ".auto/atypemu_nested_support_count_v1_ff15ipq_hydrogen_angle_"
-    "diagnostic_recovery_output_v3"
+    "diagnostic_recovery_output_v4"
 )
 SOURCE_FILES = (
     SCRIPT,
@@ -183,8 +198,11 @@ SOURCE_FILES = (
     DECISION_REVIEW,
     SUPERSEDED_REVIEW_NOGO,
     SUPERSEDED_REVIEW_NOGO_V2,
+    SUPERSEDED_SOURCE_COMMITMENT_V3,
+    SUPERSEDED_REVIEW_NOGO_V3,
 )
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+GIT_COMMIT_RE = re.compile(r"[0-9a-f]{40}\Z")
 CLOSED = {
     "authorization_consumed": False,
     "outer_or_formal_metrics_opened": False,
@@ -509,11 +527,12 @@ def copy_file_exclusive(source: Path, destination: Path) -> None:
 
 
 def copy_tree_exclusive(source: Path, destination: Path) -> None:
-    source_mode = stat.S_IMODE(source.stat(follow_symlinks=False).st_mode)
     destination.mkdir(mode=0o700)
     directories: list[tuple[Path, int]] = []
     for path in sorted(source.rglob("*")):
         relative = path.relative_to(source)
+        if relative.as_posix() == PUBLICATION_MARKER:
+            continue
         target = destination / relative
         metadata = path.stat(follow_symlinks=False)
         if path.is_symlink():
@@ -527,7 +546,9 @@ def copy_tree_exclusive(source: Path, destination: Path) -> None:
             raise PermissionError(f"publication special file rejected: {relative}")
     for path, mode in reversed(directories):
         os.chmod(path, mode)
-    os.chmod(destination, source_mode)
+    copy_file_exclusive(
+        source / PUBLICATION_MARKER, destination / PUBLICATION_MARKER
+    )
 
 
 def require_published_directory(directory: Path) -> None:
@@ -652,6 +673,8 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         DECISION_REVIEW: DECISION_REVIEW_SHA256,
         SUPERSEDED_REVIEW_NOGO: SUPERSEDED_REVIEW_NOGO_SHA256,
         SUPERSEDED_REVIEW_NOGO_V2: SUPERSEDED_REVIEW_NOGO_V2_SHA256,
+        SUPERSEDED_SOURCE_COMMITMENT_V3: SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256,
+        SUPERSEDED_REVIEW_NOGO_V3: SUPERSEDED_REVIEW_NOGO_V3_SHA256,
     }
     if any(sha256(raw_by_path[path]) != digest for path, digest in expected.items()):
         raise PermissionError("fixed diagnostic input hash drifted")
@@ -667,6 +690,10 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
     superseded_review_v2 = parse_object(
         raw_by_path[SUPERSEDED_REVIEW_NOGO_V2],
         "superseded v2 final cold-review NO_GO",
+    )
+    superseded_review_v3 = parse_object(
+        raw_by_path[SUPERSEDED_REVIEW_NOGO_V3],
+        "superseded v3 final cold-review NO_GO",
     )
     if not (
         plan.get("candidate_id") == CANDIDATE_ID
@@ -685,14 +712,16 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         == RUNTIME_SHA256
         and plan.get("execution_contract", {}).get("worker_processes") == WORKERS
         and plan.get("execution_contract", {}).get("source_commitment")
-        == "FRESH_V3_O_EXCL_BEFORE_INPUT_ACCESS_BOUND_TO_SUPERSEDED_V2_NO_GO"
+        == "TRACKED_V4_EXACT_BLOB_PLUS_COMMIT_TRAILER_BOUND_TO_SUPERSEDED_V3_NO_GO"
         and plan.get("execution_contract", {}).get("drvfs_publication")
-        == "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_WITH_COMPLETE_HASH_MANIFEST"
+        == "ATOMIC_DESTINATION_MKDIR_NO_CLOBBER_MARKER_LAST_COMPLETE_HASH_MANIFEST"
+        and plan.get("execution_contract", {}).get("failure_sealing")
+        == "EVERY_POST_CONSUMPTION_BASEEXCEPTION_SEALED_BEFORE_BEST_EFFORT_CLEANUP"
         and plan.get("review_contract")
         == {
             "any_post_review_byte_change_invalidates_review": True,
             "exactly_one_final_full_cold_review": True,
-            "review_bundle": "GIT_COMMIT_PLUS_FROZEN_SOURCE_COMMITMENT",
+            "review_bundle": "GIT_COMMIT_PLUS_TRACKED_FROZEN_SOURCE_COMMITMENT",
             "review_source_ref": (
                 "refs/heads/autoresearch/all-label-corrected-k8-20260905"
             ),
@@ -700,10 +729,10 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         }
         and plan.get("superseded_source_bundle")
         == {
-            "final_cold_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V2_SHA256,
-            "git_commit": "65a4e92fe79fa60667d0e0bff6f452bda364a427",
+            "final_cold_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V3_SHA256,
+            "git_commit": "b3b979b22ef38ead133e69ebfc4338db45276e33",
             "ordinary_release_allowed": False,
-            "source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256,
+            "source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256,
             "state": "SUPERSEDED_AFTER_FINAL_COLD_REVIEW_NO_GO",
         }
         and plan.get("decision_contract", {}).get("full_135_entity_route") == "CLOSED"
@@ -736,6 +765,12 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         and superseded_review_v2.get("scope") == "final_full_cold"
         and superseded_review_v2.get("git_commit")
         == "65a4e92fe79fa60667d0e0bff6f452bda364a427"
+        and superseded_review_v3.get("source_commitment_sha256")
+        == SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256
+        and superseded_review_v3.get("state") == "NO_GO"
+        and superseded_review_v3.get("scope") == "final_full_cold"
+        and superseded_review_v3.get("git_commit")
+        == "b3b979b22ef38ead133e69ebfc4338db45276e33"
     ):
         raise PermissionError("diagnostic plan identity drifted")
     decision = parse_object(
@@ -820,33 +855,35 @@ def validate_static_scope(root: Path) -> None:
         raise PermissionError("a protected capability is open")
 
 
+def require_source_trailer(root: Path, commit: str, source_hash: str) -> None:
+    raw = subprocess.run(
+        ["git", "cat-file", "commit", commit],
+        cwd=root,
+        env=HOST_ENV,
+        check=True,
+        capture_output=True,
+    ).stdout
+    if len(raw) > 1_000_000 or b"\n\n" not in raw:
+        raise PermissionError("Git source commitment message is invalid")
+    message = raw.split(b"\n\n", 1)[1].decode("utf-8", errors="strict")
+    expected = (
+        "AtypEmu-Source-Commitment-SHA256: " + source_hash
+    )
+    expected_path = "AtypEmu-Source-Commitment-Path: " + SOURCE_COMMITMENT.as_posix()
+    if message.splitlines().count(expected) != 1 or message.splitlines().count(
+        expected_path
+    ) != 1:
+        raise PermissionError("Git source commitment trailer drifted")
+
+
 def freeze_source(root: Path) -> None:
-    commit = git_head(root)
-    validate_static_scope(root)
-    require_direct_directory(root, SOURCE_COMMITMENT.parent)
-    require_consolidation_archive(root)
-    if (
-        sha256(read_file(root / SUPERSEDED_SOURCE_COMMITMENT_V2, 1_000_000))
-        != SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256
-    ):
-        raise PermissionError("superseded source commitment drifted")
-    raw_by_path = {path: committed_bytes(root, commit, path) for path in SOURCE_FILES}
-    validate_fixed_inputs(raw_by_path)
-    commitment = {
-        "candidate_id": CANDIDATE_ID,
-        "consolidation_archive_sha256": CONSOLIDATION_ARCHIVE_SHA256,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v3",
-        "files": {str(path): sha256(raw_by_path[path]) for path in SOURCE_FILES},
-        "git_commit": commit,
-        "runtime_sif_sha256": RUNTIME_SHA256,
-        "state": "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN",
-        "superseded_final_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V2_SHA256,
-        "superseded_source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256,
-    }
-    exclusive(root / SOURCE_COMMITMENT, canonical(commitment) + b"\n")
+    raw = read_file(root / SOURCE_COMMITMENT, 1_000_000)
+    require_source(root, sha256(raw))
 
 
-def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], bytes]:
+def require_source(
+    root: Path, expected_hash: str
+) -> tuple[dict[str, Any], bytes, str]:
     if SHA256_RE.fullmatch(expected_hash) is None:
         raise PermissionError("source commitment hash is invalid")
     raw = read_file(root / SOURCE_COMMITMENT, 1_000_000)
@@ -854,12 +891,17 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
         raise PermissionError("source commitment hash drifted")
     source = parse_object(raw, "source commitment")
     validate_static_scope(root)
+    require_consolidation_archive(root)
+    commit = git_head(root)
+    if committed_bytes(root, commit, SOURCE_COMMITMENT) != raw:
+        raise PermissionError("source commitment is not the committed blob")
+    require_source_trailer(root, commit, expected_hash)
     if set(source) != {
         "candidate_id",
         "consolidation_archive_sha256",
         "contract",
         "files",
-        "git_commit",
+        "git_binding",
         "runtime_sif_sha256",
         "state",
         "superseded_final_review_nogo_sha256",
@@ -869,31 +911,32 @@ def require_source(root: Path, expected_hash: str) -> tuple[dict[str, Any], byte
         and source["consolidation_archive_sha256"]
         == CONSOLIDATION_ARCHIVE_SHA256
         and source["contract"]
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v3"
-        and source["git_commit"] == git_head(root)
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v4"
+        and source["git_binding"]
+        == "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER"
         and source["runtime_sif_sha256"] == RUNTIME_SHA256
         and source["state"] == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
         and source["superseded_final_review_nogo_sha256"]
-        == SUPERSEDED_REVIEW_NOGO_V2_SHA256
+        == SUPERSEDED_REVIEW_NOGO_V3_SHA256
         and source["superseded_source_commitment_sha256"]
-        == SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256
+        == SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256
         and isinstance(source["files"], dict)
         and set(source["files"]) == {str(path) for path in SOURCE_FILES}
     ):
         raise PermissionError("source commitment identity drifted")
     raw_by_path = {
-        path: committed_bytes(root, source["git_commit"], path) for path in SOURCE_FILES
+        path: committed_bytes(root, commit, path) for path in SOURCE_FILES
     }
     if any(
         sha256(raw_by_path[path]) != source["files"][str(path)] for path in SOURCE_FILES
     ):
         raise PermissionError("source file hash drifted")
     validate_fixed_inputs(raw_by_path)
-    return source, raw
+    return source, raw, commit
 
 
 def stage_source(root: Path, expected_hash: str) -> None:
-    source, source_raw = require_source(root, expected_hash)
+    _, source_raw, commit = require_source(root, expected_hash)
     destination = root / STAGE
     require_direct_directory(root, STAGE.parent)
     if destination.exists() or destination.is_symlink():
@@ -908,7 +951,7 @@ def stage_source(root: Path, expected_hash: str) -> None:
         scripts.mkdir(mode=0o700)
         inputs.mkdir(mode=0o700)
         for relative in SOURCE_FILES:
-            raw = committed_bytes(root, source["git_commit"], relative)
+            raw = committed_bytes(root, commit, relative)
             directory = inputs if relative == PROJECTION else scripts
             exclusive(directory / relative.name, raw)
         exclusive(scripts / SOURCE_COMMITMENT.name, source_raw)
@@ -1141,8 +1184,9 @@ def validate_final_review(
         and review.get("candidate_id") == CANDIDATE_ID
         and review.get("closed_capabilities") == CLOSED
         and review.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v3"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v4"
         and review.get("source_commitment_sha256") == source_hash
+        and GIT_COMMIT_RE.fullmatch(git_commit) is not None
         and review.get("source_git_commit") == git_commit
         and review.get("state") == "GO_DIAGNOSTIC_ONLY"
         and isinstance(reviews, list)
@@ -1204,26 +1248,28 @@ def require_worker_release(stage: Path) -> None:
         "consolidation_archive_sha256",
         "contract",
         "files",
-        "git_commit",
+        "git_binding",
         "runtime_sif_sha256",
         "state",
         "superseded_final_review_nogo_sha256",
         "superseded_source_commitment_sha256",
     }
-    validate_final_review(review, expected_source, source.get("git_commit", ""))
+    validate_final_review(review, expected_source, release.get("git_commit", ""))
     if not (
         set(source) == source_fields
         and source.get("candidate_id") == CANDIDATE_ID
         and source.get("consolidation_archive_sha256")
         == CONSOLIDATION_ARCHIVE_SHA256
         and source.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v3"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v4"
+        and source.get("git_binding")
+        == "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER"
         and source.get("runtime_sif_sha256") == RUNTIME_SHA256
         and source.get("state") == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
         and source.get("superseded_final_review_nogo_sha256")
-        == SUPERSEDED_REVIEW_NOGO_V2_SHA256
+        == SUPERSEDED_REVIEW_NOGO_V3_SHA256
         and source.get("superseded_source_commitment_sha256")
-        == SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256
+        == SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256
         and isinstance(source.get("files"), dict)
         and source["files"]
         == {
@@ -1236,15 +1282,17 @@ def require_worker_release(stage: Path) -> None:
             str(DECISION_REVIEW): DECISION_REVIEW_SHA256,
             str(SUPERSEDED_REVIEW_NOGO): SUPERSEDED_REVIEW_NOGO_SHA256,
             str(SUPERSEDED_REVIEW_NOGO_V2): SUPERSEDED_REVIEW_NOGO_V2_SHA256,
+            str(SUPERSEDED_SOURCE_COMMITMENT_V3): SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256,
+            str(SUPERSEDED_REVIEW_NOGO_V3): SUPERSEDED_REVIEW_NOGO_V3_SHA256,
         }
         and set(release) == release_fields
         and set(consumed) == consumed_fields
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v3"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v4"
         and release.get("entity_uid") == ENTITY_UID
-        and release.get("git_commit") == source.get("git_commit")
+        and GIT_COMMIT_RE.fullmatch(release.get("git_commit", "")) is not None
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
         and release.get("source_commitment_sha256") == expected_source
         and release.get("source_review_sha256") == sha256(review_raw)
@@ -1253,7 +1301,7 @@ def require_worker_release(stage: Path) -> None:
         and release.get("state") == "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY"
         and consumed.get("candidate_id") == CANDIDATE_ID
         and consumed.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v3"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v4"
         and consumed.get("execution_release_sha256") == expected_release
         and consumed.get("source_commitment_sha256") == expected_source
         and consumed.get("state") == "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS"
@@ -1342,7 +1390,7 @@ def worker(access: object) -> None:
 
 
 def validate_release(
-    root: Path, source: dict[str, Any], source_hash: str, release_hash: str
+    root: Path, git_commit: str, source_hash: str, release_hash: str
 ) -> tuple[bytes, bytes]:
     if SHA256_RE.fullmatch(release_hash) is None:
         raise PermissionError("external release hash is invalid")
@@ -1352,7 +1400,7 @@ def validate_release(
         raise PermissionError("external release hash drifted")
     review = parse_object(review_raw, "source review")
     release = parse_object(release_raw, "execution release")
-    validate_final_review(review, source_hash, source["git_commit"])
+    validate_final_review(review, source_hash, git_commit)
     release_fields = {
         "candidate_id",
         "closed_capabilities",
@@ -1370,9 +1418,9 @@ def validate_release(
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v3"
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v4"
         and release.get("entity_uid") == ENTITY_UID
-        and release.get("git_commit") == source["git_commit"]
+        and release.get("git_commit") == git_commit
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
         and release.get("source_commitment_sha256") == source_hash
         and release.get("source_review_sha256") == sha256(review_raw)
@@ -1576,8 +1624,10 @@ def diagnostic_command(
 
 
 def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
-    source, _ = require_source(root, source_hash)
-    review_raw, release_raw = validate_release(root, source, source_hash, release_hash)
+    _, source_raw, git_commit = require_source(root, source_hash)
+    review_raw, release_raw = validate_release(
+        root, git_commit, source_hash, release_hash
+    )
     stage = require_direct_directory(root, STAGE)
     require_published_directory(stage)
     require_direct_directory(root, OUTPUT.parent)
@@ -1591,7 +1641,6 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
     if sha256(runtime_raw) != RUNTIME_SHA256:
         raise PermissionError("staged runtime drifted")
     output = root / OUTPUT
-    command = diagnostic_command(root, output, source_hash, release_hash)
 
     def seal_failure(error: BaseException) -> None:
         failure = {
@@ -1606,51 +1655,41 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
 
     consumed = {
         "candidate_id": CANDIDATE_ID,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v3",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v4",
         "execution_release_sha256": release_hash,
         "source_commitment_sha256": source_hash,
         "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
     }
     consumed_raw = canonical(consumed) + b"\n"
-    try:
-        exclusive(root / CONSUMED, consumed_raw)
-    except BaseException as error:
-        if (root / CONSUMED).exists() or (root / CONSUMED).is_symlink():
-            seal_failure(error)
-        raise
-
-    try:
-        with tempfile.TemporaryDirectory(
-            prefix=".ff15ipq-angle-output-", dir=root / ".auto"
-        ) as text:
-            temporary = Path(text)
-            (temporary / "release").mkdir(mode=0o700)
-            (temporary / "results").mkdir(mode=0o700)
-            (temporary / "scripts").mkdir(mode=0o700)
-            (temporary / "inputs").mkdir(mode=0o700)
-            exclusive(
-                temporary / "scripts" / SCRIPT.name,
-                committed_bytes(root, source["git_commit"], SCRIPT),
-            )
-            exclusive(
-                temporary / "scripts" / SOURCE_COMMITMENT.name,
-                read_file(root / SOURCE_COMMITMENT, 1_000_000),
-            )
-            exclusive(
-                temporary / "inputs" / PROJECTION.name,
-                committed_bytes(root, source["git_commit"], PROJECTION),
-            )
-            exclusive(temporary / "runtime.sif", runtime_raw)
-            exclusive(temporary / "release/execution_release.json", release_raw)
-            exclusive(temporary / "release/execution_consumed.json", consumed_raw)
-            exclusive(temporary / "release/source_review.json", review_raw)
-            publish_directory(temporary, output)
-            require_published_directory(output)
-    except BaseException as error:
-        seal_failure(error)
-        raise
     process: subprocess.Popen[bytes] | None = None
+    temporary: Path | None = None
     try:
+        temporary = Path(
+            tempfile.mkdtemp(prefix=".ff15ipq-angle-output-", dir=root / ".auto")
+        )
+        (temporary / "release").mkdir(mode=0o700)
+        (temporary / "results").mkdir(mode=0o700)
+        (temporary / "scripts").mkdir(mode=0o700)
+        (temporary / "inputs").mkdir(mode=0o700)
+        exclusive(
+            temporary / "scripts" / SCRIPT.name,
+            committed_bytes(root, git_commit, SCRIPT),
+        )
+        exclusive(
+            temporary / "scripts" / SOURCE_COMMITMENT.name,
+            source_raw,
+        )
+        exclusive(
+            temporary / "inputs" / PROJECTION.name,
+            committed_bytes(root, git_commit, PROJECTION),
+        )
+        exclusive(temporary / "runtime.sif", runtime_raw)
+        exclusive(temporary / "release/execution_release.json", release_raw)
+        exclusive(temporary / "release/execution_consumed.json", consumed_raw)
+        exclusive(temporary / "release/source_review.json", review_raw)
+        command = diagnostic_command(root, temporary, source_hash, release_hash)
+
+        exclusive(root / CONSUMED, consumed_raw)
         process = subprocess.Popen(
             command,
             cwd=root,
@@ -1659,20 +1698,17 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
-        try:
-            stdout, stderr = process.communicate(timeout=21_600)
-        except subprocess.TimeoutExpired as error:
-            os.killpg(process.pid, signal.SIGKILL)
-            stdout, stderr = process.communicate()
-            exclusive(output / "stdout.bin", stdout)
-            exclusive(output / "stderr.bin", stderr)
-            raise subprocess.TimeoutExpired(command, 21_600, stdout, stderr) from error
-        exclusive(output / "stdout.bin", stdout)
-        exclusive(output / "stderr.bin", stderr)
+        stdout, stderr = process.communicate(timeout=21_600)
+        exclusive(temporary / "stdout.bin", stdout)
+        exclusive(temporary / "stderr.bin", stderr)
         if process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, command)
-        summary_raw = read_file(output / "results/summary.json", 2_000_000)
-        results_raw = read_file(output / "results/support_results.jsonl", 100_000_000)
+            raise subprocess.CalledProcessError(
+                process.returncode, command, output=stdout, stderr=stderr
+            )
+        summary_raw = read_file(temporary / "results/summary.json", 2_000_000)
+        results_raw = read_file(
+            temporary / "results/support_results.jsonl", 100_000_000
+        )
         summary = validate_result_bytes(summary_raw, results_raw)
         terminal = {
             "candidate_id": CANDIDATE_ID,
@@ -1685,8 +1721,16 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
             "summary_sha256": sha256(summary_raw),
             "support_results_sha256": sha256(results_raw),
         }
-        exclusive(output / "terminal_receipt.json", canonical(terminal) + b"\n")
+        exclusive(
+            temporary / "terminal_receipt.json", canonical(terminal) + b"\n"
+        )
+        publish_directory(temporary, output)
+        require_published_directory(output)
     except BaseException as error:
+        if (root / CONSUMED).exists() or (root / CONSUMED).is_symlink():
+            seal_failure(error)
+        raise
+    finally:
         if process is not None:
             try:
                 if process.poll() is None:
@@ -1700,8 +1744,11 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
                         pass
             except BaseException:
                 pass
-        seal_failure(error)
-        raise
+        if temporary is not None and temporary.exists():
+            try:
+                shutil.rmtree(temporary)
+            except BaseException:
+                pass
 
 
 def self_test(root: Path) -> int:
@@ -1739,13 +1786,19 @@ def self_test(root: Path) -> int:
     fixed = {path: read_file(root / path, 20_000_000) for path in SOURCE_FILES}
     validate_fixed_inputs(fixed)
     if (
-        sha256(read_file(root / SUPERSEDED_SOURCE_COMMITMENT_V2, 1_000_000))
-        != SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256
+        sha256(read_file(root / SUPERSEDED_SOURCE_COMMITMENT_V3, 1_000_000))
+        != SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256
     ):
         raise AssertionError("superseded source commitment drifted")
+    current_source_raw = read_file(root / SOURCE_COMMITMENT, 1_000_000)
+    _, checked_source_raw, checked_commit = require_source(
+        root, sha256(current_source_raw)
+    )
+    if checked_source_raw != current_source_raw or checked_commit != git_head(root):
+        raise AssertionError("current source commitment binding drifted")
     if len(load_projection(root / PROJECTION)) != 998:
         raise AssertionError("projection/count replay drifted")
-    checks += 5
+    checks += 6
 
     predecessor = parse_object(
         read_file(root / PREDECESSOR_FAILURE),
@@ -1862,10 +1915,11 @@ def self_test(root: Path) -> int:
         raise AssertionError("tampered global minimum was accepted")
     checks += 2
 
+    synthetic_commit = "0" * 40
     synthetic_review = {
         "candidate_id": CANDIDATE_ID,
         "closed_capabilities": CLOSED,
-        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v3",
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v4",
         "reviews": [
             {
                 "elapsed_seconds": 1.0,
@@ -1875,16 +1929,16 @@ def self_test(root: Path) -> int:
             }
         ],
         "source_commitment_sha256": "0" * 64,
-        "source_git_commit": "synthetic-commit",
+        "source_git_commit": synthetic_commit,
         "state": "GO_DIAGNOSTIC_ONLY",
     }
-    validate_final_review(synthetic_review, "0" * 64, "synthetic-commit")
+    validate_final_review(synthetic_review, "0" * 64, synthetic_commit)
     duplicate_review = {
         **synthetic_review,
         "reviews": synthetic_review["reviews"] * 2,
     }
     try:
-        validate_final_review(duplicate_review, "0" * 64, "synthetic-commit")
+        validate_final_review(duplicate_review, "0" * 64, synthetic_commit)
     except PermissionError:
         pass
     else:
@@ -1917,6 +1971,45 @@ def self_test(root: Path) -> int:
             pass
         else:
             raise AssertionError("no-clobber directory publication failed open")
+        fallback_source = test_root / "fallback-source"
+        fallback_destination = test_root / "fallback-destination"
+        fallback_source.mkdir()
+        exclusive(fallback_source / "payload", b"fallback")
+        directories, files = publication_inventory(fallback_source)
+        exclusive(
+            fallback_source / PUBLICATION_MARKER,
+            canonical(
+                {
+                    "contract": "atypemu_no_clobber_directory_publication_v1",
+                    "destination": fallback_destination.name,
+                    "directories": directories,
+                    "files": files,
+                }
+            )
+            + b"\n",
+        )
+        copy_tree_exclusive(fallback_source, fallback_destination)
+        require_published_directory(fallback_destination)
+        partial_source = test_root / "partial-source"
+        partial_destination = test_root / "partial-destination"
+        partial_source.mkdir()
+        exclusive(partial_source / PUBLICATION_MARKER, b"{}\n")
+        exclusive(partial_source / "payload", b"partial")
+        (partial_source / "z-indirect").symlink_to("payload")
+        try:
+            copy_tree_exclusive(partial_source, partial_destination)
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("partial fallback publication unexpectedly passed")
+        if (partial_destination / PUBLICATION_MARKER).exists():
+            raise AssertionError("partial fallback publication exposed completion")
+        try:
+            require_published_directory(partial_destination)
+        except (FileNotFoundError, ValueError):
+            pass
+        else:
+            raise AssertionError("partial fallback publication was accepted")
         payload = destination / "payload"
         os.chmod(payload, 0o600)
         payload.write_bytes(b"changed")
@@ -1944,7 +2037,7 @@ def self_test(root: Path) -> int:
         source_object = {
             "candidate_id": CANDIDATE_ID,
             "consolidation_archive_sha256": CONSOLIDATION_ARCHIVE_SHA256,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v3",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v4",
             "files": {
                 str(SCRIPT): sha256(script_raw),
                 str(PLAN): PLAN_SHA256,
@@ -1955,12 +2048,14 @@ def self_test(root: Path) -> int:
                 str(DECISION_REVIEW): DECISION_REVIEW_SHA256,
                 str(SUPERSEDED_REVIEW_NOGO): SUPERSEDED_REVIEW_NOGO_SHA256,
                 str(SUPERSEDED_REVIEW_NOGO_V2): SUPERSEDED_REVIEW_NOGO_V2_SHA256,
+                str(SUPERSEDED_SOURCE_COMMITMENT_V3): SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256,
+                str(SUPERSEDED_REVIEW_NOGO_V3): SUPERSEDED_REVIEW_NOGO_V3_SHA256,
             },
-            "git_commit": "synthetic-commit",
+            "git_binding": "CURRENT_CLEAN_HEAD_EXACT_BLOB_AND_COMMIT_TRAILER",
             "runtime_sif_sha256": RUNTIME_SHA256,
             "state": "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN",
-            "superseded_final_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V2_SHA256,
-            "superseded_source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V2_SHA256,
+            "superseded_final_review_nogo_sha256": SUPERSEDED_REVIEW_NOGO_V3_SHA256,
+            "superseded_source_commitment_sha256": SUPERSEDED_SOURCE_COMMITMENT_V3_SHA256,
         }
         source_raw = canonical(source_object) + b"\n"
         source_hash = sha256(source_raw)
@@ -1972,9 +2067,9 @@ def self_test(root: Path) -> int:
         release_object = {
             "candidate_id": CANDIDATE_ID,
             "closed_capabilities": CLOSED,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v3",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v4",
             "entity_uid": ENTITY_UID,
-            "git_commit": "synthetic-commit",
+            "git_commit": synthetic_commit,
             "mode": "DIAGNOSTIC_ONLY_998_SUPPORTS",
             "runtime_sif_sha256": RUNTIME_SHA256,
             "source_commitment_sha256": source_hash,
@@ -1985,7 +2080,7 @@ def self_test(root: Path) -> int:
         release_hash = sha256(release_raw)
         consumed_object = {
             "candidate_id": CANDIDATE_ID,
-            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v3",
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v4",
             "execution_release_sha256": release_hash,
             "source_commitment_sha256": source_hash,
             "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
@@ -2024,7 +2119,7 @@ def self_test(root: Path) -> int:
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
-    checks += 6
+    checks += 8
     return checks
 
 
