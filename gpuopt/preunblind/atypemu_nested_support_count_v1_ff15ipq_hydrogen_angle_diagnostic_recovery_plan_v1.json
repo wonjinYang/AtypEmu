@@ -76,6 +76,12 @@
     ],
     "scientific_method_changed": false
   },
+  "review_contract": {
+    "any_post_review_byte_change_invalidates_review": true,
+    "exactly_one_final_full_cold_review": true,
+    "review_bundle": "GIT_COMMIT_PLUS_FROZEN_SOURCE_COMMITMENT",
+    "scoped_development_reviewers_allowed": 0
+  },
   "scope": "TARGET_UNREAD_DIAGNOSTIC_ONLY",
   "state": "HOLD_PENDING_AUTOMATED_GATES_FINAL_COLD_REVIEW_SOURCE_COMMITMENT_AND_FRESH_RELEASE"
 }

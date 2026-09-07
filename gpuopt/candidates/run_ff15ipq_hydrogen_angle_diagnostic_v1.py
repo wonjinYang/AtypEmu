@@ -43,7 +43,7 @@ OPENMM_VERSION = "8.6.0.dev-c6173db"
 OPENMM_GIT_REVISION = "c6173db6e8edd705eb59172bd21e9ce69c572405"
 FORCEFIELD = "amber14/protein.ff15ipq.xml"
 RUNTIME_SHA256 = "a9f2df1d1f5fb1039af8ac791b15f4bfbbd62237dbd923ec4695114ec5d18bc5"
-PLAN_SHA256 = "b117dce4b7f0b76566d6965cbb75a06c1261bdc78e3a891be7a0abe1d0bff37e"
+PLAN_SHA256 = "de07957db94fa87afc130be78048014507884dcbc6987b6f1e24820815669645"
 PREDECESSOR_FAILURE_SHA256 = (
     "9415a183981e0f8098163faebcb8318e0f5d3a34d0ce256e175d1af097af68c3"
 )
@@ -514,6 +514,13 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         and plan.get("execution_contract", {}).get("runtime_sif_sha256")
         == RUNTIME_SHA256
         and plan.get("execution_contract", {}).get("worker_processes") == WORKERS
+        and plan.get("review_contract")
+        == {
+            "any_post_review_byte_change_invalidates_review": True,
+            "exactly_one_final_full_cold_review": True,
+            "review_bundle": "GIT_COMMIT_PLUS_FROZEN_SOURCE_COMMITMENT",
+            "scoped_development_reviewers_allowed": 0,
+        }
         and plan.get("decision_contract", {}).get("full_135_entity_route") == "CLOSED"
         and plan.get("decision_contract", {}).get(
             "promotion_or_feasibility_claim_allowed"
@@ -902,17 +909,60 @@ def load_projection(path: Path) -> dict[int, str]:
     return result
 
 
+def validate_final_review(
+    review: dict[str, Any], source_hash: str, git_commit: str
+) -> None:
+    reviews = review.get("reviews")
+    if not (
+        set(review)
+        == {
+            "candidate_id",
+            "closed_capabilities",
+            "contract",
+            "reviews",
+            "source_commitment_sha256",
+            "source_git_commit",
+            "state",
+        }
+        and review.get("candidate_id") == CANDIDATE_ID
+        and review.get("closed_capabilities") == CLOSED
+        and review.get("contract")
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v1"
+        and review.get("source_commitment_sha256") == source_hash
+        and review.get("source_git_commit") == git_commit
+        and review.get("state") == "GO_DIAGNOSTIC_ONLY"
+        and isinstance(reviews, list)
+        and len(reviews) == 1
+        and all(
+            isinstance(row, dict)
+            and set(row)
+            == {"elapsed_seconds", "review_session", "scope", "verdict"}
+            and type(row["elapsed_seconds"]) in {int, float}
+            and math.isfinite(row["elapsed_seconds"])
+            and row["elapsed_seconds"] > 0
+            and isinstance(row["review_session"], str)
+            and bool(row["review_session"])
+            and row["scope"] == "final_full_cold"
+            and row["verdict"] == "GO"
+            for row in reviews
+        )
+    ):
+        raise PermissionError("final cold-review receipt drifted")
+
+
 def require_worker_release(stage: Path) -> None:
     expected_source = os.environ.get("ATYPEMU_DIAGNOSTIC_SOURCE_SHA256")
     expected_release = os.environ.get("ATYPEMU_DIAGNOSTIC_RELEASE_SHA256")
     if not expected_source or not expected_release:
         raise PermissionError("worker source/release binding is absent")
     source_raw = read_file(stage / "scripts" / SOURCE_COMMITMENT.name, 1_000_000)
+    review_raw = read_file(stage / "release/source_review.json", 1_000_000)
     release_raw = read_file(stage / "release/execution_release.json", 1_000_000)
     consumed_raw = read_file(stage / "release/execution_consumed.json", 1_000_000)
     if sha256(source_raw) != expected_source or sha256(release_raw) != expected_release:
         raise PermissionError("worker source/release hash drifted")
     source = parse_object(source_raw, "worker source commitment")
+    review = parse_object(review_raw, "worker source review")
     release = parse_object(release_raw, "worker execution release")
     consumed = parse_object(consumed_raw, "worker execution consumption")
     script_raw = read_file(Path(__file__).absolute(), 2_000_000)
@@ -935,17 +985,47 @@ def require_worker_release(stage: Path) -> None:
         "source_commitment_sha256",
         "state",
     }
+    source_fields = {
+        "candidate_id",
+        "consolidation_archive_sha256",
+        "contract",
+        "files",
+        "git_commit",
+        "runtime_sif_sha256",
+        "state",
+    }
+    validate_final_review(review, expected_source, source.get("git_commit", ""))
     if not (
-        set(release) == release_fields
+        set(source) == source_fields
+        and source.get("candidate_id") == CANDIDATE_ID
+        and source.get("consolidation_archive_sha256")
+        == CONSOLIDATION_ARCHIVE_SHA256
+        and source.get("contract")
+        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1"
+        and source.get("runtime_sif_sha256") == RUNTIME_SHA256
+        and source.get("state") == "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN"
+        and isinstance(source.get("files"), dict)
+        and source["files"]
+        == {
+            str(SCRIPT): sha256(script_raw),
+            str(PLAN): PLAN_SHA256,
+            str(PREDECESSOR_FAILURE): PREDECESSOR_FAILURE_SHA256,
+            str(PROJECTION): PROJECTION_SHA256,
+            str(DECISION): DECISION_SHA256,
+            str(INVENTORY): INVENTORY_SHA256,
+            str(DECISION_REVIEW): DECISION_REVIEW_SHA256,
+        }
+        and set(release) == release_fields
         and set(consumed) == consumed_fields
-        and source.get("files", {}).get(str(SCRIPT)) == sha256(script_raw)
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
         == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v1"
         and release.get("entity_uid") == ENTITY_UID
+        and release.get("git_commit") == source.get("git_commit")
         and release.get("mode") == "DIAGNOSTIC_ONLY_998_SUPPORTS"
         and release.get("source_commitment_sha256") == expected_source
+        and release.get("source_review_sha256") == sha256(review_raw)
         and release.get("runtime_sif_sha256") == RUNTIME_SHA256
         and os.environ.get("ATYPEMU_RUNTIME_SIF_SHA256") == RUNTIME_SHA256
         and release.get("state") == "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY"
@@ -991,7 +1071,9 @@ def worker(access: object) -> None:
     context = multiprocessing.get_context("spawn")
     with context.Pool(processes=WORKERS, maxtasksperchild=1) as pool:
         rows = list(pool.imap(diagnose_support, tasks, chunksize=1))
-    if [row.get("support_index") for row in rows] != SUPPORTS:
+    if any(type(row.get("support_index")) is not int for row in rows) or [
+        row["support_index"] for row in rows
+    ] != SUPPORTS:
         raise ValueError("diagnostic result identity drifted")
     failures = [row for row in rows if row.get("status") == "ERROR"]
     violations = [
@@ -1048,16 +1130,7 @@ def validate_release(
         raise PermissionError("external release hash drifted")
     review = parse_object(review_raw, "source review")
     release = parse_object(release_raw, "execution release")
-    reviews = review.get("reviews")
-    review_fields = {
-        "candidate_id",
-        "closed_capabilities",
-        "contract",
-        "reviews",
-        "source_commitment_sha256",
-        "source_git_commit",
-        "state",
-    }
+    validate_final_review(review, source_hash, source["git_commit"])
     release_fields = {
         "candidate_id",
         "closed_capabilities",
@@ -1071,28 +1144,7 @@ def validate_release(
         "state",
     }
     if not (
-        set(review) == review_fields
-        and review.get("candidate_id") == CANDIDATE_ID
-        and review.get("closed_capabilities") == CLOSED
-        and review.get("contract")
-        == "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v1"
-        and review.get("source_commitment_sha256") == source_hash
-        and review.get("source_git_commit") == source["git_commit"]
-        and review.get("state") == "GO_DIAGNOSTIC_ONLY"
-        and isinstance(reviews, list)
-        and len(reviews) == 3
-        and {row.get("scope") for row in reviews}
-        == {"operational", "scientific_leakage", "security_provenance"}
-        and len({row.get("review_session") for row in reviews}) == 3
-        and all(
-            isinstance(row, dict)
-            and set(row) == {"review_session", "scope", "verdict"}
-            and isinstance(row["review_session"], str)
-            and bool(row["review_session"])
-            and row["verdict"] == "GO"
-            for row in reviews
-        )
-        and set(release) == release_fields
+        set(release) == release_fields
         and release.get("candidate_id") == CANDIDATE_ID
         and release.get("closed_capabilities") == CLOSED
         and release.get("contract")
@@ -1107,6 +1159,51 @@ def validate_release(
     ):
         raise PermissionError("source review or execution release drifted")
     return review_raw, release_raw
+
+
+def validate_angle_record(value: Any, label: str) -> None:
+    identity_fields = {
+        "atom_index",
+        "atom_name",
+        "chain_id",
+        "chain_index",
+        "residue_id",
+        "residue_index",
+        "residue_name",
+    }
+    if not isinstance(value, dict) or set(value) != {
+        "angle_degrees",
+        "hydrogen",
+        "other",
+        "parent",
+    }:
+        raise ValueError(f"{label} schema drifted")
+    angle = value["angle_degrees"]
+    if (
+        type(angle) not in {int, float}
+        or not math.isfinite(angle)
+        or not 0.0 <= angle <= 180.0
+    ):
+        raise ValueError(f"{label} angle is invalid")
+    for role in ("hydrogen", "other", "parent"):
+        identity = value[role]
+        if not isinstance(identity, dict) or set(identity) != identity_fields:
+            raise ValueError(f"{label} {role} identity drifted")
+        if not (
+            type(identity["atom_index"]) is int
+            and identity["atom_index"] >= 0
+            and type(identity["chain_index"]) is int
+            and identity["chain_index"] >= 0
+            and type(identity["residue_index"]) is int
+            and identity["residue_index"] >= 0
+            and all(
+                isinstance(identity[field], str)
+                for field in ("atom_name", "chain_id", "residue_id", "residue_name")
+            )
+            and bool(identity["atom_name"])
+            and bool(identity["residue_name"])
+        ):
+            raise ValueError(f"{label} {role} identity is invalid")
 
 
 def validate_result_bytes(summary_raw: bytes, results_raw: bytes) -> dict[str, Any]:
@@ -1124,7 +1221,60 @@ def validate_result_bytes(summary_raw: bytes, results_raw: bytes) -> dict[str, A
     ok_rows = [row for row in rows if row.get("status") == "OK"]
     if len(errors) + len(ok_rows) != 998:
         raise ValueError("diagnostic result status drifted")
-    violations = [row for row in ok_rows if row.get("violation_count", 0) > 0]
+    for row in errors:
+        if not (
+            set(row)
+            == {"error_message", "error_type", "status", "support_index"}
+            and isinstance(row["error_message"], str)
+            and bool(row["error_message"])
+            and isinstance(row["error_type"], str)
+            and bool(row["error_type"])
+        ):
+            raise ValueError("diagnostic error row drifted")
+    for row in ok_rows:
+        if not (
+            set(row)
+            == {
+                "minimum_angle",
+                "status",
+                "support_index",
+                "violation_count",
+                "violations",
+            }
+            and type(row["violation_count"]) is int
+            and row["violation_count"] >= 0
+            and isinstance(row["violations"], list)
+            and row["violation_count"] == len(row["violations"])
+        ):
+            raise ValueError("diagnostic OK row drifted")
+        validate_angle_record(row["minimum_angle"], "support minimum")
+        for violation in row["violations"]:
+            validate_angle_record(violation, "support violation")
+            if violation["angle_degrees"] >= LOW_ANGLE:
+                raise ValueError("nonviolating angle was classified as a violation")
+        if len({canonical(value) for value in row["violations"]}) != len(
+            row["violations"]
+        ):
+            raise ValueError("duplicate support violation")
+        minimum_angle = row["minimum_angle"]["angle_degrees"]
+        if row["violations"]:
+            if row["minimum_angle"] not in row["violations"] or minimum_angle != min(
+                value["angle_degrees"] for value in row["violations"]
+            ):
+                raise ValueError("support minimum/violation relation drifted")
+        elif minimum_angle < LOW_ANGLE:
+            raise ValueError("support minimum violation was omitted")
+    violations = [row for row in ok_rows if row["violation_count"] > 0]
+    minimum_row = (
+        min(ok_rows, key=lambda row: row["minimum_angle"]["angle_degrees"])
+        if ok_rows
+        else None
+    )
+    expected_minimum = (
+        {"support_index": minimum_row["support_index"], **minimum_row["minimum_angle"]}
+        if minimum_row
+        else None
+    )
     expected_class = (
         "DIAGNOSTIC_EXECUTION_FAILED"
         if errors
@@ -1149,10 +1299,14 @@ def validate_result_bytes(summary_raw: bytes, results_raw: bytes) -> dict[str, A
             "violation_support_count",
         }
         and summary.get("candidate_id") == CANDIDATE_ID
+        and type(summary.get("support_count")) is int
+        and type(summary.get("error_support_count")) is int
+        and type(summary.get("violation_support_count")) is int
         and summary.get("support_count") == 998
         and summary.get("support_results_sha256") == sha256(results_raw)
         and summary.get("error_support_count") == len(errors)
         and summary.get("violation_support_count") == len(violations)
+        and summary.get("global_minimum_angle") == expected_minimum
         and summary.get("result_class") == expected_class
         and summary.get("state") == "SEALED_TARGET_UNREAD_DIAGNOSTIC_ONLY"
         and summary.get("full_135_entity_route") == "CLOSED"
@@ -1185,32 +1339,48 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
     }
     consumed_raw = canonical(consumed) + b"\n"
     exclusive(root / CONSUMED, consumed_raw)
+
+    def seal_failure(error: BaseException) -> None:
+        failure = {
+            "candidate_id": CANDIDATE_ID,
+            "error_message": str(error),
+            "error_type": type(error).__name__,
+            "execution_release_sha256": release_hash,
+            "source_commitment_sha256": source_hash,
+            "state": "FAILED_AFTER_RECOVERY_DIAGNOSTIC_CONSUMPTION",
+        }
+        exclusive(root / FAILURE, canonical(failure) + b"\n")
+
     output = root / OUTPUT
-    with tempfile.TemporaryDirectory(
-        prefix=".ff15ipq-angle-output-", dir=root / ".auto"
-    ) as text:
-        temporary = Path(text)
-        (temporary / "release").mkdir(mode=0o700)
-        (temporary / "results").mkdir(mode=0o700)
-        (temporary / "scripts").mkdir(mode=0o700)
-        (temporary / "inputs").mkdir(mode=0o700)
-        exclusive(
-            temporary / "scripts" / SCRIPT.name,
-            committed_bytes(root, source["git_commit"], SCRIPT),
-        )
-        exclusive(
-            temporary / "scripts" / SOURCE_COMMITMENT.name,
-            read_file(root / SOURCE_COMMITMENT, 1_000_000),
-        )
-        exclusive(
-            temporary / "inputs" / PROJECTION.name,
-            committed_bytes(root, source["git_commit"], PROJECTION),
-        )
-        exclusive(temporary / "runtime.sif", runtime_raw)
-        exclusive(temporary / "release/execution_release.json", release_raw)
-        exclusive(temporary / "release/execution_consumed.json", consumed_raw)
-        exclusive(temporary / "release/source_review.json", review_raw)
-        publish_directory(temporary, output)
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=".ff15ipq-angle-output-", dir=root / ".auto"
+        ) as text:
+            temporary = Path(text)
+            (temporary / "release").mkdir(mode=0o700)
+            (temporary / "results").mkdir(mode=0o700)
+            (temporary / "scripts").mkdir(mode=0o700)
+            (temporary / "inputs").mkdir(mode=0o700)
+            exclusive(
+                temporary / "scripts" / SCRIPT.name,
+                committed_bytes(root, source["git_commit"], SCRIPT),
+            )
+            exclusive(
+                temporary / "scripts" / SOURCE_COMMITMENT.name,
+                read_file(root / SOURCE_COMMITMENT, 1_000_000),
+            )
+            exclusive(
+                temporary / "inputs" / PROJECTION.name,
+                committed_bytes(root, source["git_commit"], PROJECTION),
+            )
+            exclusive(temporary / "runtime.sif", runtime_raw)
+            exclusive(temporary / "release/execution_release.json", release_raw)
+            exclusive(temporary / "release/execution_consumed.json", consumed_raw)
+            exclusive(temporary / "release/source_review.json", review_raw)
+            publish_directory(temporary, output)
+    except BaseException as error:
+        seal_failure(error)
+        raise
     command = [
         "/usr/bin/singularity",
         "exec",
@@ -1284,15 +1454,7 @@ def execute_diagnostic(root: Path, source_hash: str, release_hash: str) -> None:
         if process is not None and process.poll() is None:
             os.killpg(process.pid, signal.SIGKILL)
             process.wait()
-        failure = {
-            "candidate_id": CANDIDATE_ID,
-            "error_message": str(error),
-            "error_type": type(error).__name__,
-            "execution_release_sha256": release_hash,
-            "source_commitment_sha256": source_hash,
-            "state": "FAILED_AFTER_RECOVERY_DIAGNOSTIC_CONSUMPTION",
-        }
-        exclusive(root / FAILURE, canonical(failure) + b"\n")
+        seal_failure(error)
         raise
 
 
@@ -1402,6 +1564,82 @@ def self_test(root: Path) -> int:
         raise AssertionError("incomplete result surface accepted")
     checks += 2
 
+    identity = {
+        "atom_index": 1,
+        "atom_name": "H",
+        "chain_id": "A",
+        "chain_index": 0,
+        "residue_id": "1",
+        "residue_index": 0,
+        "residue_name": "ALA",
+    }
+    angle_record = {
+        "angle_degrees": 50.0,
+        "hydrogen": identity,
+        "other": {**identity, "atom_index": 2, "atom_name": "CA"},
+        "parent": {**identity, "atom_index": 0, "atom_name": "N"},
+    }
+    ok_row = {
+        "minimum_angle": angle_record,
+        "status": "OK",
+        "support_index": SUPPORTS[0],
+        "violation_count": 1,
+        "violations": [angle_record],
+    }
+    mixed_rows = [ok_row, *synthetic_rows[1:]]
+    mixed_results = b"".join(canonical(row) + b"\n" for row in mixed_rows)
+    mixed_summary = {
+        **synthetic_summary,
+        "error_support_count": 997,
+        "global_minimum_angle": {"support_index": SUPPORTS[0], **angle_record},
+        "support_results_sha256": sha256(mixed_results),
+        "violation_support_count": 1,
+    }
+    validate_result_bytes(canonical(mixed_summary) + b"\n", mixed_results)
+    tampered_summary = {
+        **mixed_summary,
+        "global_minimum_angle": {
+            **mixed_summary["global_minimum_angle"],
+            "angle_degrees": 51.0,
+        },
+    }
+    try:
+        validate_result_bytes(canonical(tampered_summary) + b"\n", mixed_results)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("tampered global minimum was accepted")
+    checks += 2
+
+    synthetic_review = {
+        "candidate_id": CANDIDATE_ID,
+        "closed_capabilities": CLOSED,
+        "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_review_v1",
+        "reviews": [
+            {
+                "elapsed_seconds": 1.0,
+                "review_session": "synthetic-final-review",
+                "scope": "final_full_cold",
+                "verdict": "GO",
+            }
+        ],
+        "source_commitment_sha256": "0" * 64,
+        "source_git_commit": "synthetic-commit",
+        "state": "GO_DIAGNOSTIC_ONLY",
+    }
+    validate_final_review(synthetic_review, "0" * 64, "synthetic-commit")
+    duplicate_review = {
+        **synthetic_review,
+        "reviews": synthetic_review["reviews"] * 2,
+    }
+    try:
+        validate_final_review(duplicate_review, "0" * 64, "synthetic-commit")
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("multiple final reviewers were accepted")
+    checks += 2
+
     with tempfile.TemporaryDirectory(
         prefix="ff15ipq-angle-self-test-", dir=root / ".auto"
     ) as text:
@@ -1428,7 +1666,91 @@ def self_test(root: Path) -> int:
             pass
         else:
             raise AssertionError("no-clobber directory publication failed open")
-    checks += 2
+
+        worker_stage = test_root / "worker-stage"
+        (worker_stage / "scripts").mkdir(parents=True)
+        (worker_stage / "release").mkdir()
+        script_raw = read_file(root / SCRIPT, 2_000_000)
+        source_object = {
+            "candidate_id": CANDIDATE_ID,
+            "consolidation_archive_sha256": CONSOLIDATION_ARCHIVE_SHA256,
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_source_commitment_v1",
+            "files": {
+                str(SCRIPT): sha256(script_raw),
+                str(PLAN): PLAN_SHA256,
+                str(PREDECESSOR_FAILURE): PREDECESSOR_FAILURE_SHA256,
+                str(PROJECTION): PROJECTION_SHA256,
+                str(DECISION): DECISION_SHA256,
+                str(INVENTORY): INVENTORY_SHA256,
+                str(DECISION_REVIEW): DECISION_REVIEW_SHA256,
+            },
+            "git_commit": "synthetic-commit",
+            "runtime_sif_sha256": RUNTIME_SHA256,
+            "state": "FROZEN_RECOVERY_DIAGNOSTIC_ONLY_UNRUN",
+        }
+        source_raw = canonical(source_object) + b"\n"
+        source_hash = sha256(source_raw)
+        worker_review = {
+            **synthetic_review,
+            "source_commitment_sha256": source_hash,
+        }
+        worker_review_raw = canonical(worker_review) + b"\n"
+        release_object = {
+            "candidate_id": CANDIDATE_ID,
+            "closed_capabilities": CLOSED,
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_execution_release_v1",
+            "entity_uid": ENTITY_UID,
+            "git_commit": "synthetic-commit",
+            "mode": "DIAGNOSTIC_ONLY_998_SUPPORTS",
+            "runtime_sif_sha256": RUNTIME_SHA256,
+            "source_commitment_sha256": source_hash,
+            "source_review_sha256": sha256(worker_review_raw),
+            "state": "EXTERNALLY_RELEASED_ONCE_RECOVERY_DIAGNOSTIC_ONLY",
+        }
+        release_raw = canonical(release_object) + b"\n"
+        release_hash = sha256(release_raw)
+        consumed_object = {
+            "candidate_id": CANDIDATE_ID,
+            "contract": "atypemu_ff15ipq_hydrogen_angle_diagnostic_recovery_consumption_v1",
+            "execution_release_sha256": release_hash,
+            "source_commitment_sha256": source_hash,
+            "state": "CONSUMED_BEFORE_RECOVERY_DIAGNOSTIC_PDB_ACCESS",
+        }
+        exclusive(worker_stage / "scripts" / SCRIPT.name, script_raw)
+        exclusive(
+            worker_stage / "scripts" / SOURCE_COMMITMENT.name, source_raw
+        )
+        exclusive(worker_stage / "release/source_review.json", worker_review_raw)
+        exclusive(worker_stage / "release/execution_release.json", release_raw)
+        exclusive(
+            worker_stage / "release/execution_consumed.json",
+            canonical(consumed_object) + b"\n",
+        )
+        environment = {
+            "ATYPEMU_DIAGNOSTIC_SOURCE_SHA256": source_hash,
+            "ATYPEMU_DIAGNOSTIC_RELEASE_SHA256": release_hash,
+            "ATYPEMU_RUNTIME_SIF_SHA256": RUNTIME_SHA256,
+        }
+        previous = {key: os.environ.get(key) for key in environment}
+        try:
+            os.environ.update(environment)
+            require_worker_release(worker_stage)
+            review_path = worker_stage / "release/source_review.json"
+            os.chmod(review_path, 0o600)
+            review_path.write_bytes(worker_review_raw + b"\n")
+            try:
+                require_worker_release(worker_stage)
+            except (PermissionError, ValueError):
+                pass
+            else:
+                raise AssertionError("tampered worker review was accepted")
+        finally:
+            for key, value in previous.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+    checks += 4
     return checks
 
 
