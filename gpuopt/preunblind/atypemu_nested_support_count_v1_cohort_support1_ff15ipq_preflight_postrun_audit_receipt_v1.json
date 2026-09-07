@@ -1,0 +1,29 @@
+{
+  "artifact_kind": "target_unread_hold_only_postrun_independent_audit_receipt_not_science",
+  "bundle_sha256": "491b2379dcf59e3793d65e6c7fc4714e6b0b6d83407e7cd33ec8c5f15be6f93e",
+  "candidate_id": "atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_v1",
+  "checks": {
+    "checker_metadata_matches_repeat0": true,
+    "checker_replay_count": 199,
+    "closed_capability_declaration_count": 606,
+    "closed_capabilities_all_false": true,
+    "dual_independent_physicality_implementations": true,
+    "entity_count": 135,
+    "generation_directory_count": 398,
+    "heavy_coordinate_identity_recomputed_from_staged_support_pdbs": true,
+    "heavy_topology_identity_recomputed_from_staged_support_pdbs": true,
+    "output_file_count": 1196,
+    "output_tree_manifest_sha256": "b02782016e5fb767a6bc269a184ab8fe9dcb67bf62c4e12c664a12d7b0c600cc",
+    "repeat_metadata_matches_excluding_repeat_index": true,
+    "repeat_pdb_bytes_match": true,
+    "state_count": 199
+  },
+  "limitations": [
+    "runtime SIF bytes were intentionally omitted from the review bundle; committed runtime hash binding was statically reviewed",
+    "support-index 1 only; no all-support, feasibility, diversity, nesting, science, or CCC claim"
+  ],
+  "result_receipt_path": "gpuopt/preunblind/atypemu_nested_support_count_v1_cohort_support1_ff15ipq_preflight_result_receipt_v1.json",
+  "result_receipt_sha256": "f40bdebf94077fdea6070fd432f2d932ae750a390c583fde77111e0102aa0ec9",
+  "scope": "independent byte-level replay of extracted immutable support-index-1 preflight evidence",
+  "status": "GO"
+}
