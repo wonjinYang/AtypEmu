@@ -138,7 +138,9 @@ def canonical(value: Any) -> bytes:
     ).encode("ascii")
 
 
-def parse_object(raw: bytes, label: str) -> dict[str, Any]:
+def parse_object(
+    raw: bytes, label: str, *, require_canonical: bool = True
+) -> dict[str, Any]:
     def duplicate(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result: dict[str, Any] = {}
         for key, value in pairs:
@@ -157,7 +159,9 @@ def parse_object(raw: bytes, label: str) -> dict[str, Any]:
         )
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(f"invalid JSON in {label}") from error
-    if not isinstance(value, dict) or raw != canonical(value) + b"\n":
+    if not isinstance(value, dict) or (
+        require_canonical and raw != canonical(value) + b"\n"
+    ):
         raise ValueError(f"noncanonical object in {label}")
     return value
 
@@ -272,7 +276,7 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
     }
     if any(sha256(raw_by_path[path]) != digest for path, digest in expected.items()):
         raise PermissionError("fixed diagnostic input hash drifted")
-    plan = parse_object(raw_by_path[PLAN], "diagnostic plan")
+    plan = parse_object(raw_by_path[PLAN], "diagnostic plan", require_canonical=False)
     if not (
         plan.get("candidate_id") == CANDIDATE_ID
         and plan.get("scope") == "TARGET_UNREAD_DIAGNOSTIC_ONLY"
@@ -287,8 +291,14 @@ def validate_fixed_inputs(raw_by_path: dict[Path, bytes]) -> None:
         is False
     ):
         raise PermissionError("diagnostic plan identity drifted")
-    decision = parse_object(raw_by_path[DECISION], "terminal decision")
-    review = parse_object(raw_by_path[DECISION_REVIEW], "terminal decision review")
+    decision = parse_object(
+        raw_by_path[DECISION], "terminal decision", require_canonical=False
+    )
+    review = parse_object(
+        raw_by_path[DECISION_REVIEW],
+        "terminal decision review",
+        require_canonical=False,
+    )
     if not (
         decision.get("decision") == "NO_GO_BOUNDED_SMOKE"
         and decision.get("full_135_entity_route") == "CLOSED"
