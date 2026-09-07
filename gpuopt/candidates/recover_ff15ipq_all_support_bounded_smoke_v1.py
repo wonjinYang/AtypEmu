@@ -500,7 +500,7 @@ def seal_entity_pdbs(output: Path, bioemu: Path) -> int:
         raise ValueError("released entity is absent from runtime projection")
     supports = entity.get("supports")
     missing = entity.get("missing_support_indices")
-    if not isinstance(supports, list) or not isinstance(missing, list):
+    if not isinstance(supports, list) or len(supports) != 998 or missing != [272, 795]:
         raise ValueError("released entity support inventory is incomplete")
     projected_indices = [
         row.get("support_index") for row in supports if isinstance(row, dict)
