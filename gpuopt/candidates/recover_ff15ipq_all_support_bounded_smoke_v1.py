@@ -144,39 +144,70 @@ def sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def read_regular(path: Path, maximum: int = 100_000_000) -> bytes:
-    if path.is_symlink():
-        raise ValueError(f"symlink rejected: {path}")
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+def read_beneath(root: Path, relative: Path, maximum: int = 100_000_000) -> bytes:
+    if (
+        relative.is_absolute()
+        or not relative.parts
+        or any(part in {"", ".", ".."} for part in relative.parts)
+    ):
+        raise ValueError(f"unsafe repository-relative path: {relative}")
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    cloexec = getattr(os, "O_CLOEXEC", 0)
+    directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | nofollow | cloexec)
     try:
-        before = os.fstat(descriptor)
-        if not stat.S_ISREG(before.st_mode) or before.st_size > maximum:
-            raise ValueError(f"invalid regular file: {path}")
-        chunks: list[bytes] = []
-        total = 0
-        while chunk := os.read(descriptor, min(1_048_576, maximum + 1)):
-            chunks.append(chunk)
-            total += len(chunk)
-            if total > maximum:
-                raise ValueError(f"file exceeds ceiling: {path}")
-        after = os.fstat(descriptor)
-        if (
-            before.st_dev,
-            before.st_ino,
-            before.st_size,
-            before.st_mtime_ns,
-            before.st_ctime_ns,
-        ) != (
-            after.st_dev,
-            after.st_ino,
-            after.st_size,
-            after.st_mtime_ns,
-            after.st_ctime_ns,
-        ):
-            raise ValueError(f"file changed while read: {path}")
-        return b"".join(chunks)
+        for part in relative.parts[:-1]:
+            next_directory = os.open(
+                part,
+                os.O_RDONLY | os.O_DIRECTORY | nofollow | cloexec,
+                dir_fd=directory,
+            )
+            os.close(directory)
+            directory = next_directory
+        descriptor = os.open(
+            relative.parts[-1], os.O_RDONLY | nofollow | cloexec, dir_fd=directory
+        )
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode) or before.st_size > maximum:
+                raise ValueError(f"invalid bounded file: {relative}")
+            chunks: list[bytes] = []
+            total = 0
+            while chunk := os.read(descriptor, min(1_048_576, maximum + 1)):
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > maximum:
+                    raise ValueError(f"file exceeds ceiling: {relative}")
+            after = os.fstat(descriptor)
+            before_identity = (
+                before.st_dev,
+                before.st_ino,
+                before.st_size,
+                before.st_mtime_ns,
+                before.st_ctime_ns,
+            )
+            after_identity = (
+                after.st_dev,
+                after.st_ino,
+                after.st_size,
+                after.st_mtime_ns,
+                after.st_ctime_ns,
+            )
+            if before_identity != after_identity:
+                raise ValueError(f"file changed while read: {relative}")
+            return b"".join(chunks)
+        finally:
+            os.close(descriptor)
     finally:
-        os.close(descriptor)
+        os.close(directory)
+
+
+def require_direct_directory(root: Path, relative: Path) -> Path:
+    path = root
+    for part in relative.parts:
+        path /= part
+        if path.is_symlink() or not path.is_dir():
+            raise ValueError(f"directory is absent or indirect: {relative}")
+    return path
 
 
 def exclusive(path: Path, raw: bytes) -> None:
@@ -234,7 +265,7 @@ def validate_parent(root: Path) -> tuple[dict[str, Any], bytes, bytes, bytes]:
         PARENT_FAILURE: PARENT_FAILURE_SHA256,
         RUNTIME: RUNTIME_SHA256,
     }
-    raw_by_path = {path: read_regular(root / path) for path in expected}
+    raw_by_path = {path: read_beneath(root, path) for path in expected}
     if any(sha256(raw_by_path[path]) != digest for path, digest in expected.items()):
         raise PermissionError("parent execution evidence drifted")
     source = parse_object(raw_by_path[PARENT_SOURCE], "parent source commitment")
@@ -264,9 +295,12 @@ def validate_parent(root: Path) -> tuple[dict[str, Any], bytes, bytes, bytes]:
             / ("inputs" if relative.endswith(".json.gz") else "scripts")
             / Path(relative).name
         )
-        if sha256(read_regular(staged, 20_000_000)) != expected_hash:
+        if (
+            sha256(read_beneath(root, staged.relative_to(root), 20_000_000))
+            != expected_hash
+        ):
             raise PermissionError(f"staged parent source drifted: {relative}")
-    review_raw = read_regular(root / PARENT_REVIEW, 1_000_000)
+    review_raw = read_beneath(root, PARENT_REVIEW, 1_000_000)
     if sha256(review_raw) != release.get("review_receipt_sha256"):
         raise PermissionError("parent source-review receipt drifted")
     return source, raw_by_path[PARENT_RELEASE], raw_by_path[PARENT_CONSUMED], review_raw
@@ -277,11 +311,11 @@ def validate_recovery_release(
 ) -> tuple[dict[str, Any], bytes]:
     if SHA256_RE.fullmatch(expected_hash) is None:
         raise PermissionError("external recovery-release hash is invalid")
-    raw = read_regular(root / RECOVERY_RELEASE, 1_000_000)
+    raw = read_beneath(root, RECOVERY_RELEASE, 1_000_000)
     if sha256(raw) != expected_hash:
         raise PermissionError("external recovery-release hash drifted")
     release = parse_object(raw, "recovery release")
-    review_raw = read_regular(root / RECOVERY_REVIEW, 1_000_000)
+    review_raw = read_beneath(root, RECOVERY_REVIEW, 1_000_000)
     review = parse_object(review_raw, "recovery review")
     fields = {
         "bioemu_root",
@@ -300,7 +334,7 @@ def validate_recovery_release(
         "runtime_sif_sha256",
         "state",
     }
-    script_hash = sha256(read_regular(root / SCRIPT, 2_000_000))
+    script_hash = sha256(read_beneath(root, SCRIPT, 2_000_000))
     if set(release) != fields or not (
         release["candidate_id"] == RECOVERY_ID
         and release["closed_capabilities"] == CLOSED_CAPABILITIES
@@ -387,7 +421,7 @@ def command(
     result.extend(
         [
             "--bind",
-            f"{bioemu}:/work/inputs/data/BioEmu:ro",
+            f"{bioemu / 'bmr10109'}:/work/inputs/data/BioEmu/bmr10109:ro",
             "--bind",
             f"{released}:/work/release:ro",
             "--env",
@@ -432,6 +466,11 @@ def run(root: Path, expected_release_hash: str) -> None:
         or executing.resolve(strict=True) != executing
     ):
         raise PermissionError("recovery must execute the canonical direct Git script")
+    require_direct_directory(root, Path(".auto"))
+    require_direct_directory(root, Path(".auto/staging"))
+    require_direct_directory(root, STAGE)
+    require_direct_directory(root, STAGE / "scripts")
+    require_direct_directory(root, STAGE / "inputs")
     git_commit = git_head(root)
     _, parent_release, parent_consumed, parent_review = validate_parent(root)
     release, release_raw = validate_recovery_release(
@@ -448,6 +487,9 @@ def run(root: Path, expected_release_hash: str) -> None:
     bioemu = bioemu.resolve(strict=True)
     if str(bioemu) != release["bioemu_root"]:
         raise PermissionError("recovery BioEmu root is noncanonical")
+    entity_root = bioemu / "bmr10109"
+    if entity_root.is_symlink() or not entity_root.is_dir():
+        raise PermissionError("released entity PDB directory is absent or indirect")
     for path in (root / RECOVERY_CONSUMED, root / RECOVERY_FAILURE, root / OUTPUT):
         if path.exists() or path.is_symlink():
             raise FileExistsError(f"recovery terminal path already exists: {path}")
