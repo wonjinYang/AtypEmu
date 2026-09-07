@@ -33,6 +33,10 @@ CONDITION_RELATIVE = Path(
 )
 ARCHIVE_SHA256 = "69fee89d20588cbeb2a15cc1c4a4f002f63a50928f2028f5835c5b3b871061c2"
 CONDITION_SHA256 = "ac51d7a40259f3a61e5fec0b521964d85a86d54aa2b91b78d051f9a0cca22618"
+IMPLEMENTATION_REVIEW_RELATIVE = Path(
+    "gpuopt/preunblind/atypemu_nested_support_count_v1_"
+    "ff15ipq_all_support_implementation_cold_review_receipt_v1.json"
+)
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 UID = re.compile(r"bmrb:([0-9]+):entity:1\Z")
 MIDPOINTS = ["2.2", "5.45", "7.5", "9.25", "12.0"]
@@ -272,14 +276,21 @@ def root_file(root: Path, relative: Path) -> bytes:
         while chunk := os.read(file_fd, 1024 * 1024):
             chunks.append(chunk)
         after = os.fstat(file_fd)
-        identity = lambda value: (
-            value.st_dev,
-            value.st_ino,
-            value.st_size,
-            value.st_mtime_ns,
-            value.st_ctime_ns,
+        before_identity = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
         )
-        if identity(before) != identity(after):
+        after_identity = (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
+        )
+        if before_identity != after_identity:
             raise ValueError(f"file changed during read: {relative}")
         return b"".join(chunks)
     finally:
@@ -355,10 +366,106 @@ def validate(root: Path) -> int:
     )
     if plan["candidate_id"] != CANDIDATE_ID:
         raise ValueError("candidate mismatch")
-    if plan["state"] != "HOLD_INPUT_PROJECTION_FROZEN_IMPLEMENTATION_ABSENT_UNRUN":
+    if plan["state"] != "HOLD_EXTERNAL_SOURCE_COMMITMENT_PENDING_UNRUN":
         raise ValueError("plan escaped HOLD")
-    if plan["execution_contract"]["source_commitment"] != "ABSENT_UNFROZEN":
+    if (
+        plan["execution_contract"]["source_commitment"] != "EXTERNAL_O_EXCL_PENDING"
+        or plan["execution_contract"].get("source_commitment_path")
+        != ".auto/staging/atypemu_nested_support_count_v1_"
+        "ff15ipq_all_support_source_commitment_v1.json"
+    ):
         raise ValueError("source commitment unexpectedly present")
+    if plan["design_provenance"].get("support_validation_partition") != {
+        "development_only_indices": [1],
+        "development_role": "consistency_replay_only",
+        "new_qualification_index_inclusive_range": [2, 1000],
+    }:
+        raise ValueError("outcome-informed support partition drifted")
+    if not (
+        plan["execution_contract"].get("bounded_smoke_condition_state") == "observed"
+        and plan["execution_contract"].get("bounded_smoke_entity_count") == 1
+        and plan["execution_contract"].get("full_cohort_runner_included") is False
+        and plan["execution_contract"].get("qualification_release")
+        == (
+            "The first external source commitment and release are bounded-smoke-only, "
+            "must exact-bind the reviewed Git commit, source hash, runtime SIF, and an "
+            "externally supplied execution-release hash, and must name exactly one "
+            "observed-condition entity. Full qualification requires a new implementation, "
+            "source commitment, and release after the smoke is sealed and reviewed."
+        )
+    ):
+        raise ValueError("bounded-smoke implementation scope drifted")
+    review_binding = plan["design_provenance"].get("pre_smoke_cold_review")
+    if review_binding != {
+        "binding": "receipt_exactly_replays_reviewed_file_sha256_manifest",
+        "path": IMPLEMENTATION_REVIEW_RELATIVE.as_posix(),
+    }:
+        raise ValueError("pre-smoke implementation review binding drifted")
+    reviewed_files = {
+        Path("gpuopt/candidates/launch_ff15ipq_all_support_qualification.py"),
+        Path("gpuopt/candidates/materialize_ff15ipq_all_support_entity.py"),
+        Path("gpuopt/candidates/check_ff15ipq_all_support_entity.py"),
+        Path("gpuopt/candidates/ff15ipq_all_support_common.py"),
+        Path("gpuopt/candidates/check_ff15ipq_all_support_qualification_plan.py"),
+        PLAN_RELATIVE,
+        INPUTS["runtime_input_projection"][0],
+    }
+    review = json_object(
+        root_file(root, IMPLEMENTATION_REVIEW_RELATIVE), "implementation review"
+    )
+    exact_keys(
+        review,
+        {
+            "candidate_id",
+            "closed_capabilities",
+            "contract",
+            "reviewed_file_sha256",
+            "reviews",
+            "state",
+        },
+        "implementation review",
+    )
+    if (
+        review["candidate_id"] != CANDIDATE_ID
+        or review["contract"]
+        != "atypemu_nested_support_count_v1_"
+        "ff15ipq_all_support_implementation_cold_review_receipt_v1"
+        or review["state"] != "GO_PRE_SMOKE_IMPLEMENTATION_REVIEW_ONLY"
+    ):
+        raise ValueError("implementation review identity drifted")
+    exact_false_map(
+        review["closed_capabilities"],
+        set(plan["closed_capabilities"]),
+        "implementation review capabilities",
+    )
+    manifest = review["reviewed_file_sha256"]
+    if not isinstance(manifest, dict) or set(manifest) != {
+        path.as_posix() for path in reviewed_files
+    }:
+        raise ValueError("implementation review file manifest drifted")
+    if any(
+        not isinstance(value, str)
+        or SHA.fullmatch(value) is None
+        or digest(root_file(root, Path(relative))) != value
+        for relative, value in manifest.items()
+    ):
+        raise ValueError("reviewed implementation file bytes drifted")
+    reviews = review["reviews"]
+    if (
+        not isinstance(reviews, list)
+        or len(reviews) != 3
+        or {row.get("scope") for row in reviews}
+        != {"operational", "science_and_leakage", "security_and_provenance"}
+        or any(
+            not isinstance(row, dict)
+            or set(row) != {"scope", "session", "verdict"}
+            or not isinstance(row["session"], str)
+            or not row["session"]
+            or row["verdict"] != "GO"
+            for row in reviews
+        )
+    ):
+        raise ValueError("implementation review verdicts drifted")
     if plan["openmm_policy"] != {
         "add_hydrogens_call": (
             "Modeller.addHydrogens(forcefield, pH=branch_ph, variants=None, "
@@ -375,8 +482,8 @@ def validate(root: Path) -> int:
         ),
         "platform": "Reference",
         "randomness": (
-            "candidate/entity/support/branch/role SHA256-derived seed with isolated "
-            "process and every exposed RNG seeded"
+            "candidate/entity/support/branch SHA256-derived seed with isolated process "
+            "and every exposed RNG seeded"
         ),
         "unsupported_residue_or_template": (
             "fail the entire candidate without entity or residue exception"
@@ -437,6 +544,12 @@ def validate(root: Path) -> int:
         access.get("worker_raw_catalog_access_allowed") is not False
         or access.get("runtime_pdb_path_template")
         != "data/BioEmu/{bmrb_id}/{bmrb_id}_BioEmu_{support_index}.pdb"
+        or access.get("runtime_pdb_rule")
+        != (
+            "The worker may read only this committed-relative path derived from "
+            "the frozen projection through the launcher's fixed read-only BioEmu "
+            "mount and must hash-check raw bytes before parsing."
+        )
         or not isinstance(forbidden, list)
         or set(forbidden)
         != {
@@ -578,6 +691,21 @@ def validate(root: Path) -> int:
         exact_keys(shard, SHARD_KEYS, "catalog shard")
         if shard.get("shard_index") != shard_index or shard.get("shard_count") != 27:
             raise ValueError("catalog shard identity mismatch")
+        closed_capabilities = {
+            key: shard[key]
+            for key in {
+                "authorization_consumed",
+                "outer_or_formal_metrics_opened",
+                "science_executed",
+                "source_scores_read",
+                "target_values_read",
+            }
+        }
+        exact_false_map(
+            closed_capabilities,
+            set(closed_capabilities),
+            "catalog shard capabilities",
+        )
         rows = shard.get("entities")
         if not isinstance(rows, list) or shard.get("entity_count") != len(rows):
             raise ValueError("catalog shard entity count mismatch")

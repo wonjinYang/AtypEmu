@@ -19,16 +19,31 @@
   "design_provenance": {
     "claim": "The generic complete-protonation route was developed after the prior assigned-proton coverage blocker was known; this is not a pre-disclosure or untouched-data hypothesis.",
     "execution_independence": "The uniform OpenMM algorithm and force field apply to every listed source support without access to assigned-atom identities, fold roles, target values, eligibility rows, or scores.",
-    "later_coverage_gate": "Any assigned-atom coverage claim requires a separately frozen identity-only recount after these support bytes are immutable."
+    "holdout_support_rule": "Support index 1 is development-only because its target-unread result informed selection of ff15ipq. Any later all-support qualification must report index 1 only as a frozen consistency replay and must define new qualification evidence over untouched support indices 2 through 1000.",
+    "later_coverage_gate": "Any assigned-atom coverage claim requires a separately frozen identity-only recount after these support bytes are immutable.",
+    "pre_smoke_cold_review": {
+      "binding": "receipt_exactly_replays_reviewed_file_sha256_manifest",
+      "path": "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_all_support_implementation_cold_review_receipt_v1.json"
+    },
+    "support_validation_partition": {
+      "development_only_indices": [1],
+      "development_role": "consistency_replay_only",
+      "new_qualification_index_inclusive_range": [2, 1000]
+    }
   },
   "execution_contract": {
+    "bounded_smoke_condition_state": "observed",
+    "bounded_smoke_entity_count": 1,
     "catalog_shard_count": 27,
     "checker": "independently regenerates every state in a fresh process and byte-compares the emitted PDB before sealing each shard",
     "generation": "one stored deterministic gzip-compressed PDB per support-condition state",
     "immutable_outputs": true,
     "no_clobber": true,
+    "full_cohort_runner_included": false,
     "runtime": "hash-bound Singularity image with networking disabled",
-    "source_commitment": "ABSENT_UNFROZEN",
+    "qualification_release": "The first external source commitment and release are bounded-smoke-only, must exact-bind the reviewed Git commit, source hash, runtime SIF, and an externally supplied execution-release hash, and must name exactly one observed-condition entity. Full qualification requires a new implementation, source commitment, and release after the smoke is sealed and reviewed.",
+    "source_commitment": "EXTERNAL_O_EXCL_PENDING",
+    "source_commitment_path": ".auto/staging/atypemu_nested_support_count_v1_ff15ipq_all_support_source_commitment_v1.json",
     "state_process_isolation": true
   },
   "frozen_inputs": {
@@ -104,7 +119,7 @@
       "support1_postrun_audit"
     ],
     "runtime_pdb_path_template": "data/BioEmu/{bmrb_id}/{bmrb_id}_BioEmu_{support_index}.pdb",
-    "runtime_pdb_rule": "The worker may read only this committed-relative path derived from the frozen projection and must hash-check raw bytes before parsing; the launcher stages each file at that exact path after hash verification.",
+    "runtime_pdb_rule": "The worker may read only this committed-relative path derived from the frozen projection through the launcher's fixed read-only BioEmu mount and must hash-check raw bytes before parsing.",
     "worker_raw_catalog_access_allowed": false
   },
   "openmm_policy": {
@@ -115,7 +130,7 @@
     "openmm_exact_version": "8.6.0.dev-c6173db",
     "parent_heavy_atoms": "exact ordered atom identity and 0.001-A parsed coordinate preservation",
     "platform": "Reference",
-    "randomness": "candidate/entity/support/branch/role SHA256-derived seed with isolated process and every exposed RNG seeded",
+    "randomness": "candidate/entity/support/branch SHA256-derived seed with isolated process and every exposed RNG seeded",
     "unsupported_residue_or_template": "fail the entire candidate without entity or residue exception",
     "variants": null
   },
@@ -207,15 +222,17 @@
     "qualification and complete-coordinate asset construction only",
     "no support ordering, diversity, exact-nesting, source-gate, sampling-sufficiency, science, CCC, or formal-evaluation claim",
     "PASS from the static validator means only that this unexecuted HOLD plan is internally consistent",
-    "support-1 evidence is a bounded method smoke and does not establish any all-support property",
+    "support index 1 is outcome-informed development evidence and may be replayed only as a consistency check; untouched indices 2 through 1000 define any later new all-support qualification evidence",
+    "the committed implementation in this stage supports only the one-observed-entity bounded smoke; no full-cohort runner or aggregate result is supplied or implied",
     "proposal pH branches and support weights are not posterior q"
   ],
   "stage_order": [
     "replay the frozen minimal runtime input projection and deny generator access to provenance-only inputs",
     "implement generator and separately authored checker",
     "obtain independent pre-smoke cold GO on the implementation and frozen inputs",
+    "freeze executable source and every transitive input in an external O_EXCL commitment",
+    "obtain an external hash-bound bounded-smoke execution release",
     "run bounded target-unread performance and storage smoke",
-    "freeze executable source and every transitive input",
     "obtain independent final cold GO on the exact source commitment",
     "execute each of 27 shards once",
     "independently replay each shard and seal complete aggregate evidence",
@@ -224,10 +241,10 @@
     "run a separately frozen identity-only assigned-atom coverage recount",
     "create a separate science commitment, obtain independent review, and request fresh one-shot authorization only if every prior gate passes"
   ],
-  "state": "HOLD_INPUT_PROJECTION_FROZEN_IMPLEMENTATION_ABSENT_UNRUN",
+  "state": "HOLD_EXTERNAL_SOURCE_COMMITMENT_PENDING_UNRUN",
   "study_id": "atypemu_nested_support_count_v1",
   "validator": {
     "path": "gpuopt/candidates/check_ff15ipq_all_support_qualification_plan.py",
-    "sha256": "efe00249af7595b651d4b06aa0d1998bcecf86d7b6da2d29a953c54daa82651c"
+    "sha256": "f73f62dea6015e731c18e6c726320630d6b9ebd2abbbfa934159fb018077871a"
   }
 }
