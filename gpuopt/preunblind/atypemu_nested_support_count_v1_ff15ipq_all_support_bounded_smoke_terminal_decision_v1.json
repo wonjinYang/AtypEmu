@@ -1,0 +1,33 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_all_support_qualification_v1_bounded_smoke_recovery_v1",
+  "closed_capabilities": {
+    "authorization_consumed": false,
+    "outer_or_formal_metrics_opened": false,
+    "science_executed": false,
+    "source_construction_executed": false,
+    "source_scores_read": false,
+    "target_atom_identities_read": false,
+    "target_values_read": false
+  },
+  "contract": "atypemu_ff15ipq_all_support_bounded_smoke_terminal_decision_v1",
+  "decision": "NO_GO_BOUNDED_SMOKE",
+  "entity_uid": "bmrb:10109:entity:1",
+  "full_135_entity_route": "CLOSED",
+  "interpretation": {
+    "aggregate_or_feasibility_claim_allowed": false,
+    "failure_class": "PRODUCER_NONZERO_BEFORE_CHECKER_OR_RESULT",
+    "hydrogen_angle_or_support_identity_claim_allowed": false,
+    "ordinary_rerun_or_recovery_reuse_allowed": false,
+    "sealed_root_cause_available": false,
+    "unpersisted_terminal_stderr_is_diagnostic_only": true
+  },
+  "parent_execution_failure_sha256": "1696e06548cd09fb0f5222e68b5b8a5281245701799ee1c262f017e05ef3d2bc",
+  "parent_source_commitment_sha256": "351514037add35de3167fc69aa387e439e2cfeeb068b960a4f9cf61afdf0d540",
+  "recovery_consumed_sha256": "0147ca81c7493ee702c704a530cf3621460360831b985e71721ef497eeb78355",
+  "recovery_failure_sha256": "06e49c2e4dae55f6da6ae43d77b9f9891ef7a8dbd43114668b9cade271bbbeb7",
+  "recovery_release_sha256": "14e3b48fc1bf2c41958b8064bf1f839d5c35d4edfecd01baa30a8c17b78142f7",
+  "recovery_source_git_commit": "f4cd3a7942f0bf610d1ca680320bd00b14698708",
+  "state": "TERMINAL_NO_GO_FULL_ROUTE_REMAINS_CLOSED",
+  "terminal_inventory_relative": "gpuopt/preunblind/atypemu_nested_support_count_v1_ff15ipq_all_support_bounded_smoke_terminal_inventory_v1.json",
+  "terminal_inventory_sha256": "eedcd06f38e4234a29eb6b2bc981a87928406b507f9ccb102bd282f4957b881f"
+}

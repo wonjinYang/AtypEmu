@@ -1,0 +1,15 @@
+{
+  "candidate_id": "atypemu_nested_support_count_v1_ff15ipq_all_support_qualification_v1_bounded_smoke_recovery_v1",
+  "checker_receipt_regular_file_count": 0,
+  "contract": "atypemu_ff15ipq_all_support_bounded_smoke_terminal_inventory_v1",
+  "entity_archive_regular_file_count": 0,
+  "entity_uid": "bmrb:10109:entity:1",
+  "recovery_consumed_sha256": "0147ca81c7493ee702c704a530cf3621460360831b985e71721ef497eeb78355",
+  "recovery_failure_sha256": "06e49c2e4dae55f6da6ae43d77b9f9891ef7a8dbd43114668b9cade271bbbeb7",
+  "recovery_release_sha256": "14e3b48fc1bf2c41958b8064bf1f839d5c35d4edfecd01baa30a8c17b78142f7",
+  "recovery_result_absent": true,
+  "recovery_review_sha256": "0cb87e3958a76eeaff1c69f12fbd1eda36ae0ce3e35b19c97de2e4c436943273",
+  "sealed_projected_pdb_count": 998,
+  "state": "TERMINAL_FAILURE_INVENTORY_SEALED_FOR_DECISION",
+  "stderr_persisted": false
+}
